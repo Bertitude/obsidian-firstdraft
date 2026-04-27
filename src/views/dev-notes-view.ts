@@ -2,11 +2,12 @@ import { ItemView, TFile, WorkspaceLeaf } from "obsidian";
 import type FirstDraftPlugin from "../main";
 import type { ProjectMeta } from "../types";
 import { resolveActiveProject } from "../projects/resolver";
-import { sceneDevNotePath, characterRoster } from "./lookups";
+import { characterRoster, scenePairFromActive } from "./lookups";
 import {
 	renderHeader,
 	renderEmptyState,
 	renderSceneSection,
+	renderFountainSection,
 	renderCharactersSection,
 	renderLocationSection,
 } from "./render";
@@ -59,33 +60,57 @@ export class DevNotesView extends ItemView {
 		this.currentDevNotePath = null;
 
 		const file = this.app.workspace.getActiveFile();
-		if (!file || file.extension !== "fountain") {
+		if (!file) {
 			renderEmptyState(this.contentEl, file);
 			return;
 		}
 
 		const project = resolveActiveProject(file, this.plugin.scanner);
 		if (!project) {
-			renderEmptyState(this.contentEl, file, "Open a scene inside a known project to see its dev notes.");
+			renderEmptyState(this.contentEl, file);
+			return;
+		}
+
+		const cfg = this.plugin.settings.global;
+		const pair = scenePairFromActive(this.app, file, project, cfg);
+		if (!pair) {
+			renderEmptyState(
+				this.contentEl,
+				file,
+				"This file isn't a scene fountain or a scene dev note. Open one to see its development context.",
+			);
 			return;
 		}
 
 		renderHeader(this.contentEl, project, () => this.openSettings(project));
+		this.currentDevNotePath = pair.devNotePath;
 
-		const cfg = this.plugin.settings.global;
-		const ref = sceneDevNotePath(file, project, cfg);
-		this.currentDevNotePath = ref.path;
+		// Middle section depends on which side is active. Either way, characters and
+		// locations are sourced from the dev note's frontmatter (the single source of
+		// truth for scene metadata) — independent of which file the user is editing.
+		if (pair.activeMode === "fountain") {
+			await renderSceneSection({
+				container: this.contentEl,
+				view: this,
+				scene: file,
+				noteRef: { path: pair.devNotePath, file: pair.devNoteFile },
+				template: cfg.sceneNoteTemplate,
+				plugin: this.plugin,
+			});
+		} else {
+			renderFountainSection({
+				container: this.contentEl,
+				view: this,
+				plugin: this.plugin,
+				devNote: file,
+				fountainPath: pair.fountainPath,
+				fountainFile: pair.fountainFile,
+			});
+		}
 
-		await renderSceneSection({
-			container: this.contentEl,
-			view: this,
-			scene: file,
-			noteRef: ref,
-			template: cfg.sceneNoteTemplate,
-			plugin: this.plugin,
-		});
-
-		const fm = ref.file ? this.app.metadataCache.getFileCache(ref.file)?.frontmatter : undefined;
+		const fm = pair.devNoteFile
+			? this.app.metadataCache.getFileCache(pair.devNoteFile)?.frontmatter
+			: undefined;
 		const characterNames = collectStringArray(fm?.characters);
 		const locationNames = collectLocations(fm);
 

@@ -122,6 +122,58 @@ async function createSceneNote(
 	}
 }
 
+// ── fountain section (rendered when a dev note is the active file) ───────
+
+interface FountainSectionOpts extends SectionOpts {
+	devNote: TFile;
+	fountainPath: string;
+	fountainFile: TFile | null;
+}
+
+export function renderFountainSection(opts: FountainSectionOpts): void {
+	const { container, plugin, devNote, fountainPath, fountainFile } = opts;
+
+	container.createEl("h3", { text: devNote.basename, cls: "firstdraft-scene-title" });
+	container.createEl("hr", { cls: "firstdraft-divider" });
+
+	const body = container.createDiv({ cls: "firstdraft-scene-body" });
+	const wrap = body.createDiv({ cls: "firstdraft-create-prompt" });
+
+	if (fountainFile) {
+		wrap.createEl("p", { text: "Scene file ready." });
+		const link = wrap.createEl("a", {
+			text: "Open scene file →",
+			cls: "firstdraft-card-open",
+			attr: { href: "#" },
+		});
+		link.addEventListener("click", (e) => {
+			e.preventDefault();
+			void plugin.app.workspace.getLeaf(false).openFile(fountainFile);
+		});
+		return;
+	}
+
+	wrap.createEl("p", { text: "No scene file yet. Outline here, draft when ready." });
+	const btn = wrap.createEl("button", {
+		text: "Create scene file",
+		cls: "mod-cta",
+	});
+	btn.addEventListener("click", () => {
+		void createSceneFile(plugin, fountainPath);
+	});
+}
+
+async function createSceneFile(plugin: FirstDraftPlugin, path: string): Promise<void> {
+	try {
+		await ensureFolderExists(plugin, parentPath(path));
+		const created = await plugin.app.vault.create(path, "");
+		await plugin.app.workspace.getLeaf(false).openFile(created);
+		new Notice("Scene file created.");
+	} catch (e) {
+		new Notice(`Could not create scene file: ${(e as Error).message}`);
+	}
+}
+
 async function ensureFolderExists(plugin: FirstDraftPlugin, folderPath: string): Promise<void> {
 	if (!folderPath) return;
 	const existing = plugin.app.vault.getAbstractFileByPath(folderPath);

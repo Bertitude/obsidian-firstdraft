@@ -9,6 +9,15 @@ export interface DevNoteRef {
 	file: TFile | null; // null if the note hasn't been created yet
 }
 
+export interface ScenePair {
+	sceneName: string; // shared basename
+	fountainPath: string;
+	fountainFile: TFile | null;
+	devNotePath: string;
+	devNoteFile: TFile | null;
+	activeMode: "fountain" | "dev-note"; // which side the user has open
+}
+
 export interface CharacterEntry {
 	name: string; // display name as used in fountain cues (uppercase)
 	folderName: string; // original folder casing
@@ -33,6 +42,45 @@ export function sceneDevNotePath(
 		`${project.projectRootPath}/${cfg.developmentFolder}/${cfg.scenesSubfolder}/${scene.basename}.md`,
 	);
 	return { path, file: lookupFile(scene.vault as unknown, path) };
+}
+
+// Given any active file inside a project, return the matching pair of fountain +
+// dev note paths/files (whichever side exists). Returns null if the file is not a
+// recognised scene fountain or scene dev note.
+export function scenePairFromActive(
+	app: App,
+	active: TFile,
+	project: ProjectMeta,
+	cfg: GlobalConfig,
+): ScenePair | null {
+	const devScenesPath = normalizePath(
+		`${project.projectRootPath}/${cfg.developmentFolder}/${cfg.scenesSubfolder}`,
+	);
+	const fountainFolderPath = project.sceneFolderPath;
+
+	let mode: "fountain" | "dev-note" | null = null;
+	if (active.extension === "fountain" && active.path.startsWith(fountainFolderPath + "/")) {
+		mode = "fountain";
+	} else if (
+		active.extension === "md" &&
+		active.path.startsWith(devScenesPath + "/")
+	) {
+		mode = "dev-note";
+	}
+	if (!mode) return null;
+
+	const sceneName = active.basename;
+	const fountainPath = normalizePath(`${fountainFolderPath}/${sceneName}.fountain`);
+	const devNotePath = normalizePath(`${devScenesPath}/${sceneName}.md`);
+
+	return {
+		sceneName,
+		fountainPath,
+		fountainFile: lookupFile(app.vault as unknown, fountainPath),
+		devNotePath,
+		devNoteFile: lookupFile(app.vault as unknown, devNotePath),
+		activeMode: mode,
+	};
 }
 
 // Roster of characters for a project. For TV episodes, episode-level characters
