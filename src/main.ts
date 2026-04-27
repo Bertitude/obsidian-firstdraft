@@ -8,6 +8,12 @@ import { registerEventHandlers } from "./events/register";
 import { DevNotesView, activateDevNotesView } from "./views/dev-notes-view";
 import { VIEW_TYPE_DEV_NOTES } from "./views/view-types";
 import { runCreateOutlineCommand, runPromoteOutlineCommand } from "./outline/promote";
+import {
+	runSnapshotFileCommand,
+	runSnapshotProjectCommand,
+	runBrowseVersionsCommand,
+	runRestoreFromSnapshotCommand,
+} from "./versioning/snapshot-commands";
 
 export default class FirstDraftPlugin extends Plugin {
 	settings!: FirstDraftSettings;
@@ -51,6 +57,38 @@ export default class FirstDraftPlugin extends Plugin {
 			name: "Promote outline to scenes",
 			callback: () => {
 				void runPromoteOutlineCommand(this);
+			},
+		});
+
+		this.addCommand({
+			id: "snapshot-file",
+			name: "Snapshot file",
+			callback: () => {
+				void runSnapshotFileCommand(this);
+			},
+		});
+
+		this.addCommand({
+			id: "snapshot-project",
+			name: "Snapshot project draft",
+			callback: () => {
+				void runSnapshotProjectCommand(this);
+			},
+		});
+
+		this.addCommand({
+			id: "browse-versions",
+			name: "Browse file versions",
+			callback: () => {
+				void runBrowseVersionsCommand(this);
+			},
+		});
+
+		this.addCommand({
+			id: "restore-from-snapshot",
+			name: "Restore file from snapshot",
+			callback: () => {
+				void runRestoreFromSnapshotCommand(this);
 			},
 		});
 
