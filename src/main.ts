@@ -1,11 +1,12 @@
-import { Notice, Plugin } from "obsidian";
+import { Plugin } from "obsidian";
 import type { FirstDraftSettings } from "./types";
 import { DEFAULT_SETTINGS } from "./settings/defaults";
 import { mergeSettings } from "./settings/merge";
 import { FirstDraftSettingTab } from "./settings/settings-tab";
 import { ProjectScanner } from "./projects/scanner";
-import { resolveActiveProject } from "./projects/resolver";
 import { registerEventHandlers } from "./events/register";
+import { DevNotesView, activateDevNotesView } from "./views/dev-notes-view";
+import { VIEW_TYPE_DEV_NOTES } from "./views/view-types";
 
 export default class FirstDraftPlugin extends Plugin {
 	settings!: FirstDraftSettings;
@@ -20,15 +21,29 @@ export default class FirstDraftPlugin extends Plugin {
 			() => this.settings.global.debugLogging,
 		);
 
+		this.registerView(VIEW_TYPE_DEV_NOTES, (leaf) => new DevNotesView(leaf, this));
 		this.addSettingTab(new FirstDraftSettingTab(this.app, this));
 		registerEventHandlers(this);
-		this.registerDebugCommands();
+
+		this.addRibbonIcon("notebook-pen", "Open dev notes panel", () => {
+			void activateDevNotesView(this);
+		});
+
+		this.addCommand({
+			id: "open-dev-notes-panel",
+			name: "Open dev notes panel",
+			callback: () => {
+				void activateDevNotesView(this);
+			},
+		});
 
 		this.app.workspace.onLayoutReady(() => this.scanner.scanAll());
 	}
 
 	onunload(): void {
-		// Listeners and commands registered via the plugin API clean up automatically.
+		// Listeners, commands, and registered views clean up automatically. Leaves of
+		// our view type stay open across reloads — Obsidian will recreate them via the
+		// view factory we registered.
 	}
 
 	async loadSettings(): Promise<void> {
@@ -38,34 +53,5 @@ export default class FirstDraftPlugin extends Plugin {
 
 	async saveSettings(): Promise<void> {
 		await this.saveData(this.settings);
-	}
-
-	// Phase 1 verification helpers — removed when Phase 2 ships its own panel.
-	private registerDebugCommands(): void {
-		this.addCommand({
-			id: "debug-log-projects",
-			name: "Debug: log detected projects",
-			callback: () => {
-				const rows = [...this.scanner.projects.values()];
-				console.debug(`[FirstDraft] ${rows.length} project(s) detected:`, rows);
-				new Notice(`FirstDraft: ${rows.length} project(s) — see console.`);
-			},
-		});
-
-		this.addCommand({
-			id: "debug-log-active-project",
-			name: "Debug: log active project",
-			callback: () => {
-				const file = this.app.workspace.getActiveFile();
-				const meta = resolveActiveProject(file, this.scanner);
-				console.debug("[FirstDraft] Active file:", file?.path ?? "(none)");
-				console.debug("[FirstDraft] Resolved project:", meta);
-				new Notice(
-					meta
-						? `FirstDraft: project "${meta.title ?? meta.indexFilePath}"`
-						: "FirstDraft: no project for active file.",
-				);
-			},
-		});
 	}
 }

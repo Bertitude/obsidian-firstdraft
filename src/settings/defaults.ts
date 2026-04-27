@@ -3,18 +3,22 @@ import type { FirstDraftSettings } from "../types";
 // prettier-ignore
 export const SCENE_NOTE_TEMPLATE = `---
 scene:
-location:
+locations: []
 time:
 characters: []
 tags: []
 status: draft
 ---
 
-## Intent
+## Sequence intent
 
 ## Notes
 
 ## Continuity
+
+<!-- For sequences with multiple sluglines, add one H2 per slugline below
+     (e.g. "## INT. CAR - DAY") and put per-scene notes underneath.
+     Phase 3 will scroll to the matching section as your cursor moves. -->
 `;
 
 // prettier-ignore
@@ -81,6 +85,6 @@ export const DEFAULT_SETTINGS: FirstDraftSettings = {
 			hideStatusBar: true,
 			hideLeftSidebar: true,
 		},
-		debugLogging: true,
+		debugLogging: false,
 	},
 };
