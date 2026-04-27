@@ -7,6 +7,7 @@ import { ProjectScanner } from "./projects/scanner";
 import { registerEventHandlers } from "./events/register";
 import { DevNotesView, activateDevNotesView } from "./views/dev-notes-view";
 import { VIEW_TYPE_DEV_NOTES } from "./views/view-types";
+import { runCreateOutlineCommand, runPromoteOutlineCommand } from "./outline/promote";
 
 export default class FirstDraftPlugin extends Plugin {
 	settings!: FirstDraftSettings;
@@ -34,6 +35,22 @@ export default class FirstDraftPlugin extends Plugin {
 			name: "Open dev notes panel",
 			callback: () => {
 				void activateDevNotesView(this);
+			},
+		});
+
+		this.addCommand({
+			id: "create-outline",
+			name: "Create outline",
+			callback: () => {
+				void runCreateOutlineCommand(this);
+			},
+		});
+
+		this.addCommand({
+			id: "promote-outline",
+			name: "Promote outline to scenes",
+			callback: () => {
+				void runPromoteOutlineCommand(this);
 			},
 		});
 

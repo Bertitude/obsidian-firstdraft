@@ -66,6 +66,26 @@ Backstory of the location relevant to the story.
 ## Notes
 `;
 
+// prettier-ignore
+export const OUTLINE_TEMPLATE = `---
+type: outline
+status: draft
+promoted_at:
+---
+
+# Outline
+
+<!-- Add one H2 per beat. The H2 title becomes the scene's filename when
+     you run "FirstDraft: Promote outline to scenes". The prose under each
+     H2 becomes the dev note's "Sequence intent" section. -->
+
+## First beat
+What happens here. A few sentences.
+
+## Second beat
+What happens next.
+`;
+
 export const DEFAULT_SETTINGS: FirstDraftSettings = {
 	projects: {},
 	global: {
