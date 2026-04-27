@@ -15,6 +15,7 @@ import {
 	runBrowseVersionsCommand,
 	runRestoreFromSnapshotCommand,
 } from "./versioning/snapshot-commands";
+import { CharacterCueSuggest } from "./autocomplete/character-suggest";
 
 export default class FirstDraftPlugin extends Plugin {
 	settings!: FirstDraftSettings;
@@ -31,6 +32,7 @@ export default class FirstDraftPlugin extends Plugin {
 
 		this.registerView(VIEW_TYPE_DEV_NOTES, (leaf) => new DevNotesView(leaf, this));
 		this.registerView(VIEW_TYPE_TREATMENT, (leaf) => new TreatmentView(leaf, this));
+		this.registerEditorSuggest(new CharacterCueSuggest(this));
 		this.addSettingTab(new FirstDraftSettingTab(this.app, this));
 		registerEventHandlers(this);
 

@@ -208,3 +208,90 @@ function lookupFile(vaultLike: unknown, path: string): TFile | null {
 	const f = v.getAbstractFileByPath?.(path);
 	return f instanceof TFile ? f : null;
 }
+
+// ── Autocomplete roster (Phase 4) ────────────────────────────────────────
+
+export interface AutocompleteRosterEntry {
+	name: string; // uppercase form, used for matching and cue insertion
+	folderCasing: string | null; // folder basename if exists, else null
+}
+
+const SCENE_HEADING_RE_FOR_CUES = /^(INT|EXT|INT\.\/EXT|I\/E)[.\s]/i;
+const CUE_LINE_RE = /^[A-Z][A-Z\s]*$/;
+
+// Parse character cues out of a fountain document. A cue is an uppercase line
+// preceded by a blank line (or the start of file), excluding scene headings.
+// Parenthetical extensions like "(V.O.)" are stripped before the uppercase check.
+export function parseCharacterCues(fountain: string): string[] {
+	const out: string[] = [];
+	const lines = fountain.split(/\r?\n/);
+	for (let i = 0; i < lines.length; i++) {
+		const raw = lines[i] ?? "";
+		const line = raw.trim();
+		if (line === "") continue;
+		if (SCENE_HEADING_RE_FOR_CUES.test(line)) continue;
+
+		const prevIsBlank = i === 0 || (lines[i - 1] ?? "").trim() === "";
+		if (!prevIsBlank) continue;
+
+		const cue = line.split("(")[0]?.trim() ?? line;
+		if (cue === "" || !CUE_LINE_RE.test(cue)) continue;
+		out.push(cue);
+	}
+	return out;
+}
+
+// Combine three roster sources into a single deduplicated list:
+//   1. Character folders in Development/Characters/
+//   2. Names already in the active scene dev note's `characters:` array
+//   3. Cues parsed from every .fountain file in project.sceneFolderPath
+//
+// Folder-derived entries provide canonical casing; the other sources contribute
+// names with `folderCasing: null`. Caller passes a cache keyed by file path so
+// repeated suggestion lookups don't re-read every fountain on each keystroke.
+export async function buildExpandedRoster(
+	app: App,
+	project: ProjectMeta,
+	cfg: GlobalConfig,
+	devNoteFile: TFile | null,
+	cueCache: Map<string, string[]>,
+): Promise<AutocompleteRosterEntry[]> {
+	const map = new Map<string, AutocompleteRosterEntry>();
+
+	for (const entry of characterRoster(app, project, cfg)) {
+		map.set(entry.name, { name: entry.name, folderCasing: entry.folderName });
+	}
+
+	if (devNoteFile) {
+		const fm = app.metadataCache.getFileCache(devNoteFile)?.frontmatter as
+			| Record<string, unknown>
+			| undefined;
+		const chars = Array.isArray(fm?.characters) ? (fm?.characters as unknown[]) : [];
+		for (const raw of chars) {
+			if (typeof raw !== "string") continue;
+			const key = raw.trim().toUpperCase();
+			if (key === "" || map.has(key)) continue;
+			map.set(key, { name: key, folderCasing: null });
+		}
+	}
+
+	const fountainFolder = app.vault.getAbstractFileByPath(project.sceneFolderPath);
+	if (fountainFolder instanceof TFolder) {
+		for (const child of fountainFolder.children) {
+			if (!(child instanceof TFile) || child.extension !== "fountain") continue;
+			let cues = cueCache.get(child.path);
+			if (!cues) {
+				const text = await app.vault.cachedRead(child);
+				cues = parseCharacterCues(text);
+				cueCache.set(child.path, cues);
+			}
+			for (const cue of cues) {
+				const key = cue.toUpperCase();
+				if (map.has(key)) continue;
+				map.set(key, { name: key, folderCasing: null });
+			}
+		}
+	}
+
+	return [...map.values()].sort((a, b) => a.name.localeCompare(b.name));
+}

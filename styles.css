@@ -430,3 +430,19 @@
 	background: var(--background-modifier-hover);
 	border-radius: var(--radius-s);
 }
+
+/* ── character autocomplete ────────────────────────────────────────── */
+
+.firstdraft-character-suggestion {
+	font-family: var(--font-monospace);
+}
+
+.firstdraft-character-suggestion-create {
+	font-family: inherit;
+	color: var(--text-muted);
+	font-style: italic;
+}
+
+.firstdraft-character-suggestion-prefix {
+	color: var(--text-faint);
+}
