@@ -2,7 +2,7 @@ import { App, Editor, Notice, SuggestModal, TFile, TFolder, normalizePath } from
 import type FirstDraftPlugin from "../main";
 import type { ProjectMeta } from "../types";
 import { resolveActiveProject } from "../projects/resolver";
-import { buildExpandedRoster, characterRoster, sceneDevNotePath } from "../views/lookups";
+import { buildExpandedRoster, characterRoster, locationRoster, sceneDevNotePath } from "../views/lookups";
 import { sanitizeFilename, toTitleCase } from "../utils/sanitize";
 
 // Plugin-mode-independent picker commands. These work in any editor regardless
@@ -91,19 +91,17 @@ async function buildPickerRoster(
 		}));
 	}
 
-	// Locations: folders + dev note's locations: array.
+	// Locations: pulls from locationRoster (parent folders + sub-area files,
+	// each scoped as PARENT or "PARENT - SUB"), plus any names already in the
+	// active dev note's locations: array as a fallback.
 	const map = new Map<string, PickerEntry>();
 
-	const locationsFolderPath = normalizePath(
-		`${project.projectRootPath}/${cfg.developmentFolder}/${cfg.locationsSubfolder}`,
-	);
-	const folder = plugin.app.vault.getAbstractFileByPath(locationsFolderPath);
-	if (folder instanceof TFolder) {
-		for (const child of folder.children) {
-			if (!(child instanceof TFolder)) continue;
-			const name = child.name.toUpperCase();
-			map.set(name, { kind: "existing", name, folderCasing: child.name });
-		}
+	for (const entry of locationRoster(plugin.app, project, cfg)) {
+		map.set(entry.name, {
+			kind: "existing",
+			name: entry.name,
+			folderCasing: entry.folderName,
+		});
 	}
 
 	if (devNoteFile) {

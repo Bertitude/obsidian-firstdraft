@@ -109,8 +109,11 @@ export function scenePairFromActive(
 	};
 }
 
-// Roster of characters for a project. For TV episodes, episode-level characters
-// shadow series-level characters of the same name (case-insensitive).
+// Roster of characters for a project. Each .md file inside a character folder
+// becomes its own roster entry — the file matching the folder name is the
+// "primary" character; other .md files are versions (e.g. YOUNG MARCUS,
+// OLD MARCUS sharing the Marcus folder). For TV episodes, episode-level
+// characters shadow series-level characters of the same name.
 export function characterRoster(
 	app: App,
 	project: ProjectMeta,
@@ -119,24 +122,65 @@ export function characterRoster(
 	const seen = new Set<string>();
 	const out: CharacterEntry[] = [];
 
-	const episodeFolder = devSubfolder(app, project.projectRootPath, cfg.developmentFolder, cfg.charactersSubfolder);
-	collectFolders(episodeFolder, (folder) => {
-		const key = folder.name.toUpperCase();
-		if (seen.has(key)) return;
-		seen.add(key);
-		out.push(makeCharacterEntry(app, folder));
-	});
+	const collectFromFolder = (root: TFolder | null) => {
+		if (!root) return;
+		for (const folder of root.children) {
+			if (!(folder instanceof TFolder)) continue;
+			for (const file of folder.children) {
+				if (!(file instanceof TFile) || file.extension !== "md") continue;
+				const name = file.basename.toUpperCase();
+				if (seen.has(name)) continue;
+				seen.add(name);
+				out.push({
+					name,
+					folderName: folder.name,
+					folder,
+					canonicalFile: file,
+				});
+			}
+		}
+	};
+
+	collectFromFolder(devSubfolder(app, project.projectRootPath, cfg.developmentFolder, cfg.charactersSubfolder));
 
 	if (project.seriesDevelopmentPath) {
-		const seriesFolder = devSubfolder(app, project.seriesDevelopmentPath, "", cfg.charactersSubfolder);
-		collectFolders(seriesFolder, (folder) => {
-			const key = folder.name.toUpperCase();
-			if (seen.has(key)) return;
-			seen.add(key);
-			out.push(makeCharacterEntry(app, folder));
-		});
+		collectFromFolder(devSubfolder(app, project.seriesDevelopmentPath, "", cfg.charactersSubfolder));
 	}
 
+	out.sort((a, b) => a.name.localeCompare(b.name));
+	return out;
+}
+
+// Roster of locations for a project. Each .md file inside a location folder
+// becomes a roster entry. The file matching the folder name is the "primary"
+// location; other .md files are sub-areas combined as
+// "<PARENT> - <SUB>" (matching Fountain slugline format).
+export function locationRoster(
+	app: App,
+	project: ProjectMeta,
+	cfg: GlobalConfig,
+): LocationEntry[] {
+	const out: LocationEntry[] = [];
+	const folder = devSubfolder(app, project.projectRootPath, cfg.developmentFolder, cfg.locationsSubfolder);
+	if (!folder) return out;
+
+	for (const child of folder.children) {
+		if (!(child instanceof TFolder)) continue;
+		const expectedPrimary = `${child.name}.md`;
+		for (const file of child.children) {
+			if (!(file instanceof TFile) || file.extension !== "md") continue;
+			const isPrimary = file.name === expectedPrimary;
+			const name = isPrimary
+				? child.name.toUpperCase()
+				: `${child.name.toUpperCase()} - ${file.basename.toUpperCase()}`;
+			out.push({
+				name,
+				folderName: child.name,
+				folder: child,
+				canonicalFile: file,
+			});
+		}
+	}
 	out.sort((a, b) => a.name.localeCompare(b.name));
 	return out;
 }
@@ -156,9 +200,8 @@ export function findCharacter(
 	return null;
 }
 
-// Look up a location by folder name (case-insensitive). Episode-level only — locations
-// rarely span the whole series the way characters do, and the spec keeps location
-// folders at episode level for TV.
+// Look up a location by name (case-insensitive). Accepts both primary location
+// names (e.g. "PARK") and parent-sub combined names (e.g. "MARCUS' HOUSE - LIVING ROOM").
 export function findLocation(
 	app: App,
 	project: ProjectMeta,
@@ -167,19 +210,8 @@ export function findLocation(
 ): LocationEntry | null {
 	const target = name.trim().toUpperCase();
 	if (!target) return null;
-
-	const folder = devSubfolder(app, project.projectRootPath, cfg.developmentFolder, cfg.locationsSubfolder);
-	if (!folder) return null;
-
-	for (const child of folder.children) {
-		if (child instanceof TFolder && child.name.toUpperCase() === target) {
-			return {
-				name: target,
-				folderName: child.name,
-				folder: child,
-				canonicalFile: canonicalFileInside(child),
-			};
-		}
+	for (const entry of locationRoster(app, project, cfg)) {
+		if (entry.name === target) return entry;
 	}
 	return null;
 }
@@ -198,34 +230,6 @@ function devSubfolder(
 	return f instanceof TFolder ? f : null;
 }
 
-function collectFolders(parent: TFolder | null, visit: (folder: TFolder) => void): void {
-	if (!parent) return;
-	for (const child of parent.children) {
-		if (child instanceof TFolder) visit(child);
-	}
-}
-
-function makeCharacterEntry(_app: App, folder: TFolder): CharacterEntry {
-	return {
-		name: folder.name.toUpperCase(),
-		folderName: folder.name,
-		folder,
-		canonicalFile: canonicalFileInside(folder),
-	};
-}
-
-// Canonical doc convention: a folder named "Marcus" contains "Marcus.md" as its
-// canonical document. Falls back to the first .md child if the convention isn't met.
-function canonicalFileInside(folder: TFolder): TFile | null {
-	const expectedName = `${folder.name}.md`;
-	let fallback: TFile | null = null;
-	for (const child of folder.children) {
-		if (!(child instanceof TFile)) continue;
-		if (child.name === expectedName) return child;
-		if (child.extension === "md" && !fallback) fallback = child;
-	}
-	return fallback;
-}
 
 // Tiny shim so the helper above doesn't need the App passed everywhere — TFile carries
 // a reference to its vault. Kept generic to avoid coupling.

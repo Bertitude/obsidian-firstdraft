@@ -1,6 +1,7 @@
 import {
 	App,
 	Editor,
+	EditorPosition,
 	Modal,
 	Notice,
 	TFile,
@@ -15,9 +16,22 @@ import { linkifyEntity, type DevEntity, type LinkifyResult } from "./linkify";
 
 // Selection-to-entity creation. Highlight a name in any markdown editor, run
 // the command (or pick from the right-click menu), and FirstDraft scaffolds a
-// character or location at Development/Characters/<Name>/<Name>.md (or
-// Locations/), optionally replaces the selection with a link, and offers a
-// project-wide backfill linkify pass.
+// character or location at Development/<Subfolder>/<Name>/<Name>.md, optionally
+// replaces the selection with a link, and offers a project-wide backfill
+// linkify pass.
+//
+// Conflict handling has three branches:
+//   1. Exact match for an existing folder/file → "open existing / add suffix /
+//      cancel" modal (Phase 4b legacy).
+//   2. Selection contains a single existing folder name as a substring →
+//      "version of X / create new with suffix / cancel" modal. Versions go
+//      into the parent's folder (e.g. Marcus/Young Marcus.md). For locations,
+//      sub-areas use the part after " - " as the filename (e.g.
+//      Marcus' House/Kitchen.md from "Marcus' House - Kitchen").
+//   3. Selection contains 2+ existing folder names as substrings → no
+//      creation; replace the selection with linked references for each
+//      detected entity. Notice reports the count.
+//   4. No matches → standard create flow.
 
 type EntityKind = "character" | "location";
 
@@ -46,10 +60,8 @@ async function createEntityFromSelection(
 		return;
 	}
 
-	// Capture selection range BEFORE any awaits — the live selection state
-	// gets lost as we await folder/file creation and modal interactions.
-	// Using replaceRange with explicit coordinates lets us swap the text in
-	// even if focus has moved by the time the link is ready.
+	// Capture selection range upfront — see Phase 4b note about awaits losing
+	// the live selection.
 	const selFrom = editor.getCursor("from");
 	const selTo = editor.getCursor("to");
 
@@ -73,20 +85,68 @@ async function createEntityFromSelection(
 		`${project.projectRootPath}/${cfg.developmentFolder}/${subfolder}`,
 	);
 
-	// Conflict check (case-insensitive, since Windows is case-insensitive).
-	const existing = findExistingEntity(plugin.app, entityRoot, folderCasing);
-	let finalName = folderCasing;
-	if (existing) {
-		const decision = await openConflictModal(plugin.app, kind, folderCasing);
+	// Branch 1: exact name match → existing-name conflict flow
+	const existingExact = findExistingEntity(plugin.app, entityRoot, folderCasing);
+	if (existingExact) {
+		await handleExactConflict({
+			plugin,
+			project,
+			kind,
+			folderCasing,
+			existing: existingExact,
+			file,
+			editor,
+			selFrom,
+			selTo,
+			entityRoot,
+			cfg,
+		});
+		return;
+	}
+
+	// Branch 2/3: substring/parent detection
+	const parents = findParentFolders(plugin.app, entityRoot, folderCasing);
+
+	if (parents.length >= 2) {
+		// Multi-parent: just replace selection with linked refs, no creation
+		const replaced = await replaceSelectionWithMultipleLinks(
+			plugin,
+			parents,
+			raw,
+			file,
+			editor,
+			selFrom,
+			selTo,
+		);
+		new Notice(
+			`Linked ${replaced} existing ${kind}${replaced === 1 ? "" : "s"}: ${parents.map((p) => p.name.toUpperCase()).join(", ")}`,
+		);
+		return;
+	}
+
+	if (parents.length === 1) {
+		const parent = parents[0]!;
+		const decision = await openParentModal(plugin.app, kind, folderCasing, parent.name);
 		if (decision.action === "cancel") return;
-		if (decision.action === "open") {
-			await plugin.app.workspace.getLeaf(false).openFile(existing.canonical);
+		if (decision.action === "version") {
+			await createAsVersion({
+				plugin,
+				project,
+				kind,
+				selectionName: folderCasing,
+				parentFolder: parent,
+				file,
+				editor,
+				selFrom,
+				selTo,
+				cfg,
+			});
 			return;
 		}
-		// "create" with suffix
-		const suffixSan = decision.suffix
-			? sanitizeFilename(decision.suffix, cfg.filenameReplacementChar)
-			: null;
+		// "create-new" — suffix prompt
+		const suffix = await openSuffixPrompt(plugin.app, kind, folderCasing, parent.name);
+		if (!suffix) return;
+		const suffixSan = sanitizeFilename(suffix, cfg.filenameReplacementChar);
 		if (!suffixSan) {
 			new Notice("Suffix was empty after sanitization.");
 			return;
@@ -99,43 +159,123 @@ async function createEntityFromSelection(
 			new Notice("Combined name was invalid.");
 			return;
 		}
-		finalName = toTitleCase(combined);
-
-		// Re-check conflict for the new name.
-		const conflict = findExistingEntity(plugin.app, entityRoot, finalName);
-		if (conflict) {
-			new Notice(`A ${kind} named "${finalName}" already exists.`);
-			return;
-		}
+		const finalName = toTitleCase(combined);
+		await createNewTopLevelEntity({
+			plugin,
+			project,
+			kind,
+			finalName,
+			file,
+			editor,
+			selFrom,
+			selTo,
+			entityRoot,
+			cfg,
+		});
+		return;
 	}
 
-	// Scaffold folder + canonical doc.
+	// Branch 4: no parent matches — standard top-level create
+	await createNewTopLevelEntity({
+		plugin,
+		project,
+		kind,
+		finalName: folderCasing,
+		file,
+		editor,
+		selFrom,
+		selTo,
+		entityRoot,
+		cfg,
+	});
+}
+
+// ── exact-conflict handler (Phase 4b legacy: open / add suffix / cancel) ─
+
+interface ExactConflictArgs {
+	plugin: FirstDraftPlugin;
+	project: ProjectMeta;
+	kind: EntityKind;
+	folderCasing: string;
+	existing: { folder: TFolder; canonical: TFile };
+	file: TFile | null;
+	editor: Editor;
+	selFrom: EditorPosition;
+	selTo: EditorPosition;
+	entityRoot: string;
+	cfg: FirstDraftPlugin["settings"]["global"];
+}
+
+async function handleExactConflict(args: ExactConflictArgs): Promise<void> {
+	const { plugin, kind, folderCasing, existing, cfg } = args;
+	const decision = await openExactConflictModal(plugin.app, kind, folderCasing);
+	if (decision.action === "cancel") return;
+	if (decision.action === "open") {
+		await plugin.app.workspace.getLeaf(false).openFile(existing.canonical);
+		return;
+	}
+	const suffixSan = decision.suffix
+		? sanitizeFilename(decision.suffix, cfg.filenameReplacementChar)
+		: null;
+	if (!suffixSan) {
+		new Notice("Suffix was empty after sanitization.");
+		return;
+	}
+	const combined = sanitizeFilename(
+		`${folderCasing} ${suffixSan}`,
+		cfg.filenameReplacementChar,
+	);
+	if (!combined) {
+		new Notice("Combined name was invalid.");
+		return;
+	}
+	const finalName = toTitleCase(combined);
+	const conflictAgain = findExistingEntity(plugin.app, args.entityRoot, finalName);
+	if (conflictAgain) {
+		new Notice(`A ${kind} named "${finalName}" already exists.`);
+		return;
+	}
+	await createNewTopLevelEntity({ ...args, finalName });
+}
+
+// ── creation paths ────────────────────────────────────────────────────────
+
+interface CreateTopLevelArgs {
+	plugin: FirstDraftPlugin;
+	project: ProjectMeta;
+	kind: EntityKind;
+	finalName: string;
+	file: TFile | null;
+	editor: Editor;
+	selFrom: EditorPosition;
+	selTo: EditorPosition;
+	entityRoot: string;
+	cfg: FirstDraftPlugin["settings"]["global"];
+}
+
+async function createNewTopLevelEntity(args: CreateTopLevelArgs): Promise<void> {
+	const { plugin, project, kind, finalName, file, editor, selFrom, selTo, entityRoot, cfg } = args;
 	const folderPath = normalizePath(`${entityRoot}/${finalName}`);
 	const docPath = normalizePath(`${folderPath}/${finalName}.md`);
+
 	try {
 		await ensureFolderExists(plugin.app, folderPath);
 		const template =
 			kind === "character" ? cfg.characterNoteTemplate : cfg.locationNoteTemplate;
 		const created = await plugin.app.vault.create(docPath, template);
 
-		// Replace selection with link if enabled and we have an editor file context.
-		// Use the captured range (selFrom/selTo) rather than replaceSelection,
-		// since the live selection has likely been lost during the awaits above.
 		if (cfg.replaceSelectionWithLink && file) {
 			const linkTarget = relativePathFromEditor(file.path, docPath);
 			editor.replaceRange(`[${finalName}](${linkTarget})`, selFrom, selTo);
 		}
 
-		// Open the new note.
 		await plugin.app.workspace.getLeaf(false).openFile(created);
-
 		new Notice(`Created ${kind}: ${finalName}`);
 
-		// Backfill linkify (silent if auto, otherwise offer via Notice).
 		const entity: DevEntity = { name: finalName, canonicalFilePath: docPath };
 		if (cfg.autoLinkifyOnCreate) {
 			const result = await linkifyEntity(plugin, project, entity);
-			notifyLinkifyResult(result, "auto");
+			notifyLinkifyResult(result);
 		} else {
 			offerLinkify(plugin, project, entity);
 		}
@@ -144,24 +284,163 @@ async function createEntityFromSelection(
 	}
 }
 
-// ── conflict modal ───────────────────────────────────────────────────────
+interface CreateVersionArgs {
+	plugin: FirstDraftPlugin;
+	project: ProjectMeta;
+	kind: EntityKind;
+	selectionName: string; // title-cased full selection (e.g. "Young Marcus")
+	parentFolder: TFolder;
+	file: TFile | null;
+	editor: Editor;
+	selFrom: EditorPosition;
+	selTo: EditorPosition;
+	cfg: FirstDraftPlugin["settings"]["global"];
+}
 
-interface ConflictDecision {
+async function createAsVersion(args: CreateVersionArgs): Promise<void> {
+	const { plugin, kind, selectionName, parentFolder, file, editor, selFrom, selTo, cfg } = args;
+
+	// Determine the file's basename based on entity kind:
+	//   - Characters: full selection (e.g. "Young Marcus" → Young Marcus.md)
+	//   - Locations: part after " - " from the selection
+	//     (e.g. "Marcus' House - Kitchen" → Kitchen.md)
+	let versionFileBase: string;
+	if (kind === "location") {
+		const dashIdx = selectionName.indexOf(" - ");
+		versionFileBase =
+			dashIdx >= 0 ? selectionName.slice(dashIdx + 3).trim() : selectionName;
+		if (!versionFileBase) versionFileBase = selectionName;
+	} else {
+		versionFileBase = selectionName;
+	}
+
+	const sanitized = sanitizeFilename(versionFileBase, cfg.filenameReplacementChar);
+	if (!sanitized) {
+		new Notice("Version name was invalid.");
+		return;
+	}
+	const fileBase = toTitleCase(sanitized);
+	const docPath = normalizePath(`${parentFolder.path}/${fileBase}.md`);
+
+	if (plugin.app.vault.getAbstractFileByPath(docPath)) {
+		new Notice(`A ${kind} note already exists at ${docPath}.`);
+		// Still open it
+		const existing = plugin.app.vault.getAbstractFileByPath(docPath);
+		if (existing instanceof TFile) {
+			await plugin.app.workspace.getLeaf(false).openFile(existing);
+		}
+		return;
+	}
+
+	try {
+		const template =
+			kind === "character" ? cfg.characterNoteTemplate : cfg.locationNoteTemplate;
+		const created = await plugin.app.vault.create(docPath, template);
+
+		if (cfg.replaceSelectionWithLink && file) {
+			const linkTarget = relativePathFromEditor(file.path, docPath);
+			editor.replaceRange(`[${selectionName}](${linkTarget})`, selFrom, selTo);
+		}
+
+		await plugin.app.workspace.getLeaf(false).openFile(created);
+		new Notice(
+			`Created ${kind}: ${selectionName.toUpperCase()} in ${parentFolder.name}/`,
+		);
+	} catch (e) {
+		new Notice(`Could not create ${kind} version: ${(e as Error).message}`);
+	}
+}
+
+// ── multi-parent linkify ─────────────────────────────────────────────────
+
+async function replaceSelectionWithMultipleLinks(
+	plugin: FirstDraftPlugin,
+	parents: TFolder[],
+	originalSelection: string,
+	file: TFile | null,
+	editor: Editor,
+	selFrom: EditorPosition,
+	selTo: EditorPosition,
+): Promise<number> {
+	if (!file) {
+		new Notice("Open a file inside a project first.");
+		return 0;
+	}
+
+	// Sort by length desc so longer parent names match first (prevents "Marcus"
+	// from being matched inside "Young Marcus" before "Young Marcus" itself
+	// gets a chance).
+	const sorted = [...parents].sort((a, b) => b.name.length - a.name.length);
+
+	let result = originalSelection;
+	let count = 0;
+	for (const parent of sorted) {
+		const canonicalName = `${parent.name}.md`;
+		const canonical = parent.children.find(
+			(c) => c instanceof TFile && c.name === canonicalName,
+		) as TFile | undefined;
+		if (!canonical) continue;
+		const target = relativePathFromEditor(file.path, canonical.path);
+		const re = new RegExp(`\\b${escapeRegExp(parent.name)}\\b`, "gi");
+		result = result.replace(re, (matched) => {
+			count += 1;
+			return `[${matched}](${target})`;
+		});
+	}
+
+	editor.replaceRange(result, selFrom, selTo);
+	return count;
+}
+
+// ── parent detection ──────────────────────────────────────────────────────
+
+function findParentFolders(
+	app: App,
+	entityRoot: string,
+	selectionTitleCase: string,
+): TFolder[] {
+	const root = app.vault.getAbstractFileByPath(entityRoot);
+	if (!(root instanceof TFolder)) return [];
+	const lowerSelection = selectionTitleCase.toLowerCase();
+	const matches: TFolder[] = [];
+	for (const child of root.children) {
+		if (!(child instanceof TFolder)) continue;
+		const folderLower = child.name.toLowerCase();
+		if (folderLower === lowerSelection) continue; // exact match handled separately
+		if (containsAsWord(lowerSelection, folderLower)) matches.push(child);
+	}
+	matches.sort((a, b) => b.name.length - a.name.length);
+	return matches;
+}
+
+function containsAsWord(haystack: string, needle: string): boolean {
+	if (needle.length === 0) return false;
+	const idx = haystack.indexOf(needle);
+	if (idx === -1) return false;
+	const before = idx === 0 ? "" : haystack.charAt(idx - 1);
+	const after = idx + needle.length === haystack.length ? "" : haystack.charAt(idx + needle.length);
+	const isWordChar = (c: string) => /[a-z0-9]/i.test(c);
+	return !isWordChar(before) && !isWordChar(after);
+}
+
+// ── modals ────────────────────────────────────────────────────────────────
+
+interface ExactConflictDecision {
 	action: "open" | "create" | "cancel";
 	suffix?: string;
 }
 
-function openConflictModal(
+function openExactConflictModal(
 	app: App,
 	kind: EntityKind,
 	name: string,
-): Promise<ConflictDecision> {
+): Promise<ExactConflictDecision> {
 	return new Promise((resolve) => {
-		new ConflictSuffixModal(app, kind, name, resolve).open();
+		new ExactConflictModal(app, kind, name, resolve).open();
 	});
 }
 
-class ConflictSuffixModal extends Modal {
+class ExactConflictModal extends Modal {
 	private finished = false;
 	private suffixInput?: HTMLInputElement;
 
@@ -169,7 +448,7 @@ class ConflictSuffixModal extends Modal {
 		app: App,
 		private readonly kind: EntityKind,
 		private readonly name: string,
-		private readonly done: (d: ConflictDecision) => void,
+		private readonly done: (d: ExactConflictDecision) => void,
 	) {
 		super(app);
 	}
@@ -181,9 +460,9 @@ class ConflictSuffixModal extends Modal {
 			text: `A ${this.kind} named "${this.name}" already exists. Is this a different ${this.kind}?`,
 		});
 
-		// Stage 1: choose between Open existing and Add suffix.
-		const buttons = contentEl.createDiv({ cls: "modal-button-container firstdraft-conflict-buttons" });
-
+		const buttons = contentEl.createDiv({
+			cls: "modal-button-container firstdraft-conflict-buttons",
+		});
 		const openBtn = buttons.createEl("button", { text: "Open existing" });
 		openBtn.addEventListener("click", () => this.finish({ action: "open" }));
 
@@ -203,7 +482,6 @@ class ConflictSuffixModal extends Modal {
 		container.createEl("p", {
 			text: `Enter a suffix to distinguish this ${this.kind} from the existing one.`,
 		});
-
 		const inputWrap = container.createDiv({ cls: "firstdraft-conflict-input-wrap" });
 		inputWrap.createEl("span", { text: `${this.name} `, cls: "firstdraft-conflict-prefix" });
 		this.suffixInput = inputWrap.createEl("input", {
@@ -232,7 +510,7 @@ class ConflictSuffixModal extends Modal {
 		this.finish({ action: "create", suffix });
 	}
 
-	private finish(d: ConflictDecision): void {
+	private finish(d: ExactConflictDecision): void {
 		this.finished = true;
 		this.done(d);
 		this.close();
@@ -244,7 +522,155 @@ class ConflictSuffixModal extends Modal {
 	}
 }
 
-// ── helpers ──────────────────────────────────────────────────────────────
+interface ParentDecision {
+	action: "version" | "create-new" | "cancel";
+}
+
+function openParentModal(
+	app: App,
+	kind: EntityKind,
+	selectionName: string,
+	parentName: string,
+): Promise<ParentDecision> {
+	return new Promise((resolve) => {
+		new ParentModal(app, kind, selectionName, parentName, resolve).open();
+	});
+}
+
+class ParentModal extends Modal {
+	private finished = false;
+
+	constructor(
+		app: App,
+		private readonly kind: EntityKind,
+		private readonly selectionName: string,
+		private readonly parentName: string,
+		private readonly done: (d: ParentDecision) => void,
+	) {
+		super(app);
+	}
+
+	onOpen(): void {
+		const { contentEl } = this;
+		contentEl.createEl("h3", { text: `${this.selectionName.toUpperCase()}` });
+		const subKind = this.kind === "location" ? "sub-area" : "version";
+		contentEl.createEl("p", {
+			text: `${this.parentName.toUpperCase()} already exists. Is this a ${subKind} of ${this.parentName.toUpperCase()}, or a separate ${this.kind}?`,
+		});
+
+		const buttons = contentEl.createDiv({
+			cls: "modal-button-container firstdraft-conflict-buttons",
+		});
+		const verBtn = buttons.createEl("button", {
+			text: this.kind === "location"
+				? `Sub-area of ${this.parentName.toUpperCase()}`
+				: `Version of ${this.parentName.toUpperCase()}`,
+			cls: "mod-cta",
+		});
+		verBtn.addEventListener("click", () => this.finish({ action: "version" }));
+
+		const newBtn = buttons.createEl("button", {
+			text: `Create new ${this.kind}…`,
+		});
+		newBtn.addEventListener("click", () => this.finish({ action: "create-new" }));
+
+		const cancelBtn = buttons.createEl("button", { text: "Cancel" });
+		cancelBtn.addEventListener("click", () => this.finish({ action: "cancel" }));
+	}
+
+	private finish(d: ParentDecision): void {
+		this.finished = true;
+		this.done(d);
+		this.close();
+	}
+
+	onClose(): void {
+		this.contentEl.empty();
+		if (!this.finished) this.done({ action: "cancel" });
+	}
+}
+
+function openSuffixPrompt(
+	app: App,
+	kind: EntityKind,
+	name: string,
+	parentName: string,
+): Promise<string | null> {
+	return new Promise((resolve) => {
+		new SuffixPromptModal(app, kind, name, parentName, resolve).open();
+	});
+}
+
+class SuffixPromptModal extends Modal {
+	private finished = false;
+	private input?: HTMLInputElement;
+
+	constructor(
+		app: App,
+		private readonly kind: EntityKind,
+		private readonly name: string,
+		private readonly parentName: string,
+		private readonly done: (suffix: string | null) => void,
+	) {
+		super(app);
+	}
+
+	onOpen(): void {
+		const { contentEl } = this;
+		contentEl.createEl("h3", { text: `Differentiate from ${this.parentName.toUpperCase()}` });
+		contentEl.createEl("p", {
+			text: `Enter a suffix to distinguish this new ${this.kind} from ${this.parentName.toUpperCase()}.`,
+		});
+
+		const inputWrap = contentEl.createDiv({ cls: "firstdraft-conflict-input-wrap" });
+		inputWrap.createEl("span", {
+			text: `${this.name} `,
+			cls: "firstdraft-conflict-prefix",
+		});
+		this.input = inputWrap.createEl("input", {
+			type: "text",
+			cls: "firstdraft-prompt-input",
+			attr: { placeholder: "Suffix" },
+		});
+		this.input.addEventListener("keydown", (e) => {
+			if (e.key === "Enter") {
+				e.preventDefault();
+				this.submit();
+			}
+		});
+		setTimeout(() => this.input?.focus(), 0);
+
+		const buttons = contentEl.createDiv({ cls: "modal-button-container" });
+		const cancel = buttons.createEl("button", { text: "Cancel" });
+		cancel.addEventListener("click", () => this.cancel());
+		const ok = buttons.createEl("button", { text: "Create", cls: "mod-cta" });
+		ok.addEventListener("click", () => this.submit());
+	}
+
+	private submit(): void {
+		const value = this.input?.value?.trim() ?? "";
+		if (value === "") {
+			this.cancel();
+			return;
+		}
+		this.finished = true;
+		this.done(value);
+		this.close();
+	}
+
+	private cancel(): void {
+		this.finished = true;
+		this.done(null);
+		this.close();
+	}
+
+	onClose(): void {
+		this.contentEl.empty();
+		if (!this.finished) this.done(null);
+	}
+}
+
+// ── helpers ───────────────────────────────────────────────────────────────
 
 function findExistingEntity(
 	app: App,
@@ -262,7 +688,6 @@ function findExistingEntity(
 			(c) => c instanceof TFile && c.name === expected,
 		) as TFile | undefined;
 		if (canonical) return { folder: child, canonical };
-		// Folder exists but no canonical — treat as conflict so user knows.
 		return null;
 	}
 	return null;
@@ -289,24 +714,30 @@ function relativePathFromEditor(fromFilePath: string, toPath: string): string {
 	return segments.join("/");
 }
 
+function escapeRegExp(s: string): string {
+	return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
 function offerLinkify(
 	plugin: FirstDraftPlugin,
 	project: ProjectMeta,
 	entity: DevEntity,
 ): void {
-	// We can't preview the count without scanning, so offer an action and run on click.
-	const notice = new Notice(`Linkify existing mentions of ${entity.name}? Click here to run.`, 8000);
+	const notice = new Notice(
+		`Linkify existing mentions of ${entity.name}? Click here to run.`,
+		8000,
+	);
 	notice.messageEl.addEventListener("click", (e) => {
 		e.preventDefault();
 		notice.hide();
 		void (async () => {
 			const result = await linkifyEntity(plugin, project, entity);
-			notifyLinkifyResult(result, "manual");
+			notifyLinkifyResult(result);
 		})();
 	});
 }
 
-function notifyLinkifyResult(result: LinkifyResult, _mode: "auto" | "manual"): void {
+function notifyLinkifyResult(result: LinkifyResult): void {
 	if (result.totalReplacements === 0) {
 		new Notice("No mentions to linkify.");
 		return;
@@ -327,5 +758,5 @@ export async function runLinkifyAllCommand(plugin: FirstDraftPlugin): Promise<vo
 	}
 	const { linkifyAllEntities } = await import("./linkify");
 	const result = await linkifyAllEntities(plugin, project);
-	notifyLinkifyResult(result, "manual");
+	notifyLinkifyResult(result);
 }
