@@ -1,6 +1,7 @@
 import { TFile } from "obsidian";
 import type FirstDraftPlugin from "../main";
 import { getDevNotesView } from "../views/dev-notes-view";
+import { getTreatmentView } from "../views/treatment-view";
 
 // Centralised event wiring. Listeners are attached via plugin.registerEvent so they
 // detach automatically on unload.
@@ -13,22 +14,29 @@ export function registerEventHandlers(plugin: FirstDraftPlugin): void {
 			if (!(file instanceof TFile)) return;
 			scanner.updateFile(file);
 
-			// Re-render the panel if the changed file is the dev note (or scene file)
-			// the panel is currently displaying — keeps the inline content live.
-			const view = getDevNotesView(plugin);
-			if (!view) return;
-			const active = app.workspace.getActiveFile();
-			if (file.path === view.getCurrentDevNotePath() || file.path === active?.path) {
-				void view.refresh();
+			// Re-render the dev notes panel if the changed file is the dev note (or
+			// scene file) it's currently displaying — keeps the inline content live.
+			const dev = getDevNotesView(plugin);
+			if (dev) {
+				const active = app.workspace.getActiveFile();
+				if (file.path === dev.getCurrentDevNotePath() || file.path === active?.path) {
+					void dev.refresh();
+				}
 			}
+
+			// Treatment view: any frontmatter change to a dev note in the active
+			// project's scenes folder, or to the project's Index.md, can affect the
+			// list. Cheap to just rebuild.
+			void getTreatmentView(plugin)?.refresh();
 		}),
 	);
 
 	plugin.registerEvent(
 		app.vault.on("delete", (file) => {
 			scanner.removeFile(file.path);
-			const view = getDevNotesView(plugin);
-			if (view && file.path === view.getCurrentDevNotePath()) void view.refresh();
+			const dev = getDevNotesView(plugin);
+			if (dev && file.path === dev.getCurrentDevNotePath()) void dev.refresh();
+			void getTreatmentView(plugin)?.refresh();
 		}),
 	);
 
@@ -38,21 +46,22 @@ export function registerEventHandlers(plugin: FirstDraftPlugin): void {
 			// Phase 6: also rename the matching dev note when a .fountain file moves.
 			if (file instanceof TFile) scanner.handleRename(file, oldPath);
 			void getDevNotesView(plugin)?.refresh();
+			void getTreatmentView(plugin)?.refresh();
 		}),
 	);
 
 	plugin.registerEvent(
 		app.workspace.on("active-leaf-change", () => {
 			void getDevNotesView(plugin)?.refresh();
+			void getTreatmentView(plugin)?.refresh();
 		}),
 	);
 
 	plugin.registerEvent(
 		app.vault.on("create", (file) => {
-			// If the user just created a scene dev note via the panel button, refresh
-			// to pick it up immediately. (For other files, 'changed' will cover us.)
-			const view = getDevNotesView(plugin);
-			if (view && file.path === view.getCurrentDevNotePath()) void view.refresh();
+			const dev = getDevNotesView(plugin);
+			if (dev && file.path === dev.getCurrentDevNotePath()) void dev.refresh();
+			void getTreatmentView(plugin)?.refresh();
 		}),
 	);
 }
