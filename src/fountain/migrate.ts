@@ -82,11 +82,14 @@ async function migrateProject(
 	}
 
 	// Step 2: rename .fountain → .fountain.md, building a path mapping for
-	// link rewrite.
+	// link rewrite. Capture the old basename BEFORE renameFile — Obsidian
+	// mutates the TFile in place, so f.basename after rename is the NEW
+	// basename, not the old one.
 	const pathMap = new Map<string, string>(); // old path → new path
 	const basenameMap = new Map<string, string>(); // old basename → new basename
 	for (const f of fountainFiles) {
 		const oldPath = f.path;
+		const oldBasename = f.basename;
 		const newPath = `${oldPath}.md`;
 		if (plugin.app.vault.getAbstractFileByPath(newPath)) {
 			result.skippedConflicts.push(oldPath);
@@ -94,7 +97,7 @@ async function migrateProject(
 		}
 		await plugin.app.fileManager.renameFile(f, newPath);
 		pathMap.set(oldPath, newPath);
-		basenameMap.set(f.basename, `${f.basename}.fountain`);
+		basenameMap.set(oldBasename, `${oldBasename}.fountain`);
 		result.renamedCount += 1;
 	}
 
