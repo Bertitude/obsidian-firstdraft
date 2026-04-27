@@ -16,6 +16,11 @@ import {
 	runRestoreFromSnapshotCommand,
 } from "./versioning/snapshot-commands";
 import { CharacterCueSuggest } from "./autocomplete/character-suggest";
+import {
+	runCreateCharacterFromSelection,
+	runCreateLocationFromSelection,
+	runLinkifyAllCommand,
+} from "./development/create-entity";
 
 export default class FirstDraftPlugin extends Plugin {
 	settings!: FirstDraftSettings;
@@ -103,6 +108,48 @@ export default class FirstDraftPlugin extends Plugin {
 				void runRestoreFromSnapshotCommand(this);
 			},
 		});
+
+		this.addCommand({
+			id: "create-character-from-selection",
+			name: "Create character from selection",
+			editorCallback: (editor) => {
+				runCreateCharacterFromSelection(this, editor);
+			},
+		});
+
+		this.addCommand({
+			id: "create-location-from-selection",
+			name: "Create location from selection",
+			editorCallback: (editor) => {
+				runCreateLocationFromSelection(this, editor);
+			},
+		});
+
+		this.addCommand({
+			id: "linkify-all-entities",
+			name: "Linkify all entities",
+			callback: () => {
+				void runLinkifyAllCommand(this);
+			},
+		});
+
+		this.registerEvent(
+			this.app.workspace.on("editor-menu", (menu, editor) => {
+				if (!editor.getSelection().trim()) return;
+				menu.addItem((item) =>
+					item
+						.setTitle("Create character from selection")
+						.setIcon("user")
+						.onClick(() => runCreateCharacterFromSelection(this, editor)),
+				);
+				menu.addItem((item) =>
+					item
+						.setTitle("Create location from selection")
+						.setIcon("map-pin")
+						.onClick(() => runCreateLocationFromSelection(this, editor)),
+				);
+			}),
+		);
 
 		this.app.workspace.onLayoutReady(() => this.scanner.scanAll());
 	}

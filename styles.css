@@ -446,3 +446,27 @@
 .firstdraft-character-suggestion-prefix {
 	color: var(--text-faint);
 }
+
+/* ── conflict suffix modal ─────────────────────────────────────────── */
+
+.firstdraft-conflict-buttons {
+	margin-top: var(--size-4-3);
+}
+
+.firstdraft-conflict-input-wrap {
+	display: flex;
+	align-items: center;
+	gap: var(--size-2-2);
+	margin: var(--size-4-2) 0;
+}
+
+.firstdraft-conflict-prefix {
+	color: var(--text-muted);
+	font-weight: 600;
+	white-space: nowrap;
+}
+
+.firstdraft-conflict-input-wrap .firstdraft-prompt-input {
+	flex: 1;
+	margin: 0;
+}

@@ -23,7 +23,49 @@ export class FirstDraftSettingTab extends PluginSettingTab {
 		this.renderTemplates();
 		this.renderCharacterCardFields();
 		this.renderFirstDraftMode();
+		this.renderDevelopmentEntities();
 		this.renderDebug();
+	}
+
+	private renderDevelopmentEntities(): void {
+		const { containerEl } = this;
+		const g = this.plugin.settings.global;
+
+		new Setting(containerEl).setName("Development entities").setHeading();
+
+		new Setting(containerEl)
+			.setName("Replace selection with link")
+			.setDesc("After creating a character or location from selection, replace the highlighted text with a Markdown link to the new note.")
+			.addToggle((t) =>
+				t.setValue(g.replaceSelectionWithLink).onChange(async (v) => {
+					g.replaceSelectionWithLink = v;
+					await this.save();
+				}),
+			);
+
+		new Setting(containerEl)
+			.setName("Auto-linkify on create")
+			.setDesc("After creating a character or location, automatically replace existing mentions across the project. When off, a notice with an action button appears instead.")
+			.addToggle((t) =>
+				t.setValue(g.autoLinkifyOnCreate).onChange(async (v) => {
+					g.autoLinkifyOnCreate = v;
+					await this.save();
+				}),
+			);
+
+		new Setting(containerEl)
+			.setName("Filename replacement character")
+			.setDesc("Replaces forbidden filename characters and trailing periods with this symbol. Single character only; defaults to underscore.")
+			.addText((t) =>
+				t
+					.setPlaceholder("_")
+					.setValue(g.filenameReplacementChar)
+					.onChange(async (v) => {
+						const trimmed = v.trim();
+						g.filenameReplacementChar = trimmed.length === 0 ? "_" : trimmed.charAt(0);
+						await this.save();
+					}),
+			);
 	}
 
 	private async save(): Promise<void> {

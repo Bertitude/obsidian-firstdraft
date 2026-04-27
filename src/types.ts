@@ -21,6 +21,9 @@ export interface GlobalConfig {
 	locationNoteTemplate: string;
 	firstDraftMode: FirstDraftModeConfig;
 	debugLogging: boolean;
+	replaceSelectionWithLink: boolean;
+	autoLinkifyOnCreate: boolean;
+	filenameReplacementChar: string;
 }
 
 export interface ProjectConfig {

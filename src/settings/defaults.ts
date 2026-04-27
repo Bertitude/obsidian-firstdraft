@@ -106,5 +106,8 @@ export const DEFAULT_SETTINGS: FirstDraftSettings = {
 			hideLeftSidebar: true,
 		},
 		debugLogging: false,
+		replaceSelectionWithLink: true,
+		autoLinkifyOnCreate: false,
+		filenameReplacementChar: "_",
 	},
 };

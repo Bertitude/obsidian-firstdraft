@@ -13,6 +13,7 @@ import {
 import type FirstDraftPlugin from "../main";
 import { resolveActiveProject } from "../projects/resolver";
 import { buildExpandedRoster, sceneDevNotePath } from "../views/lookups";
+import { sanitizeFilename, toTitleCase } from "../utils/sanitize";
 
 // Suggests character names when the cursor is on a character-cue line in a
 // fountain file. Roster combines three sources: folders in
@@ -169,7 +170,12 @@ export class CharacterCueSuggest extends EditorSuggest<SuggestEntry> {
 		}
 
 		const cfg = this.plugin.settings.global;
-		const folderCasing = toTitleCase(name);
+		const sanitized = sanitizeFilename(name, cfg.filenameReplacementChar);
+		if (!sanitized) {
+			new Notice("Cue has no valid filename characters.");
+			return;
+		}
+		const folderCasing = toTitleCase(sanitized);
 		const charactersFolder = normalizePath(
 			`${project.projectRootPath}/${cfg.developmentFolder}/${cfg.charactersSubfolder}/${folderCasing}`,
 		);
@@ -210,14 +216,6 @@ export class CharacterCueSuggest extends EditorSuggest<SuggestEntry> {
 			},
 		);
 	}
-}
-
-function toTitleCase(name: string): string {
-	return name
-		.toLowerCase()
-		.split(/\s+/)
-		.map((w) => (w.length === 0 ? w : w.charAt(0).toUpperCase() + w.slice(1)))
-		.join(" ");
 }
 
 async function ensureFolderExists(app: App, path: string): Promise<void> {
