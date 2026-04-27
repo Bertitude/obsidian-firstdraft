@@ -46,6 +46,13 @@ async function createEntityFromSelection(
 		return;
 	}
 
+	// Capture selection range BEFORE any awaits — the live selection state
+	// gets lost as we await folder/file creation and modal interactions.
+	// Using replaceRange with explicit coordinates lets us swap the text in
+	// even if focus has moved by the time the link is ready.
+	const selFrom = editor.getCursor("from");
+	const selTo = editor.getCursor("to");
+
 	const file = plugin.app.workspace.getActiveFile();
 	const project = file ? resolveActiveProject(file, plugin.scanner) : null;
 	if (!project) {
@@ -112,9 +119,11 @@ async function createEntityFromSelection(
 		const created = await plugin.app.vault.create(docPath, template);
 
 		// Replace selection with link if enabled and we have an editor file context.
+		// Use the captured range (selFrom/selTo) rather than replaceSelection,
+		// since the live selection has likely been lost during the awaits above.
 		if (cfg.replaceSelectionWithLink && file) {
 			const linkTarget = relativePathFromEditor(file.path, docPath);
-			editor.replaceSelection(`[${finalName}](${linkTarget})`);
+			editor.replaceRange(`[${finalName}](${linkTarget})`, selFrom, selTo);
 		}
 
 		// Open the new note.

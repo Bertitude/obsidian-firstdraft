@@ -36,7 +36,14 @@ export function runInsertLocationReferenceCommand(plugin: FirstDraftPlugin): voi
 async function openPicker(plugin: FirstDraftPlugin, kind: EntryKind): Promise<void> {
 	const editor = plugin.app.workspace.activeEditor?.editor;
 	if (!editor) {
-		new Notice("No active editor — open a file first.");
+		// Most common cause: bgrundmann's fountain plugin uses a custom view
+		// that doesn't expose a standard Editor. The picker only works in
+		// editors that Obsidian recognises (markdown, or .fountain when
+		// chuangcaleb mode is active and FirstDraft has registered the
+		// extension to markdown view).
+		new Notice(
+			"This editor doesn't support insertion. Use a Markdown file, or switch to chuangcaleb mode.",
+		);
 		return;
 	}
 
