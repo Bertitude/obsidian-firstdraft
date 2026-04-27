@@ -26,6 +26,7 @@ import {
 	runInsertLocationReferenceCommand,
 } from "./development/insert-cue";
 import { isPluginEnabled, KNOWN_PLUGIN_IDS, resolveFountainMode } from "./fountain/plugin-mode";
+import { runSyncScreenplayScenesCommand } from "./longform/sync-scenes";
 import { Notice } from "obsidian";
 
 export default class FirstDraftPlugin extends Plugin {
@@ -152,6 +153,14 @@ export default class FirstDraftPlugin extends Plugin {
 			name: "Insert location reference",
 			callback: () => {
 				runInsertLocationReferenceCommand(this);
+			},
+		});
+
+		this.addCommand({
+			id: "sync-screenplay-scenes",
+			name: "Sync screenplay scenes to project",
+			callback: () => {
+				void runSyncScreenplayScenesCommand(this);
 			},
 		});
 
