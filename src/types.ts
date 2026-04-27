@@ -25,9 +25,11 @@ export interface GlobalConfig {
 	autoLinkifyOnCreate: boolean;
 	filenameReplacementChar: string;
 	fountainPlugin: FountainPluginMode;
+	fountainFileFormat: FountainFileFormat;
 }
 
 export type FountainPluginMode = "auto" | "bgrundmann" | "chuangcaleb" | "other";
+export type FountainFileFormat = "fountain" | "fountain-md";
 
 export interface ProjectConfig {
 	developmentFolder?: string;

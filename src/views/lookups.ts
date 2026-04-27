@@ -1,5 +1,6 @@
 import { App, TFile, TFolder, normalizePath } from "obsidian";
 import type { GlobalConfig, ProjectMeta } from "../types";
+import { fountainFilename, fountainSceneName, isFountainFile } from "../fountain/file-detection";
 
 // Folder/file lookups for the dev-notes panel. Phase 5 will extend the GlobalConfig
 // argument with per-project overrides; the call sites stay the same.
@@ -32,14 +33,17 @@ export interface LocationEntry {
 	canonicalFile: TFile | null;
 }
 
-// Scene dev note path = projectRoot/Development/Scenes/<sceneBasename>.md
+// Scene dev note path = projectRoot/Development/Scenes/<sceneName>.md
+// sceneName is the human-friendly name without fountain extension parts so
+// the same dev note matches both .fountain and .fountain.md scene files.
 export function sceneDevNotePath(
 	scene: TFile,
 	project: ProjectMeta,
 	cfg: GlobalConfig,
 ): DevNoteRef {
+	const sceneName = fountainSceneName(scene);
 	const path = normalizePath(
-		`${project.projectRootPath}/${cfg.developmentFolder}/${cfg.scenesSubfolder}/${scene.basename}.md`,
+		`${project.projectRootPath}/${cfg.developmentFolder}/${cfg.scenesSubfolder}/${sceneName}.md`,
 	);
 	return { path, file: lookupFile(scene.vault as unknown, path) };
 }
@@ -47,6 +51,10 @@ export function sceneDevNotePath(
 // Given any active file inside a project, return the matching pair of fountain +
 // dev note paths/files (whichever side exists). Returns null if the file is not a
 // recognised scene fountain or scene dev note.
+//
+// Handles both fountain formats (.fountain and .fountain.md) on the fountain
+// side. For the dev note path, uses the human-friendly scene name (without any
+// .fountain suffix) so a single dev note pairs with either format.
 export function scenePairFromActive(
 	app: App,
 	active: TFile,
@@ -59,24 +67,42 @@ export function scenePairFromActive(
 	const fountainFolderPath = project.sceneFolderPath;
 
 	let mode: "fountain" | "dev-note" | null = null;
-	if (active.extension === "fountain" && active.path.startsWith(fountainFolderPath + "/")) {
+	if (isFountainFile(active) && active.path.startsWith(fountainFolderPath + "/")) {
 		mode = "fountain";
 	} else if (
 		active.extension === "md" &&
+		!isFountainFile(active) &&
 		active.path.startsWith(devScenesPath + "/")
 	) {
 		mode = "dev-note";
 	}
 	if (!mode) return null;
 
-	const sceneName = active.basename;
-	const fountainPath = normalizePath(`${fountainFolderPath}/${sceneName}.fountain`);
+	const sceneName = mode === "fountain" ? fountainSceneName(active) : active.basename;
 	const devNotePath = normalizePath(`${devScenesPath}/${sceneName}.md`);
+
+	// On the fountain side, look for both formats and prefer whichever exists.
+	// If neither exists, the path returned uses the configured format (the one
+	// we'd create if asked).
+	const fountainMdPath = normalizePath(
+		`${fountainFolderPath}/${fountainFilename(sceneName, "fountain-md")}`,
+	);
+	const fountainPathLegacy = normalizePath(
+		`${fountainFolderPath}/${fountainFilename(sceneName, "fountain")}`,
+	);
+	const fountainMdFile = lookupFile(app.vault as unknown, fountainMdPath);
+	const fountainLegacyFile = lookupFile(app.vault as unknown, fountainPathLegacy);
+	const fountainFile = fountainMdFile ?? fountainLegacyFile;
+	const fountainPath = fountainFile
+		? fountainFile.path
+		: normalizePath(
+				`${fountainFolderPath}/${fountainFilename(sceneName, cfg.fountainFileFormat)}`,
+			);
 
 	return {
 		sceneName,
 		fountainPath,
-		fountainFile: lookupFile(app.vault as unknown, fountainPath),
+		fountainFile,
 		devNotePath,
 		devNoteFile: lookupFile(app.vault as unknown, devNotePath),
 		activeMode: mode,
@@ -284,7 +310,8 @@ export async function buildExpandedRoster(
 	const fountainFolder = app.vault.getAbstractFileByPath(project.sceneFolderPath);
 	if (fountainFolder instanceof TFolder) {
 		for (const child of fountainFolder.children) {
-			if (!(child instanceof TFile) || child.extension !== "fountain") continue;
+			if (!(child instanceof TFile)) continue;
+			if (!isFountainFile(child)) continue;
 			if (excludePath && child.path === excludePath) continue;
 			let cues = cueCache.get(child.path);
 			if (!cues) {

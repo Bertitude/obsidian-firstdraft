@@ -1,6 +1,11 @@
 import { App, TFile, TFolder, normalizePath } from "obsidian";
 import type { GlobalConfig, ProjectMeta } from "../types";
 import { readScenesArray } from "../longform/scenes-array";
+import {
+	fountainPathCandidates,
+	isFountainFile,
+	sceneNameFromArrayEntry,
+} from "../fountain/file-detection";
 
 // Builds the row data the treatment view renders. Source of truth for order is
 // Longform's `scenes:` array; dev notes that aren't in the array are surfaced
@@ -45,10 +50,12 @@ export function buildTreatmentData(
 	const seen = new Set<string>();
 	const rows: TreatmentRow[] = [];
 
-	for (const name of scenesArray) {
-		const row = buildRow(app, name, fountainFolderPath, devScenesPath, false, project.indexFilePath);
+	for (const entry of scenesArray) {
+		const row = buildRow(app, entry, fountainFolderPath, devScenesPath, false, project.indexFilePath);
 		rows.push(row);
-		seen.add(name);
+		// Track by human-friendly name so .fountain and .fountain.md entries
+		// match orphan dev notes correctly.
+		seen.add(sceneNameFromArrayEntry(entry));
 	}
 
 	// Orphans: dev notes in Development/Scenes/ not listed in Longform's scenes array
@@ -57,6 +64,8 @@ export function buildTreatmentData(
 		for (const child of devFolder.children) {
 			if (!(child instanceof TFile)) continue;
 			if (child.extension !== "md") continue;
+			// Skip .fountain.md files — those are scene fountains, not dev notes.
+			if (isFountainFile(child)) continue;
 			if (seen.has(child.basename)) continue;
 			rows.push(buildRow(app, child.basename, fountainFolderPath, devScenesPath, true, project.indexFilePath));
 		}
@@ -67,17 +76,32 @@ export function buildTreatmentData(
 
 function buildRow(
 	app: App,
-	sceneName: string,
+	entry: string,
 	fountainFolderPath: string,
 	devScenesPath: string,
 	orphan: boolean,
 	indexFilePath: string,
 ): TreatmentRow {
+	const sceneName = sceneNameFromArrayEntry(entry);
 	const devNotePath = normalizePath(`${devScenesPath}/${sceneName}.md`);
-	const fountainPath = normalizePath(`${fountainFolderPath}/${sceneName}.fountain`);
+
+	// Try both fountain formats — the array entry may be either a plain
+	// basename (legacy .fountain) or a basename ending in .fountain (new
+	// .fountain.md). Use whichever file exists.
+	let fountainFile: TFile | null = null;
+	let fountainPath = "";
+	for (const candidate of fountainPathCandidates(fountainFolderPath, entry)) {
+		const normalized = normalizePath(candidate);
+		const f = fileAt(app, normalized);
+		if (f) {
+			fountainFile = f;
+			fountainPath = normalized;
+			break;
+		}
+		if (!fountainPath) fountainPath = normalized;
+	}
 
 	const devNoteFile = fileAt(app, devNotePath);
-	const fountainFile = fileAt(app, fountainPath);
 
 	const fmRecord = devNoteFile
 		? (app.metadataCache.getFileCache(devNoteFile)?.frontmatter as

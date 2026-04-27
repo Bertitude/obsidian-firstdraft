@@ -110,5 +110,6 @@ export const DEFAULT_SETTINGS: FirstDraftSettings = {
 		autoLinkifyOnCreate: false,
 		filenameReplacementChar: "_",
 		fountainPlugin: "auto",
+		fountainFileFormat: "fountain",
 	},
 };

@@ -9,6 +9,7 @@ import {
 	findLocation,
 } from "./lookups";
 import { readScenesArray, writeScenesArray } from "../longform/scenes-array";
+import { fountainFilename, fountainScenesArrayEntry } from "../fountain/file-detection";
 
 // All DOM construction for the dev-notes panel. Pure helpers — they take a container
 // and append; lifecycle (clearing) is the View's responsibility.
@@ -198,7 +199,9 @@ async function createSceneFile(
 ): Promise<void> {
 	try {
 		const { fountainPath, configChanged } = await ensureSceneFolder(plugin, project);
-		const finalPath = normalizePath(`${fountainPath}/${sceneName}.fountain`);
+		const cfg = plugin.settings.global;
+		const filename = fountainFilename(sceneName, cfg.fountainFileFormat);
+		const finalPath = normalizePath(`${fountainPath}/${filename}`);
 
 		if (plugin.app.vault.getAbstractFileByPath(finalPath)) {
 			new Notice("Scene file already exists.");
@@ -207,10 +210,14 @@ async function createSceneFile(
 
 		const created = await plugin.app.vault.create(finalPath, FOUNTAIN_STARTER);
 
-		// Append to Longform's scenes array if not already present.
+		// Append to Longform's scenes array if not already present. The entry
+		// format depends on the fountain file format setting — .fountain files
+		// store as plain basename, .fountain.md files store as basename ending
+		// in .fountain.
+		const arrayEntry = fountainScenesArrayEntry(sceneName, cfg.fountainFileFormat);
 		const scenes = readScenesArray(plugin.app, project.indexFilePath);
-		if (!scenes.includes(sceneName)) {
-			scenes.push(sceneName);
+		if (!scenes.includes(arrayEntry)) {
+			scenes.push(arrayEntry);
 			await writeScenesArray(plugin.app, project.indexFilePath, scenes);
 		}
 

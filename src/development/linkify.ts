@@ -2,6 +2,7 @@ import { App, Notice, TFile, TFolder, normalizePath } from "obsidian";
 import type FirstDraftPlugin from "../main";
 import type { ProjectMeta } from "../types";
 import { snapshotFile, todayLabel } from "../versioning/snapshot";
+import { isFountainFile } from "../fountain/file-detection";
 
 // Project-wide backfill linkify pass. For a given development entity (character
 // or location), finds standalone prose mentions of its name across markdown
@@ -104,6 +105,10 @@ function walk(folder: TFolder, out: TFile[], excludeCanonicalPath: string): void
 		}
 		if (!(child instanceof TFile)) continue;
 		if (child.extension !== "md") continue;
+		// Skip .fountain.md files — those are scene scripts, even though
+		// Obsidian sees them as Markdown. Linkify shouldn't touch script
+		// content (see top-of-file comment about action prose).
+		if (isFountainFile(child)) continue;
 		if (child.path === excludeCanonicalPath) continue;
 		out.push(child);
 	}

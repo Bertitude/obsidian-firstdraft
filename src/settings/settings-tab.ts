@@ -60,6 +60,22 @@ export class FirstDraftSettingTab extends PluginSettingTab {
 			.setDesc(
 				`Currently using ${describeMode(resolved)}. Changes take full effect after reloading Obsidian.`,
 			);
+
+		new Setting(containerEl)
+			.setName("Fountain file format")
+			.setDesc(
+				"Which extension new scene files use. The .fountain format is for the bgrundmann plugin; the .fountain.md format is required for the chuangcaleb plugin and works with the project compile.",
+			)
+			.addDropdown((dd) =>
+				dd
+					.addOption("fountain", ".fountain")
+					.addOption("fountain-md", ".fountain.md")
+					.setValue(g.fountainFileFormat)
+					.onChange(async (value) => {
+						g.fountainFileFormat = value as typeof g.fountainFileFormat;
+						await this.save();
+					}),
+			);
 	}
 
 	private renderDevelopmentEntities(): void {

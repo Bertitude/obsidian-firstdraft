@@ -14,6 +14,7 @@ import type FirstDraftPlugin from "../main";
 import { resolveActiveProject } from "../projects/resolver";
 import { buildExpandedRoster, sceneDevNotePath } from "../views/lookups";
 import { sanitizeFilename, toTitleCase } from "../utils/sanitize";
+import { isFountainFile } from "../fountain/file-detection";
 
 // Suggests character names when the cursor is on a character-cue line in a
 // fountain file. Roster combines three sources: folders in
@@ -44,17 +45,18 @@ export class CharacterCueSuggest extends EditorSuggest<SuggestEntry> {
 		super(plugin.app);
 
 		// Invalidate the cue cache when fountain files change/rename/delete so
-		// suggestions always reflect what's actually written.
+		// suggestions always reflect what's actually written. Accept both
+		// .fountain and .fountain.md formats.
 		plugin.registerEvent(
 			plugin.app.vault.on("modify", (file) => {
-				if (file instanceof TFile && file.extension === "fountain") {
+				if (file instanceof TFile && isFountainFile(file)) {
 					this.fountainCueCache.delete(file.path);
 				}
 			}),
 		);
 		plugin.registerEvent(
 			plugin.app.vault.on("delete", (file) => {
-				if (file instanceof TFile && file.extension === "fountain") {
+				if (file instanceof TFile && isFountainFile(file)) {
 					this.fountainCueCache.delete(file.path);
 				}
 			}),
@@ -71,7 +73,7 @@ export class CharacterCueSuggest extends EditorSuggest<SuggestEntry> {
 		editor: Editor,
 		file: TFile | null,
 	): EditorSuggestTriggerInfo | null {
-		if (!file || file.extension !== "fountain") return null;
+		if (!file || !isFountainFile(file)) return null;
 
 		const line = editor.getLine(cursor.line);
 		const upToCursor = line.substring(0, cursor.ch);

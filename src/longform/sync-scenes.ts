@@ -2,6 +2,7 @@ import { Notice, TFile, TFolder } from "obsidian";
 import type FirstDraftPlugin from "../main";
 import { resolveActiveProject } from "../projects/resolver";
 import { readScenesArray, writeScenesArray } from "./scenes-array";
+import { isFountainFile } from "../fountain/file-detection";
 
 // One-shot reconciliation between the project's screenplay folder and Longform's
 // scenes: array. Useful when scene files were created or renamed outside the
@@ -30,7 +31,11 @@ export async function runSyncScreenplayScenesCommand(plugin: FirstDraftPlugin): 
 	const toAdd: string[] = [];
 	for (const child of folder.children) {
 		if (!(child instanceof TFile)) continue;
-		if (child.extension !== "fountain") continue;
+		if (!isFountainFile(child)) continue;
+		// child.basename gives the right value for both formats:
+		//   .fountain      → basename "Cold Open"
+		//   .fountain.md   → basename "Cold Open.fountain"
+		// which matches what Longform stores in scenes:.
 		if (existingSet.has(child.basename)) continue;
 		toAdd.push(child.basename);
 	}

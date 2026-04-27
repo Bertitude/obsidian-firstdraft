@@ -26,6 +26,7 @@ import {
 	runInsertLocationReferenceCommand,
 } from "./development/insert-cue";
 import { isPluginEnabled, KNOWN_PLUGIN_IDS, resolveFountainMode } from "./fountain/plugin-mode";
+import { runMigrateProjectCommand } from "./fountain/migrate";
 import { runSyncScreenplayScenesCommand } from "./longform/sync-scenes";
 import { Notice } from "obsidian";
 
@@ -161,6 +162,14 @@ export default class FirstDraftPlugin extends Plugin {
 			name: "Sync screenplay scenes to project",
 			callback: () => {
 				void runSyncScreenplayScenesCommand(this);
+			},
+		});
+
+		this.addCommand({
+			id: "migrate-to-fountain-md",
+			name: "Migrate project to .fountain.md",
+			callback: () => {
+				void runMigrateProjectCommand(this);
 			},
 		});
 
