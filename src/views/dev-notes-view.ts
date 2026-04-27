@@ -105,6 +105,7 @@ export class DevNotesView extends ItemView {
 				devNote: file,
 				fountainPath: pair.fountainPath,
 				fountainFile: pair.fountainFile,
+				project,
 			});
 		}
 

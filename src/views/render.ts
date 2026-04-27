@@ -8,6 +8,7 @@ import {
 	findCharacter,
 	findLocation,
 } from "./lookups";
+import { readScenesArray, writeScenesArray } from "../longform/scenes-array";
 
 // All DOM construction for the dev-notes panel. Pure helpers — they take a container
 // and append; lifecycle (clearing) is the View's responsibility.
@@ -128,10 +129,11 @@ interface FountainSectionOpts extends SectionOpts {
 	devNote: TFile;
 	fountainPath: string;
 	fountainFile: TFile | null;
+	project: ProjectMeta;
 }
 
 export function renderFountainSection(opts: FountainSectionOpts): void {
-	const { container, plugin, devNote, fountainPath, fountainFile } = opts;
+	const { container, plugin, devNote, fountainFile, project } = opts;
 
 	container.createEl("h3", { text: devNote.basename, cls: "firstdraft-scene-title" });
 	container.createEl("hr", { cls: "firstdraft-divider" });
@@ -159,19 +161,84 @@ export function renderFountainSection(opts: FountainSectionOpts): void {
 		cls: "mod-cta",
 	});
 	btn.addEventListener("click", () => {
-		void createSceneFile(plugin, fountainPath);
+		void createSceneFile(plugin, project, devNote.basename);
 	});
 }
 
-async function createSceneFile(plugin: FirstDraftPlugin, path: string): Promise<void> {
+const DEFAULT_SCENE_FOLDER_NAME = "Screenplay";
+
+// Creates the fountain file for a scene. If the project's Longform sceneFolder
+// is empty or pointing at the project root, this also: (a) updates Index.md to
+// set sceneFolder = "Screenplay", (b) creates the Screenplay/ folder. Always
+// appends the new file to the longform.scenes array so it shows up in
+// Longform's sidebar without manual drag-and-drop.
+async function createSceneFile(
+	plugin: FirstDraftPlugin,
+	project: ProjectMeta,
+	sceneName: string,
+): Promise<void> {
 	try {
-		await ensureFolderExists(plugin, parentPath(path));
-		const created = await plugin.app.vault.create(path, "");
+		const { fountainPath, configChanged } = await ensureSceneFolder(plugin, project);
+		const finalPath = normalizePath(`${fountainPath}/${sceneName}.fountain`);
+
+		if (plugin.app.vault.getAbstractFileByPath(finalPath)) {
+			new Notice("Scene file already exists.");
+			return;
+		}
+
+		const created = await plugin.app.vault.create(finalPath, "");
+
+		// Append to Longform's scenes array if not already present.
+		const scenes = readScenesArray(plugin.app, project.indexFilePath);
+		if (!scenes.includes(sceneName)) {
+			scenes.push(sceneName);
+			await writeScenesArray(plugin.app, project.indexFilePath, scenes);
+		}
+
 		await plugin.app.workspace.getLeaf(false).openFile(created);
-		new Notice("Scene file created.");
+
+		new Notice(
+			configChanged
+				? `Created ${DEFAULT_SCENE_FOLDER_NAME}/ folder and added scene to project.`
+				: "Scene file created and added to project.",
+		);
 	} catch (e) {
 		new Notice(`Could not create scene file: ${(e as Error).message}`);
 	}
+}
+
+interface SceneFolderEnsured {
+	fountainPath: string;
+	configChanged: boolean;
+}
+
+async function ensureSceneFolder(
+	plugin: FirstDraftPlugin,
+	project: ProjectMeta,
+): Promise<SceneFolderEnsured> {
+	const projectRoot = project.projectRootPath;
+	const currentScenePath = project.sceneFolderPath;
+	const sceneFolderIsRoot = currentScenePath === projectRoot;
+
+	if (!sceneFolderIsRoot) {
+		await ensureFolderExists(plugin, currentScenePath);
+		return { fountainPath: currentScenePath, configChanged: false };
+	}
+
+	// sceneFolder is empty / pointing at the root — set it to "Screenplay" and
+	// create that folder.
+	const newPath = normalizePath(`${projectRoot}/${DEFAULT_SCENE_FOLDER_NAME}`);
+	await ensureFolderExists(plugin, newPath);
+
+	const indexFile = plugin.app.vault.getAbstractFileByPath(project.indexFilePath);
+	if (indexFile instanceof TFile) {
+		await plugin.app.fileManager.processFrontMatter(indexFile, (fm: Record<string, unknown>) => {
+			const longform = (fm.longform as Record<string, unknown> | undefined) ?? {};
+			longform.sceneFolder = DEFAULT_SCENE_FOLDER_NAME;
+			fm.longform = longform;
+		});
+	}
+	return { fountainPath: newPath, configChanged: true };
 }
 
 async function ensureFolderExists(plugin: FirstDraftPlugin, folderPath: string): Promise<void> {
