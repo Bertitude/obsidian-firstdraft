@@ -98,7 +98,10 @@ export async function renderSceneSection(opts: SceneSectionOpts): Promise<void> 
 			text: "Create scene note",
 			cls: "mod-cta",
 		});
-		btn.addEventListener("click", () => {
+		// mousedown instead of click — Obsidian's sidebar focus model swallows
+		// the first click on inactive panels. mousedown fires before focus shifts.
+		btn.addEventListener("mousedown", (e) => {
+			if (e.button !== 0) return;
 			if (btn.disabled) return;
 			btn.disabled = true;
 			btn.setText("Creating…");
@@ -163,7 +166,8 @@ export function renderFountainSection(opts: FountainSectionOpts): void {
 		text: "Create scene file",
 		cls: "mod-cta",
 	});
-	btn.addEventListener("click", () => {
+	btn.addEventListener("mousedown", (e) => {
+		if (e.button !== 0) return;
 		if (btn.disabled) return;
 		btn.disabled = true;
 		btn.setText("Creating…");
