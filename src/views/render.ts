@@ -99,6 +99,9 @@ export async function renderSceneSection(opts: SceneSectionOpts): Promise<void> 
 			cls: "mod-cta",
 		});
 		btn.addEventListener("click", () => {
+			if (btn.disabled) return;
+			btn.disabled = true;
+			btn.setText("Creating…");
 			void createSceneNote(plugin, noteRef.path, template);
 		});
 		return;
@@ -161,6 +164,9 @@ export function renderFountainSection(opts: FountainSectionOpts): void {
 		cls: "mod-cta",
 	});
 	btn.addEventListener("click", () => {
+		if (btn.disabled) return;
+		btn.disabled = true;
+		btn.setText("Creating…");
 		void createSceneFile(plugin, project, devNote.basename);
 	});
 }
