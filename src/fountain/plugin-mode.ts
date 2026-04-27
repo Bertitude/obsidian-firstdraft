@@ -19,7 +19,9 @@ import type FirstDraftPlugin from "../main";
 export type FountainMode = "bgrundmann" | "chuangcaleb" | "other";
 
 const BGRUNDMANN_PLUGIN_ID = "fountain";
-const CHUANGCALEB_PLUGIN_ID = "obsidian-fountain-editor";
+// Confirmed via manifest.json — the plugin's id is "fountain-editor",
+// not "obsidian-fountain-editor" as the GitHub repo name might suggest.
+const CHUANGCALEB_PLUGIN_ID = "fountain-editor";
 
 interface PluginsApi {
 	plugins?: Record<string, unknown>;
