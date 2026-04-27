@@ -177,6 +177,15 @@ export function renderFountainSection(opts: FountainSectionOpts): void {
 
 const DEFAULT_SCENE_FOLDER_NAME = "Screenplay";
 
+// Minimal fountain scaffold so obsidian-fountain mounts its editor. Empty
+// .fountain files don't initialise an editable view — the user gets a
+// non-editable preview surface. A slugline placeholder gives them somewhere
+// to start typing immediately.
+// prettier-ignore
+const FOUNTAIN_STARTER = `INT. LOCATION - DAY
+
+`;
+
 // Creates the fountain file for a scene. If the project's Longform sceneFolder
 // is empty or pointing at the project root, this also: (a) updates Index.md to
 // set sceneFolder = "Screenplay", (b) creates the Screenplay/ folder. Always
@@ -196,7 +205,7 @@ async function createSceneFile(
 			return;
 		}
 
-		const created = await plugin.app.vault.create(finalPath, "");
+		const created = await plugin.app.vault.create(finalPath, FOUNTAIN_STARTER);
 
 		// Append to Longform's scenes array if not already present.
 		const scenes = readScenesArray(plugin.app, project.indexFilePath);
