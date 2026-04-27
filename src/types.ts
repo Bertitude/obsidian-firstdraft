@@ -24,7 +24,10 @@ export interface GlobalConfig {
 	replaceSelectionWithLink: boolean;
 	autoLinkifyOnCreate: boolean;
 	filenameReplacementChar: string;
+	fountainPlugin: FountainPluginMode;
 }
+
+export type FountainPluginMode = "auto" | "bgrundmann" | "chuangcaleb" | "other";
 
 export interface ProjectConfig {
 	developmentFolder?: string;

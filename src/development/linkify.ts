@@ -10,7 +10,10 @@ import { snapshotFile, todayLabel } from "../versioning/snapshot";
 // "pre-linkify" label before rewrite, so a restore is always available.
 //
 // Skipped wholesale:
-//   - .fountain files (script format, links don't fit)
+//   - .fountain files (script format, links don't fit) — this stays true even
+//     when chuangcaleb mode treats .fountain as Markdown internally; screenplay
+//     action prose should remain plain text. Don't relax this without explicit
+//     user opt-in.
 //   - non-markdown files
 //   - the entity's own canonical doc
 //   - anything inside _versions/ or Drafts/ folders (snapshot territory)

@@ -6,6 +6,7 @@ import {
 	CHARACTER_NOTE_TEMPLATE,
 	LOCATION_NOTE_TEMPLATE,
 } from "./defaults";
+import { describeMode, resolveFountainMode } from "../fountain/plugin-mode";
 
 export class FirstDraftSettingTab extends PluginSettingTab {
 	plugin: FirstDraftPlugin;
@@ -24,7 +25,41 @@ export class FirstDraftSettingTab extends PluginSettingTab {
 		this.renderCharacterCardFields();
 		this.renderFirstDraftMode();
 		this.renderDevelopmentEntities();
+		this.renderFountainPlugin();
 		this.renderDebug();
+	}
+
+	private renderFountainPlugin(): void {
+		const { containerEl } = this;
+		const g = this.plugin.settings.global;
+
+		new Setting(containerEl).setName("Fountain plugin integration").setHeading();
+
+		new Setting(containerEl)
+			.setName("Fountain plugin")
+			.setDesc(
+				"Which fountain plugin you're using. Auto-detect picks based on which plugin is enabled.",
+			)
+			.addDropdown((dd) =>
+				dd
+					.addOption("auto", "Auto-detect")
+					.addOption("bgrundmann", "Bgrundmann fountain")
+					.addOption("chuangcaleb", "Chuangcaleb fountain editor")
+					.addOption("other", "Other or none")
+					.setValue(g.fountainPlugin)
+					.onChange(async (value) => {
+						g.fountainPlugin = value as typeof g.fountainPlugin;
+						await this.save();
+						this.display();
+					}),
+			);
+
+		const resolved = resolveFountainMode(this.plugin);
+		new Setting(containerEl)
+			.setName("Resolved mode")
+			.setDesc(
+				`Currently using ${describeMode(resolved)}. Changes take full effect after reloading Obsidian.`,
+			);
 	}
 
 	private renderDevelopmentEntities(): void {

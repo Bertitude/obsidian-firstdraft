@@ -1,0 +1,236 @@
+import { App, Editor, Notice, SuggestModal, TFile, TFolder, normalizePath } from "obsidian";
+import type FirstDraftPlugin from "../main";
+import type { ProjectMeta } from "../types";
+import { resolveActiveProject } from "../projects/resolver";
+import { buildExpandedRoster, characterRoster, sceneDevNotePath } from "../views/lookups";
+import { sanitizeFilename, toTitleCase } from "../utils/sanitize";
+
+// Plugin-mode-independent picker commands. These work in any editor regardless
+// of which fountain plugin is active — they don't rely on EditorSuggest. The
+// user binds a hotkey via Obsidian's Hotkeys settings; on invocation a
+// SuggestModal opens with the roster + an inline "Create new" entry at the
+// bottom (when query >= 2 chars and no exact match).
+//
+// Character cue insertion: NAME + newline (cursor on dialogue line below).
+// Location reference insertion: NAME at cursor (no newline; locations get
+// woven inline into action prose like "Marcus walks into THE OFFICE").
+
+const CREATE_ENTRY_MIN_QUERY_LENGTH = 2;
+
+type EntryKind = "character" | "location";
+
+interface PickerEntry {
+	kind: "existing" | "create";
+	name: string;
+	folderCasing: string | null;
+}
+
+export function runInsertCharacterCueCommand(plugin: FirstDraftPlugin): void {
+	void openPicker(plugin, "character");
+}
+
+export function runInsertLocationReferenceCommand(plugin: FirstDraftPlugin): void {
+	void openPicker(plugin, "location");
+}
+
+async function openPicker(plugin: FirstDraftPlugin, kind: EntryKind): Promise<void> {
+	const editor = plugin.app.workspace.activeEditor?.editor;
+	if (!editor) {
+		new Notice("No active editor — open a file first.");
+		return;
+	}
+
+	const file = plugin.app.workspace.getActiveFile();
+	const project = file ? resolveActiveProject(file, plugin.scanner) : null;
+	if (!project) {
+		new Notice("Open a file inside a project first.");
+		return;
+	}
+
+	const cfg = plugin.settings.global;
+	const devNoteRef = file ? sceneDevNotePath(file, project, cfg) : null;
+	const entries = await buildPickerRoster(plugin, project, kind, devNoteRef?.file ?? null);
+
+	new InsertPickerModal(plugin, kind, entries, project, file, editor).open();
+}
+
+async function buildPickerRoster(
+	plugin: FirstDraftPlugin,
+	project: ProjectMeta,
+	kind: EntryKind,
+	devNoteFile: TFile | null,
+): Promise<PickerEntry[]> {
+	const cfg = plugin.settings.global;
+	if (kind === "character") {
+		// Use the same expanded roster as Phase 4a (folders + dev note + cues).
+		const cache = new Map<string, string[]>();
+		const roster = await buildExpandedRoster(plugin.app, project, cfg, devNoteFile, cache);
+		return roster.map((r) => ({
+			kind: "existing" as const,
+			name: r.name,
+			folderCasing: r.folderCasing,
+		}));
+	}
+
+	// Locations: folders + dev note's locations: array.
+	const map = new Map<string, PickerEntry>();
+
+	const locationsFolderPath = normalizePath(
+		`${project.projectRootPath}/${cfg.developmentFolder}/${cfg.locationsSubfolder}`,
+	);
+	const folder = plugin.app.vault.getAbstractFileByPath(locationsFolderPath);
+	if (folder instanceof TFolder) {
+		for (const child of folder.children) {
+			if (!(child instanceof TFolder)) continue;
+			const name = child.name.toUpperCase();
+			map.set(name, { kind: "existing", name, folderCasing: child.name });
+		}
+	}
+
+	if (devNoteFile) {
+		const fm = plugin.app.metadataCache.getFileCache(devNoteFile)?.frontmatter as
+			| Record<string, unknown>
+			| undefined;
+		const locsArray = Array.isArray(fm?.locations) ? (fm?.locations as unknown[]) : [];
+		const legacy = typeof fm?.location === "string" ? [fm.location] : [];
+		for (const raw of [...locsArray, ...legacy]) {
+			if (typeof raw !== "string") continue;
+			const key = raw.trim().toUpperCase();
+			if (key === "" || map.has(key)) continue;
+			map.set(key, { kind: "existing", name: key, folderCasing: null });
+		}
+	}
+
+	return [...map.values()].sort((a, b) => a.name.localeCompare(b.name));
+}
+
+class InsertPickerModal extends SuggestModal<PickerEntry> {
+	constructor(
+		private readonly plugin: FirstDraftPlugin,
+		private readonly kind: EntryKind,
+		private readonly roster: PickerEntry[],
+		private readonly project: ProjectMeta,
+		private readonly file: TFile | null,
+		private readonly editor: Editor,
+	) {
+		super(plugin.app);
+		this.setPlaceholder(
+			kind === "character"
+				? "Insert character cue — type to filter"
+				: "Insert location — type to filter",
+		);
+	}
+
+	getSuggestions(query: string): PickerEntry[] {
+		const q = query.trim().toUpperCase();
+		const matches = q === ""
+			? this.roster
+			: this.roster.filter((e) => e.name.startsWith(q));
+
+		const result: PickerEntry[] = [...matches];
+		const hasExact = matches.some((e) => e.name === q);
+		if (!hasExact && q.length >= CREATE_ENTRY_MIN_QUERY_LENGTH) {
+			result.push({ kind: "create", name: q, folderCasing: null });
+		}
+		return result;
+	}
+
+	renderSuggestion(value: PickerEntry, el: HTMLElement): void {
+		el.addClass("firstdraft-picker-suggestion");
+		if (value.kind === "create") {
+			el.addClass("firstdraft-picker-suggestion-create");
+			el.createSpan({
+				cls: "firstdraft-picker-suggestion-prefix",
+				text: this.kind === "character" ? "Create character: " : "Create location: ",
+			});
+			el.createSpan({ text: value.name });
+		} else {
+			el.setText(value.name);
+		}
+	}
+
+	onChooseSuggestion(value: PickerEntry, _evt: MouseEvent | KeyboardEvent): void {
+		if (value.kind === "create") {
+			void this.handleCreate(value.name);
+			return;
+		}
+		this.handleInsertExisting(value);
+	}
+
+	private handleInsertExisting(value: PickerEntry): void {
+		this.insertAtCursor(value.name);
+		const stored = value.folderCasing ?? value.name;
+		void this.syncToDevNote(stored);
+	}
+
+	private async handleCreate(name: string): Promise<void> {
+		const cfg = this.plugin.settings.global;
+		const sanitized = sanitizeFilename(name, cfg.filenameReplacementChar);
+		if (!sanitized) {
+			new Notice(`No valid characters in name.`);
+			return;
+		}
+		const folderCasing = toTitleCase(sanitized);
+		const subfolder =
+			this.kind === "character" ? cfg.charactersSubfolder : cfg.locationsSubfolder;
+		const folderPath = normalizePath(
+			`${this.project.projectRootPath}/${cfg.developmentFolder}/${subfolder}/${folderCasing}`,
+		);
+		const docPath = normalizePath(`${folderPath}/${folderCasing}.md`);
+
+		try {
+			await ensureFolderExists(this.plugin.app, folderPath);
+			if (!this.plugin.app.vault.getAbstractFileByPath(docPath)) {
+				const template =
+					this.kind === "character"
+						? cfg.characterNoteTemplate
+						: cfg.locationNoteTemplate;
+				await this.plugin.app.vault.create(docPath, template);
+			}
+			this.insertAtCursor(name);
+			await this.syncToDevNote(folderCasing);
+			new Notice(`Created ${this.kind}: ${folderCasing}`);
+		} catch (e) {
+			new Notice(`Could not create ${this.kind}: ${(e as Error).message}`);
+		}
+	}
+
+	private insertAtCursor(name: string): void {
+		// Characters: name + newline so cursor lands on dialogue line.
+		// Locations: just the name; cursor stays in flow of action prose.
+		const text = this.kind === "character" ? `${name}\n` : name;
+		this.editor.replaceSelection(text);
+	}
+
+	private async syncToDevNote(name: string): Promise<void> {
+		if (!this.file) return;
+		const cfg = this.plugin.settings.global;
+		const ref = sceneDevNotePath(this.file, this.project, cfg);
+		if (!ref.file) return;
+
+		const field = this.kind === "character" ? "characters" : "locations";
+
+		await this.plugin.app.fileManager.processFrontMatter(
+			ref.file,
+			(fm: Record<string, unknown>) => {
+				const existing = Array.isArray(fm[field])
+					? (fm[field] as unknown[]).filter((v): v is string => typeof v === "string")
+					: [];
+				if (existing.some((n) => n.toUpperCase() === name.toUpperCase())) return;
+				existing.push(name);
+				fm[field] = existing;
+			},
+		);
+	}
+}
+
+async function ensureFolderExists(app: App, path: string): Promise<void> {
+	const existing = app.vault.getAbstractFileByPath(path);
+	if (existing instanceof TFolder) return;
+	if (existing) throw new Error(`Path exists but is not a folder: ${path}`);
+	await app.vault.createFolder(path);
+}
+
+// Suppress unused warning for characterRoster — exposed via lookups but not
+// directly used here (we go through buildExpandedRoster instead).
+void characterRoster;

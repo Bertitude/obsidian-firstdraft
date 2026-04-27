@@ -21,6 +21,12 @@ import {
 	runCreateLocationFromSelection,
 	runLinkifyAllCommand,
 } from "./development/create-entity";
+import {
+	runInsertCharacterCueCommand,
+	runInsertLocationReferenceCommand,
+} from "./development/insert-cue";
+import { isPluginEnabled, KNOWN_PLUGIN_IDS, resolveFountainMode } from "./fountain/plugin-mode";
+import { Notice } from "obsidian";
 
 export default class FirstDraftPlugin extends Plugin {
 	settings!: FirstDraftSettings;
@@ -133,6 +139,22 @@ export default class FirstDraftPlugin extends Plugin {
 			},
 		});
 
+		this.addCommand({
+			id: "insert-character-cue",
+			name: "Insert character cue",
+			callback: () => {
+				runInsertCharacterCueCommand(this);
+			},
+		});
+
+		this.addCommand({
+			id: "insert-location-reference",
+			name: "Insert location reference",
+			callback: () => {
+				runInsertLocationReferenceCommand(this);
+			},
+		});
+
 		this.registerEvent(
 			this.app.workspace.on("editor-menu", (menu, editor) => {
 				if (!editor.getSelection().trim()) return;
@@ -151,7 +173,10 @@ export default class FirstDraftPlugin extends Plugin {
 			}),
 		);
 
-		this.app.workspace.onLayoutReady(() => this.scanner.scanAll());
+		this.app.workspace.onLayoutReady(() => {
+			this.scanner.scanAll();
+			this.applyFountainPluginMode();
+		});
 	}
 
 	onunload(): void {
@@ -167,5 +192,31 @@ export default class FirstDraftPlugin extends Plugin {
 
 	async saveSettings(): Promise<void> {
 		await this.saveData(this.settings);
+	}
+
+	// Apply the resolved fountain plugin mode at startup. When chuangcaleb mode
+	// is in effect, register .fountain → markdown view so EditorSuggest fires
+	// inline. Refuses to register if bgrundmann's plugin is also enabled
+	// (prevents the silent crash documented in the Custom File Extensions
+	// Plugin issue tracker).
+	private applyFountainPluginMode(): void {
+		const mode = resolveFountainMode(this);
+		if (mode !== "chuangcaleb") return;
+
+		if (isPluginEnabled(this, KNOWN_PLUGIN_IDS.bgrundmann)) {
+			new Notice(
+				"Disable the other fountain plugin before switching modes.",
+				8000,
+			);
+			return;
+		}
+
+		try {
+			this.registerExtensions(["fountain"], "markdown");
+		} catch (e) {
+			new Notice(
+				`FirstDraft: could not register .fountain as Markdown — ${(e as Error).message}`,
+			);
+		}
 	}
 }

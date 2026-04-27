@@ -109,5 +109,6 @@ export const DEFAULT_SETTINGS: FirstDraftSettings = {
 		replaceSelectionWithLink: true,
 		autoLinkifyOnCreate: false,
 		filenameReplacementChar: "_",
+		fountainPlugin: "auto",
 	},
 };
