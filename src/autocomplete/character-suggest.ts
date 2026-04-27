@@ -108,6 +108,7 @@ export class CharacterCueSuggest extends EditorSuggest<SuggestEntry> {
 			cfg,
 			devNoteRef.file,
 			this.fountainCueCache,
+			context.file?.path,
 		);
 
 		const q = context.query.toUpperCase();

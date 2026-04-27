@@ -249,12 +249,18 @@ export function parseCharacterCues(fountain: string): string[] {
 // Folder-derived entries provide canonical casing; the other sources contribute
 // names with `folderCasing: null`. Caller passes a cache keyed by file path so
 // repeated suggestion lookups don't re-read every fountain on each keystroke.
+//
+// excludePath: optional file path to skip during cue parsing. Used by the
+// autocomplete and picker when the user is typing in a fountain file — their
+// in-progress (auto-saved) cue text shouldn't suggest itself as a roster
+// member, otherwise the "Create new" entry never appears.
 export async function buildExpandedRoster(
 	app: App,
 	project: ProjectMeta,
 	cfg: GlobalConfig,
 	devNoteFile: TFile | null,
 	cueCache: Map<string, string[]>,
+	excludePath?: string,
 ): Promise<AutocompleteRosterEntry[]> {
 	const map = new Map<string, AutocompleteRosterEntry>();
 
@@ -279,6 +285,7 @@ export async function buildExpandedRoster(
 	if (fountainFolder instanceof TFolder) {
 		for (const child of fountainFolder.children) {
 			if (!(child instanceof TFile) || child.extension !== "fountain") continue;
+			if (excludePath && child.path === excludePath) continue;
 			let cues = cueCache.get(child.path);
 			if (!cues) {
 				const text = await app.vault.cachedRead(child);

@@ -70,8 +70,20 @@ async function buildPickerRoster(
 	const cfg = plugin.settings.global;
 	if (kind === "character") {
 		// Use the same expanded roster as Phase 4a (folders + dev note + cues).
+		// Exclude the active fountain so the user's in-progress cue doesn't
+		// suggest itself.
 		const cache = new Map<string, string[]>();
-		const roster = await buildExpandedRoster(plugin.app, project, cfg, devNoteFile, cache);
+		const activeFile = plugin.app.workspace.getActiveFile();
+		const excludePath =
+			activeFile && activeFile.extension === "fountain" ? activeFile.path : undefined;
+		const roster = await buildExpandedRoster(
+			plugin.app,
+			project,
+			cfg,
+			devNoteFile,
+			cache,
+			excludePath,
+		);
 		return roster.map((r) => ({
 			kind: "existing" as const,
 			name: r.name,
