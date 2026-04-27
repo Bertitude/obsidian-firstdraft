@@ -17,6 +17,7 @@ export interface TreatmentRow {
 	versionCount: number;
 	orphan: boolean; // dev note exists but not in Longform's scenes array
 	missing: boolean; // listed in scenes array but no dev note or fountain found
+	indexFilePath: string; // Index.md this row belongs to — needed in season mode
 }
 
 export interface TreatmentData {
@@ -45,7 +46,7 @@ export function buildTreatmentData(
 	const rows: TreatmentRow[] = [];
 
 	for (const name of scenesArray) {
-		const row = buildRow(app, name, fountainFolderPath, devScenesPath, false);
+		const row = buildRow(app, name, fountainFolderPath, devScenesPath, false, project.indexFilePath);
 		rows.push(row);
 		seen.add(name);
 	}
@@ -57,7 +58,7 @@ export function buildTreatmentData(
 			if (!(child instanceof TFile)) continue;
 			if (child.extension !== "md") continue;
 			if (seen.has(child.basename)) continue;
-			rows.push(buildRow(app, child.basename, fountainFolderPath, devScenesPath, true));
+			rows.push(buildRow(app, child.basename, fountainFolderPath, devScenesPath, true, project.indexFilePath));
 		}
 	}
 
@@ -70,6 +71,7 @@ function buildRow(
 	fountainFolderPath: string,
 	devScenesPath: string,
 	orphan: boolean,
+	indexFilePath: string,
 ): TreatmentRow {
 	const devNotePath = normalizePath(`${devScenesPath}/${sceneName}.md`);
 	const fountainPath = normalizePath(`${fountainFolderPath}/${sceneName}.fountain`);
@@ -103,6 +105,7 @@ function buildRow(
 		versionCount,
 		orphan,
 		missing,
+		indexFilePath,
 	};
 }
 

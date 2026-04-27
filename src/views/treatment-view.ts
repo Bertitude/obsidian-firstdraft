@@ -9,10 +9,24 @@ import { VIEW_TYPE_TREATMENT } from "./view-types";
 // Treatment list view: one row per scene in the active project, ordered by
 // Longform's scenes array. Rows are draggable; dropping persists the new
 // order back to Index.md. Refreshes on metadata/file/active-leaf changes.
+//
+// For TV projects, a Season mode shows scenes from all sibling episodes
+// grouped under episode headers. Drag-reorder is constrained to within an
+// episode (cross-episode drag would require file moves and is deferred).
+
+type Mode = "episode" | "season";
+
+interface SeasonGroup {
+	project: ProjectMeta;
+	rows: TreatmentRow[];
+	scenesArray: string[];
+}
 
 export class TreatmentView extends ItemView {
 	private project: ProjectMeta | null = null;
+	private mode: Mode = "episode";
 	private rows: TreatmentRow[] = [];
+	private groups: SeasonGroup[] = [];
 
 	constructor(
 		leaf: WorkspaceLeaf,
@@ -54,14 +68,13 @@ export class TreatmentView extends ItemView {
 			return;
 		}
 
-		const data = buildTreatmentData(
-			this.plugin.app,
-			this.project,
-			this.plugin.settings.global,
-		);
-		this.rows = data.rows;
+		const isTV = this.project.projectType === "tv-episode";
+		if (!isTV) this.mode = "episode"; // mode toggle only meaningful for TV
 
-		this.renderHeader(this.project);
+		this.groups = this.buildGroups(this.project, this.mode);
+		this.rows = this.groups.flatMap((g) => g.rows);
+
+		this.renderHeader(this.project, isTV);
 
 		if (this.rows.length === 0) {
 			this.renderEmptyNoScenes();
@@ -69,31 +82,89 @@ export class TreatmentView extends ItemView {
 		}
 
 		const list = this.contentEl.createDiv({ cls: "firstdraft-treatment-list" });
-		this.rows.forEach((row, index) => this.renderRow(list, row, index));
+		this.renderGroups(list);
 
 		// Async enrichment: fetch intent excerpts and sluglines from disk and
 		// patch the existing row DOM in place once they arrive.
 		void this.enrichVisibleRows(list);
 	}
 
-	// Enrichment runs after the initial sync render so the UI shows immediately;
-	// excerpts and sluglines pop in shortly after.
+	private buildGroups(project: ProjectMeta, mode: Mode): SeasonGroup[] {
+		const cfg = this.plugin.settings.global;
+
+		if (mode === "episode" || project.projectType !== "tv-episode") {
+			const data = buildTreatmentData(this.plugin.app, project, cfg);
+			return [{ project, rows: data.rows, scenesArray: data.scenesArray }];
+		}
+
+		// Season mode: gather all sibling episodes (same series + season) and
+		// build a group per episode in episode-code order.
+		const siblings = findSiblingEpisodes(this.plugin, project);
+		return siblings.map((p) => {
+			const data = buildTreatmentData(this.plugin.app, p, cfg);
+			return { project: p, rows: data.rows, scenesArray: data.scenesArray };
+		});
+	}
+
+	private renderGroups(list: HTMLElement): void {
+		if (this.mode === "episode" || this.groups.length === 1) {
+			this.rows.forEach((row, index) => this.renderRow(list, row, index));
+			return;
+		}
+
+		// Season mode — emit an episode header before each group's rows.
+		let cursor = 0;
+		for (const group of this.groups) {
+			const header = list.createDiv({ cls: "firstdraft-treatment-group-header" });
+			header.createEl("h3", { text: displayProject(group.project) });
+			const sub = header.createSpan({ cls: "firstdraft-treatment-group-meta" });
+			sub.setText(`${group.rows.length} scene${group.rows.length === 1 ? "" : "s"}`);
+			for (const row of group.rows) {
+				this.renderRow(list, row, cursor);
+				cursor += 1;
+			}
+		}
+	}
+
 	private async enrichVisibleRows(list: HTMLElement): Promise<void> {
+		// Walk the row elements (skipping group headers) in DOM order and patch
+		// each with async-loaded intent + sluglines.
+		const rowEls = Array.from(list.querySelectorAll<HTMLElement>(".firstdraft-treatment-row"));
 		for (let i = 0; i < this.rows.length; i++) {
 			const row = this.rows[i];
 			if (!row) continue;
 			const enriched = await enrichRowAsync(this.plugin.app, row);
 			this.rows[i] = enriched;
-			const rowEl = list.children[i] as HTMLElement | undefined;
+			const rowEl = rowEls[i];
 			if (rowEl) updateRowExtras(rowEl, enriched);
 		}
 	}
 
-	private renderHeader(project: ProjectMeta): void {
+	private renderHeader(project: ProjectMeta, isTV: boolean): void {
 		const header = this.contentEl.createDiv({ cls: "firstdraft-treatment-header" });
-		header.createEl("h2", { text: displayProject(project) });
+		const top = header.createDiv({ cls: "firstdraft-treatment-header-top" });
+		top.createEl("h2", { text: displayProject(project) });
+		if (isTV) this.renderModeToggle(top);
 		const sub = header.createDiv({ cls: "firstdraft-treatment-subtitle" });
 		sub.setText(`${this.rows.length} scene${this.rows.length === 1 ? "" : "s"}`);
+	}
+
+	private renderModeToggle(parent: HTMLElement): void {
+		const wrap = parent.createDiv({ cls: "firstdraft-treatment-mode" });
+		const make = (label: string, value: Mode) => {
+			const btn = wrap.createEl("button", {
+				text: label,
+				cls: "firstdraft-treatment-mode-btn" + (this.mode === value ? " is-active" : ""),
+			});
+			btn.addEventListener("mousedown", (e) => {
+				if (e.button !== 0) return;
+				if (this.mode === value) return;
+				this.mode = value;
+				void this.refresh();
+			});
+		};
+		make("Episode", "episode");
+		make("Season", "season");
 	}
 
 	private renderEmptyNoProject(): void {
@@ -112,7 +183,8 @@ export class TreatmentView extends ItemView {
 			text: "Create outline",
 			cls: "mod-cta",
 		});
-		btn.addEventListener("click", () => {
+		btn.addEventListener("mousedown", (e) => {
+			if (e.button !== 0) return;
 			void runCreateOutlineFromButton(this.plugin);
 		});
 	}
@@ -239,32 +311,36 @@ export class TreatmentView extends ItemView {
 	}
 
 	private async handleReorder(sourceIdx: number, targetIdx: number): Promise<void> {
-		if (!this.project) return;
-
-		const orderableRows = this.rows.filter((r) => !r.orphan);
-		const orphans = this.rows.filter((r) => r.orphan);
-
-		// Reordering only applies to non-orphan rows (orphans aren't in Longform's
-		// scenes array). Map view indices to orderable indices.
 		const sourceRow = this.rows[sourceIdx];
 		const targetRow = this.rows[targetIdx];
-		if (!sourceRow || !targetRow || sourceRow.orphan || targetRow.orphan) {
+		if (!sourceRow || !targetRow) return;
+		if (sourceRow.orphan || targetRow.orphan) {
 			new Notice("Orphan rows can't be reordered until they're added to the project.");
 			return;
 		}
+		if (sourceRow.indexFilePath !== targetRow.indexFilePath) {
+			new Notice("Cross-episode reordering isn't supported yet.");
+			return;
+		}
 
-		const sourceOrder = orderableRows.indexOf(sourceRow);
-		const targetOrder = orderableRows.indexOf(targetRow);
+		// Find the group these rows belong to and reorder within it.
+		const group = this.groups.find((g) => g.project.indexFilePath === sourceRow.indexFilePath);
+		if (!group) return;
+
+		const orderable = group.rows.filter((r) => !r.orphan);
+		const orphans = group.rows.filter((r) => r.orphan);
+		const sourceOrder = orderable.indexOf(sourceRow);
+		const targetOrder = orderable.indexOf(targetRow);
 		if (sourceOrder === -1 || targetOrder === -1) return;
 
-		const [moved] = orderableRows.splice(sourceOrder, 1);
+		const [moved] = orderable.splice(sourceOrder, 1);
 		if (!moved) return;
-		orderableRows.splice(targetOrder, 0, moved);
+		orderable.splice(targetOrder, 0, moved);
 
-		const newScenes = orderableRows.map((r) => r.sceneName);
+		const newScenes = orderable.map((r) => r.sceneName);
 		try {
-			await writeScenesArray(this.plugin.app, this.project.indexFilePath, newScenes);
-			this.rows = [...orderableRows, ...orphans];
+			await writeScenesArray(this.plugin.app, group.project.indexFilePath, newScenes);
+			group.rows = [...orderable, ...orphans];
 			await this.refresh();
 		} catch (e) {
 			new Notice(`Reorder failed: ${(e as Error).message}`);
@@ -291,6 +367,26 @@ function displayProject(p: ProjectMeta): string {
 function basenameOf(path: string): string {
 	const seg = path.split("/").pop() ?? path;
 	return seg.replace(/\.md$/, "");
+}
+
+// Find all episodes in the same series + same season as the given project.
+// Returned in episode-code order (S01E01, S01E02, …) for stable rendering.
+function findSiblingEpisodes(plugin: FirstDraftPlugin, project: ProjectMeta): ProjectMeta[] {
+	if (project.projectType !== "tv-episode" || !project.series || !project.season) {
+		return [project];
+	}
+	const matches: ProjectMeta[] = [];
+	for (const meta of plugin.scanner.projects.values()) {
+		if (
+			meta.projectType === "tv-episode" &&
+			meta.series === project.series &&
+			meta.season === project.season
+		) {
+			matches.push(meta);
+		}
+	}
+	matches.sort((a, b) => (a.episode ?? "").localeCompare(b.episode ?? ""));
+	return matches.length > 0 ? matches : [project];
 }
 
 // Imports the create-outline command lazily to keep the view module's import
