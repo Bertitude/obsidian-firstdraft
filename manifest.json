@@ -1,11 +1,9 @@
 {
-	"id": "sample-plugin",
-	"name": "Sample Plugin",
+	"id": "obsidian-firstdraft",
+	"name": "FirstDraft",
 	"version": "1.0.0",
 	"minAppVersion": "0.15.0",
-	"description": "Demonstrates some of the capabilities of the Obsidian API.",
-	"author": "Obsidian",
-	"authorUrl": "https://obsidian.md",
-	"fundingUrl": "https://obsidian.md/pricing",
+	"description": "A screenwriting companion that connects scene files to development notes, autocompletes character cues, and provides a distraction-free first draft mode.",
+	"author": "Kaiel Eytle",
 	"isDesktopOnly": false
 }
