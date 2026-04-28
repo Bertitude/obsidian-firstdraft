@@ -470,3 +470,16 @@
 	flex: 1;
 	margin: 0;
 }
+
+/* First Draft Mode — focused-writing layout */
+body.firstdraft-hide-ribbon .workspace-ribbon {
+	display: none !important;
+}
+
+body.firstdraft-hide-statusbar .status-bar {
+	display: none !important;
+}
+
+body.firstdraft-hide-left-sidebar .workspace-split.mod-left-split {
+	display: none !important;
+}

@@ -7,6 +7,7 @@ import {
 	LOCATION_NOTE_TEMPLATE,
 } from "./defaults";
 import { describeMode, resolveFountainMode } from "../fountain/plugin-mode";
+import { applyBodyClasses } from "../firstdraft-mode/toggle";
 
 export class FirstDraftSettingTab extends PluginSettingTab {
 	plugin: FirstDraftPlugin;
@@ -306,6 +307,10 @@ export class FirstDraftSettingTab extends PluginSettingTab {
 
 		new Setting(containerEl).setName("First draft mode").setHeading();
 
+		const reapplyIfActive = () => {
+			if (m.active) applyBodyClasses(true, m);
+		};
+
 		new Setting(containerEl)
 			.setName("Hide ribbon")
 			.setDesc("Hide the left ribbon when first draft mode is active.")
@@ -313,6 +318,7 @@ export class FirstDraftSettingTab extends PluginSettingTab {
 				t.setValue(m.hideRibbon).onChange(async (v) => {
 					m.hideRibbon = v;
 					await this.save();
+					reapplyIfActive();
 				}),
 			);
 
@@ -323,6 +329,7 @@ export class FirstDraftSettingTab extends PluginSettingTab {
 				t.setValue(m.hideStatusBar).onChange(async (v) => {
 					m.hideStatusBar = v;
 					await this.save();
+					reapplyIfActive();
 				}),
 			);
 
@@ -333,6 +340,11 @@ export class FirstDraftSettingTab extends PluginSettingTab {
 				t.setValue(m.hideLeftSidebar).onChange(async (v) => {
 					m.hideLeftSidebar = v;
 					await this.save();
+					reapplyIfActive();
+					if (m.active) {
+						if (v) this.plugin.app.workspace.leftSplit.collapse();
+						else this.plugin.app.workspace.leftSplit.expand();
+					}
 				}),
 			);
 	}

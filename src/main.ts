@@ -32,6 +32,7 @@ import {
 import { isPluginEnabled, KNOWN_PLUGIN_IDS, resolveFountainMode } from "./fountain/plugin-mode";
 import { runMigrateProjectCommand } from "./fountain/migrate";
 import { runSyncScreenplayScenesCommand } from "./longform/sync-scenes";
+import { toggleFirstDraftMode, exitFirstDraftModeSync } from "./firstdraft-mode/toggle";
 import { Notice } from "obsidian";
 
 export default class FirstDraftPlugin extends Plugin {
@@ -193,6 +194,14 @@ export default class FirstDraftPlugin extends Plugin {
 			},
 		});
 
+		this.addCommand({
+			id: "toggle-first-draft-mode",
+			name: "Toggle First Draft Mode",
+			callback: () => {
+				void toggleFirstDraftMode(this);
+			},
+		});
+
 		this.registerEvent(
 			this.app.workspace.on("editor-menu", (menu, editor) => {
 				if (!editor.getSelection().trim()) return;
@@ -218,14 +227,17 @@ export default class FirstDraftPlugin extends Plugin {
 	}
 
 	onunload(): void {
-		// Listeners, commands, and registered views clean up automatically. Leaves of
-		// our view type stay open across reloads — Obsidian will recreate them via the
-		// view factory we registered.
+		// Strip First Draft Mode body classes so they don't leak when the plugin is
+		// disabled. Listeners, commands, and views clean up automatically.
+		exitFirstDraftModeSync(this);
 	}
 
 	async loadSettings(): Promise<void> {
 		const loaded = (await this.loadData()) as Partial<FirstDraftSettings> | null;
 		this.settings = mergeSettings(loaded, DEFAULT_SETTINGS);
+		// First Draft Mode is session-only — reset transient fields on load.
+		this.settings.global.firstDraftMode.active = false;
+		this.settings.global.firstDraftMode.savedLayout = null;
 	}
 
 	async saveSettings(): Promise<void> {
