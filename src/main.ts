@@ -33,6 +33,7 @@ import { isPluginEnabled, KNOWN_PLUGIN_IDS, resolveFountainMode } from "./founta
 import { runMigrateProjectCommand } from "./fountain/migrate";
 import { runSyncScreenplayScenesCommand } from "./longform/sync-scenes";
 import { toggleFirstDraftMode, exitFirstDraftModeSync } from "./firstdraft-mode/toggle";
+import { installCursorScrollHandler } from "./cursor-scroll/handler";
 import { Notice } from "obsidian";
 
 export default class FirstDraftPlugin extends Plugin {
@@ -53,6 +54,7 @@ export default class FirstDraftPlugin extends Plugin {
 		this.registerEditorSuggest(new CharacterCueSuggest(this));
 		this.addSettingTab(new FirstDraftSettingTab(this.app, this));
 		registerEventHandlers(this);
+		installCursorScrollHandler(this);
 
 		this.addRibbonIcon("notebook-pen", "Open dev notes panel", () => {
 			void activateDevNotesView(this);
