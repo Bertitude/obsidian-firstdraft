@@ -2,6 +2,8 @@ import { ItemView, TFile, WorkspaceLeaf } from "obsidian";
 import type FirstDraftPlugin from "../main";
 import type { ProjectMeta } from "../types";
 import { resolveActiveProject } from "../projects/resolver";
+import { resolveProjectSettings } from "../settings/resolve";
+import { openProjectSettingsModal } from "../settings/project-settings-modal";
 import { characterRoster, scenePairFromActive } from "./lookups";
 import {
 	renderHeader,
@@ -71,7 +73,7 @@ export class DevNotesView extends ItemView {
 			return;
 		}
 
-		const cfg = this.plugin.settings.global;
+		const cfg = resolveProjectSettings(project, this.plugin.settings);
 		const pair = scenePairFromActive(this.app, file, project, cfg);
 		if (!pair) {
 			renderEmptyState(
@@ -94,7 +96,8 @@ export class DevNotesView extends ItemView {
 				view: this,
 				scene: file,
 				noteRef: { path: pair.devNotePath, file: pair.devNoteFile },
-				template: cfg.sceneNoteTemplate,
+				getTemplate: () =>
+					resolveProjectSettings(project, this.plugin.settings).sceneNoteTemplate,
 				plugin: this.plugin,
 			});
 		} else {
@@ -122,6 +125,7 @@ export class DevNotesView extends ItemView {
 			plugin: this.plugin,
 			characterNames,
 			roster,
+			cfg,
 		});
 
 		if (locationNames.length > 0) {
@@ -136,16 +140,8 @@ export class DevNotesView extends ItemView {
 		}
 	}
 
-	private openSettings(_project: ProjectMeta): void {
-		// Phase 5 will replace this with a project-scoped Modal. For now, jump to the
-		// global settings tab so the cog button isn't a dead control.
-		const setting = (
-			this.app as unknown as {
-				setting: { open: () => void; openTabById: (id: string) => void };
-			}
-		).setting;
-		setting?.open();
-		setting?.openTabById(this.plugin.manifest.id);
+	private openSettings(project: ProjectMeta): void {
+		openProjectSettingsModal(this.plugin, project);
 	}
 }
 

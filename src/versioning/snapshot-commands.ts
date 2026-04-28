@@ -1,6 +1,7 @@
 import { App, Notice, SuggestModal, TFile, TFolder, normalizePath } from "obsidian";
 import type FirstDraftPlugin from "../main";
 import { resolveActiveProject } from "../projects/resolver";
+import { resolveProjectSettings } from "../settings/resolve";
 import type { ProjectMeta } from "../types";
 import { snapshotFile, todayLabel } from "./snapshot";
 import { promptForLabel } from "./prompt";
@@ -60,7 +61,7 @@ async function snapshotProject(
 	project: ProjectMeta,
 	label: string,
 ): Promise<number> {
-	const cfg = plugin.settings.global;
+	const cfg = resolveProjectSettings(project, plugin.settings);
 	const safeLabel = sanitizeLabel(label);
 	const draftsRoot = normalizePath(`${project.projectRootPath}/Drafts/${safeLabel}`);
 

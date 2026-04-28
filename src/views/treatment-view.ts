@@ -2,6 +2,7 @@ import { ItemView, Notice, WorkspaceLeaf, setIcon } from "obsidian";
 import type FirstDraftPlugin from "../main";
 import type { ProjectMeta } from "../types";
 import { resolveActiveProject } from "../projects/resolver";
+import { resolveProjectSettings } from "../settings/resolve";
 import { writeScenesArray } from "../longform/scenes-array";
 import { buildTreatmentData, enrichRowAsync, type TreatmentRow } from "./treatment-data";
 import { VIEW_TYPE_TREATMENT } from "./view-types";
@@ -90,17 +91,18 @@ export class TreatmentView extends ItemView {
 	}
 
 	private buildGroups(project: ProjectMeta, mode: Mode): SeasonGroup[] {
-		const cfg = this.plugin.settings.global;
-
 		if (mode === "episode" || project.projectType !== "tv-episode") {
+			const cfg = resolveProjectSettings(project, this.plugin.settings);
 			const data = buildTreatmentData(this.plugin.app, project, cfg);
 			return [{ project, rows: data.rows, scenesArray: data.scenesArray }];
 		}
 
 		// Season mode: gather all sibling episodes (same series + season) and
-		// build a group per episode in episode-code order.
+		// build a group per episode in episode-code order. Each episode resolves
+		// its own per-project overrides.
 		const siblings = findSiblingEpisodes(this.plugin, project);
 		return siblings.map((p) => {
+			const cfg = resolveProjectSettings(p, this.plugin.settings);
 			const data = buildTreatmentData(this.plugin.app, p, cfg);
 			return { project: p, rows: data.rows, scenesArray: data.scenesArray };
 		});

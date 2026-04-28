@@ -2,6 +2,7 @@ import { App, Modal, Notice, SuggestModal, TFile, TFolder, normalizePath } from 
 import type FirstDraftPlugin from "../main";
 import type { ProjectMeta } from "../types";
 import { resolveActiveProject } from "../projects/resolver";
+import { resolveProjectSettings } from "../settings/resolve";
 import { characterRoster, locationRoster } from "../views/lookups";
 import { snapshotFile, todayLabel } from "../versioning/snapshot";
 
@@ -68,7 +69,7 @@ function collectChoices(
 	project: ProjectMeta,
 	kind: EntityKind,
 ): RosterChoice[] {
-	const cfg = plugin.settings.global;
+	const cfg = resolveProjectSettings(project, plugin.settings);
 	const entries =
 		kind === "character"
 			? characterRoster(plugin.app, project, cfg)

@@ -10,7 +10,7 @@ tags: []
 status: draft
 ---
 
-## Sequence intent
+## Sequence Overview
 
 ## Notes
 
@@ -77,7 +77,7 @@ promoted_at:
 
 <!-- Add one H2 per beat. The H2 title becomes the scene's filename when
      you run "FirstDraft: Promote outline to scenes". The prose under each
-     H2 becomes the dev note's "Sequence intent" section. -->
+     H2 becomes the dev note's "Sequence Overview" section. -->
 
 ## First beat
 What happens here. A few sentences.

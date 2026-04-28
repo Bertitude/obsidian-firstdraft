@@ -1,6 +1,7 @@
 import { App, Notice, TFile, TFolder, normalizePath } from "obsidian";
 import type FirstDraftPlugin from "../main";
 import type { ProjectMeta } from "../types";
+import { resolveProjectSettings } from "../settings/resolve";
 import { snapshotFile, todayLabel } from "../versioning/snapshot";
 import { isFountainFile } from "../fountain/file-detection";
 
@@ -65,7 +66,7 @@ export async function linkifyAllEntities(
 	plugin: FirstDraftPlugin,
 	project: ProjectMeta,
 ): Promise<LinkifyResult> {
-	const cfg = plugin.settings.global;
+	const cfg = resolveProjectSettings(project, plugin.settings);
 	const entities = collectAllEntities(plugin.app, project, cfg.developmentFolder, cfg.charactersSubfolder, cfg.locationsSubfolder);
 	const total: LinkifyResult = { filesScanned: 0, filesModified: 0, totalReplacements: 0 };
 	if (entities.length === 0) {

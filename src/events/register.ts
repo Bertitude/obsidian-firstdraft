@@ -42,9 +42,17 @@ export function registerEventHandlers(plugin: FirstDraftPlugin): void {
 
 	plugin.registerEvent(
 		app.vault.on("rename", (file, oldPath) => {
-			// Phase 1: keep the scanner map consistent when an index file moves.
-			// Phase 6: also rename the matching dev note when a .fountain file moves.
-			if (file instanceof TFile) scanner.handleRename(file, oldPath);
+			if (file instanceof TFile) {
+				scanner.handleRename(file, oldPath);
+				// Migrate per-project settings overrides when an index file is
+				// renamed, so user-set overrides survive.
+				const override = plugin.settings.projects[oldPath];
+				if (override !== undefined) {
+					delete plugin.settings.projects[oldPath];
+					plugin.settings.projects[file.path] = override;
+					void plugin.saveSettings();
+				}
+			}
 			void getDevNotesView(plugin)?.refresh();
 			void getTreatmentView(plugin)?.refresh();
 		}),

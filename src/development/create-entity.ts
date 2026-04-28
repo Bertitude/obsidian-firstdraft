@@ -10,6 +10,7 @@ import {
 } from "obsidian";
 import type FirstDraftPlugin from "../main";
 import { resolveActiveProject } from "../projects/resolver";
+import { resolveProjectSettings } from "../settings/resolve";
 import type { ProjectMeta } from "../types";
 import { sanitizeFilename, toTitleCase } from "../utils/sanitize";
 import { linkifyEntity, type DevEntity, type LinkifyResult } from "./linkify";
@@ -72,7 +73,7 @@ async function createEntityFromSelection(
 		return;
 	}
 
-	const cfg = plugin.settings.global;
+	const cfg = resolveProjectSettings(project, plugin.settings);
 	const sanitized = sanitizeFilename(raw.trim(), cfg.filenameReplacementChar);
 	if (!sanitized) {
 		new Notice("Selection has no valid filename characters.");

@@ -38,7 +38,10 @@ export function renderHeader(
 		attr: { "aria-label": "Project settings" },
 	});
 	setIcon(cog, "settings");
-	cog.addEventListener("click", (e) => {
+	// mousedown instead of click — Obsidian's sidebar focus model swallows the
+	// first click on inactive panels. mousedown fires before focus shifts.
+	cog.addEventListener("mousedown", (e) => {
+		if (e.button !== 0) return;
 		e.preventDefault();
 		onSettings();
 	});
@@ -81,11 +84,15 @@ export function renderEmptyState(
 interface SceneSectionOpts extends SectionOpts {
 	scene: TFile;
 	noteRef: DevNoteRef;
-	template: string;
+	// Thunk so the template is read fresh at click time. If we captured the
+	// string at render, edits made via the project settings modal between
+	// render and click would be missed (the panel doesn't re-render on settings
+	// save).
+	getTemplate: () => string;
 }
 
 export async function renderSceneSection(opts: SceneSectionOpts): Promise<void> {
-	const { container, view, plugin, scene, noteRef, template } = opts;
+	const { container, view, plugin, scene, noteRef, getTemplate } = opts;
 
 	container.createEl("h3", { text: scene.basename, cls: "firstdraft-scene-title" });
 	container.createEl("hr", { cls: "firstdraft-divider" });
@@ -106,7 +113,7 @@ export async function renderSceneSection(opts: SceneSectionOpts): Promise<void> 
 			if (btn.disabled) return;
 			btn.disabled = true;
 			btn.setText("Creating…");
-			void createSceneNote(plugin, noteRef.path, template);
+			void createSceneNote(plugin, noteRef.path, getTemplate());
 		});
 		return;
 	}
@@ -285,16 +292,17 @@ function parentPath(path: string): string {
 interface CharactersSectionOpts extends SectionOpts {
 	characterNames: string[];
 	roster: CharacterEntry[];
+	cfg: GlobalConfig;
 }
 
 export function renderCharactersSection(opts: CharactersSectionOpts): void {
-	const { container, plugin, characterNames, roster } = opts;
+	const { container, plugin, characterNames, roster, cfg } = opts;
 	if (characterNames.length === 0) return;
 
 	container.createEl("h4", { text: "Characters", cls: "firstdraft-section-title" });
 	const list = container.createDiv({ cls: "firstdraft-cards" });
 
-	const fields = plugin.settings.global.characterCardFields;
+	const fields = cfg.characterCardFields;
 	const byName = new Map(roster.map((e) => [e.name.toUpperCase(), e]));
 
 	for (const name of characterNames) {
@@ -390,7 +398,18 @@ function renderFieldList(
 	fm: Record<string, unknown>,
 	fields: string[],
 ): void {
-	const visible = fields.filter((f) => fm[f] !== undefined && fm[f] !== null && fm[f] !== "");
+	// Case-insensitive lookup so `Vibe` in settings matches `vibe` in frontmatter
+	// (and vice versa). Display label uses the configured field casing.
+	const fmByLower = new Map<string, unknown>();
+	for (const [k, v] of Object.entries(fm)) {
+		fmByLower.set(k.toLowerCase(), v);
+	}
+	const lookup = (f: string): unknown => fmByLower.get(f.toLowerCase());
+
+	const visible = fields.filter((f) => {
+		const v = lookup(f);
+		return v !== undefined && v !== null && v !== "";
+	});
 	if (visible.length === 0) {
 		parent.createEl("p", {
 			text: "No matching frontmatter fields.",
@@ -401,7 +420,7 @@ function renderFieldList(
 	const dl = parent.createEl("dl", { cls: "firstdraft-card-fields" });
 	for (const f of visible) {
 		dl.createEl("dt", { text: f });
-		dl.createEl("dd", { text: stringifyField(fm[f]) });
+		dl.createEl("dd", { text: stringifyField(lookup(f)) });
 	}
 }
 

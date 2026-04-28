@@ -2,6 +2,7 @@ import { App, Editor, Notice, SuggestModal, TFile, TFolder, normalizePath } from
 import type FirstDraftPlugin from "../main";
 import type { ProjectMeta } from "../types";
 import { resolveActiveProject } from "../projects/resolver";
+import { resolveProjectSettings } from "../settings/resolve";
 import { buildExpandedRoster, characterRoster, locationRoster, sceneDevNotePath } from "../views/lookups";
 import { sanitizeFilename, toTitleCase } from "../utils/sanitize";
 
@@ -54,7 +55,7 @@ async function openPicker(plugin: FirstDraftPlugin, kind: EntryKind): Promise<vo
 		return;
 	}
 
-	const cfg = plugin.settings.global;
+	const cfg = resolveProjectSettings(project, plugin.settings);
 	const devNoteRef = file ? sceneDevNotePath(file, project, cfg) : null;
 	const entries = await buildPickerRoster(plugin, project, kind, devNoteRef?.file ?? null);
 
@@ -67,7 +68,7 @@ async function buildPickerRoster(
 	kind: EntryKind,
 	devNoteFile: TFile | null,
 ): Promise<PickerEntry[]> {
-	const cfg = plugin.settings.global;
+	const cfg = resolveProjectSettings(project, plugin.settings);
 	if (kind === "character") {
 		// Use the same expanded roster as Phase 4a (folders + dev note + cues).
 		// Exclude the active fountain so the user's in-progress cue doesn't
@@ -181,7 +182,7 @@ class InsertPickerModal extends SuggestModal<PickerEntry> {
 	}
 
 	private async handleCreate(name: string): Promise<void> {
-		const cfg = this.plugin.settings.global;
+		const cfg = resolveProjectSettings(this.project, this.plugin.settings);
 		const sanitized = sanitizeFilename(name, cfg.filenameReplacementChar);
 		if (!sanitized) {
 			new Notice(`No valid characters in name.`);
@@ -221,7 +222,7 @@ class InsertPickerModal extends SuggestModal<PickerEntry> {
 
 	private async syncToDevNote(name: string): Promise<void> {
 		if (!this.file) return;
-		const cfg = this.plugin.settings.global;
+		const cfg = resolveProjectSettings(this.project, this.plugin.settings);
 		const ref = sceneDevNotePath(this.file, this.project, cfg);
 		if (!ref.file) return;
 

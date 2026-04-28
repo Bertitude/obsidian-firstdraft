@@ -1,6 +1,7 @@
 import { Notice } from "obsidian";
 import type FirstDraftPlugin from "../main";
 import { resolveActiveProject } from "../projects/resolver";
+import { resolveProjectSettings } from "../settings/resolve";
 import { scenePairFromActive } from "../views/lookups";
 import { normalizeSlugline } from "../cursor-scroll/slugline";
 
@@ -27,7 +28,7 @@ export async function runSyncSluglinesCommand(plugin: FirstDraftPlugin): Promise
 		return;
 	}
 
-	const pair = scenePairFromActive(plugin.app, active, project, plugin.settings.global);
+	const pair = scenePairFromActive(plugin.app, active, project, resolveProjectSettings(project, plugin.settings));
 	if (!pair) {
 		new Notice("Active file isn't a scene fountain or dev note.");
 		return;

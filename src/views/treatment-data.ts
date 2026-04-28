@@ -33,7 +33,9 @@ export interface TreatmentData {
 
 const VERSIONS_FOLDER = "_versions";
 const SEPARATOR = " — ";
-const INTENT_HEADING = /^##\s+Sequence intent\s*$/m;
+// Matches both the new "Sequence Overview" label and the legacy "Sequence intent"
+// label so dev notes authored before the rename continue to render in treatment.
+const INTENT_HEADING = /^##\s+Sequence (?:Overview|intent)\s*$/im;
 
 export function buildTreatmentData(
 	app: App,
@@ -143,11 +145,14 @@ function extractIntentExcerpt(app: App, devNote: TFile): string {
 	const sections = cache?.sections ?? [];
 	const headings = cache?.headings ?? [];
 
-	// Find the "## Sequence intent" heading; the excerpt is the prose between
-	// that heading and the next heading (or end of file).
-	const intentHeadingIdx = headings.findIndex(
-		(h) => h.level === 2 && h.heading.toLowerCase() === "sequence intent",
-	);
+	// Find the "## Sequence Overview" heading (or legacy "Sequence intent");
+	// the excerpt is the prose between that heading and the next heading (or
+	// end of file).
+	const intentHeadingIdx = headings.findIndex((h) => {
+		if (h.level !== 2) return false;
+		const lc = h.heading.toLowerCase();
+		return lc === "sequence overview" || lc === "sequence intent";
+	});
 	if (intentHeadingIdx === -1) return "";
 
 	// Use synchronous metadata only — read the source via the cache's section

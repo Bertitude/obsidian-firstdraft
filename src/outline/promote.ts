@@ -1,6 +1,8 @@
 import { App, Modal, Notice, TFile, TFolder, normalizePath } from "obsidian";
 import type FirstDraftPlugin from "../main";
+import type { ProjectMeta } from "../types";
 import { resolveActiveProject } from "../projects/resolver";
+import { resolveProjectSettings } from "../settings/resolve";
 import { snapshotFile, todayLabel } from "../versioning/snapshot";
 import { parseOutlineBeats, titleToFilename } from "./parser";
 
@@ -38,7 +40,7 @@ export async function runPromoteOutlineCommand(plugin: FirstDraftPlugin): Promis
 	}
 
 	try {
-		const summary = await promoteOutline(plugin, file, project.projectRootPath);
+		const summary = await promoteOutline(plugin, file, project);
 		const msg = summaryMessage(summary);
 		new Notice(msg);
 	} catch (e) {
@@ -49,11 +51,11 @@ export async function runPromoteOutlineCommand(plugin: FirstDraftPlugin): Promis
 async function promoteOutline(
 	plugin: FirstDraftPlugin,
 	outline: TFile,
-	projectRootPath: string,
+	project: ProjectMeta,
 ): Promise<PromoteSummary> {
-	const cfg = plugin.settings.global;
+	const cfg = resolveProjectSettings(project, plugin.settings);
 	const scenesFolder = normalizePath(
-		`${projectRootPath}/${cfg.developmentFolder}/${cfg.scenesSubfolder}`,
+		`${project.projectRootPath}/${cfg.developmentFolder}/${cfg.scenesSubfolder}`,
 	);
 
 	const markdown = await plugin.app.vault.read(outline);
@@ -95,16 +97,18 @@ async function promoteOutline(
 	return summary;
 }
 
-// Replaces the empty "## Sequence intent\n\n## Notes" block in the scene template
+// Replaces the empty "## Sequence Overview\n\n## Notes" block in the scene template
 // with the outline beat's prose, leaving the rest of the template intact. Falls
 // back to appending the prose if the expected section header isn't present.
+// Tolerates the legacy "Sequence intent" label for projects whose templates
+// were authored before the rename.
 function injectIntent(template: string, prose: string): string {
 	if (prose.trim() === "") return template;
-	const re = /(## Sequence intent\n)\n(## )/;
+	const re = /(## Sequence (?:Overview|intent)\n)\n(## )/;
 	if (re.test(template)) {
 		return template.replace(re, `$1\n${prose.trim()}\n\n$2`);
 	}
-	return template + `\n## Sequence intent\n\n${prose.trim()}\n`;
+	return template + `\n## Sequence Overview\n\n${prose.trim()}\n`;
 }
 
 async function ensureFolderExists(app: App, path: string): Promise<void> {
@@ -183,7 +187,7 @@ export async function runCreateOutlineCommand(plugin: FirstDraftPlugin): Promise
 		return;
 	}
 
-	const cfg = plugin.settings.global;
+	const cfg = resolveProjectSettings(project, plugin.settings);
 	const folder = normalizePath(`${project.projectRootPath}/${cfg.developmentFolder}`);
 	await ensureFolderExists(plugin.app, folder);
 

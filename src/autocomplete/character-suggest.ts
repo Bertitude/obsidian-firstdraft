@@ -12,6 +12,7 @@ import {
 } from "obsidian";
 import type FirstDraftPlugin from "../main";
 import { resolveActiveProject } from "../projects/resolver";
+import { resolveProjectSettings } from "../settings/resolve";
 import { buildExpandedRoster, sceneDevNotePath } from "../views/lookups";
 import { sanitizeFilename, toTitleCase } from "../utils/sanitize";
 import { isFountainFile } from "../fountain/file-detection";
@@ -101,7 +102,7 @@ export class CharacterCueSuggest extends EditorSuggest<SuggestEntry> {
 		const project = resolveActiveProject(context.file, this.plugin.scanner);
 		if (!project) return [];
 
-		const cfg = this.plugin.settings.global;
+		const cfg = resolveProjectSettings(project, this.plugin.settings);
 		const devNoteRef = sceneDevNotePath(context.file, project, cfg);
 
 		const roster = await buildExpandedRoster(
@@ -172,7 +173,7 @@ export class CharacterCueSuggest extends EditorSuggest<SuggestEntry> {
 			return;
 		}
 
-		const cfg = this.plugin.settings.global;
+		const cfg = resolveProjectSettings(project, this.plugin.settings);
 		const sanitized = sanitizeFilename(name, cfg.filenameReplacementChar);
 		if (!sanitized) {
 			new Notice("Cue has no valid filename characters.");
@@ -203,7 +204,7 @@ export class CharacterCueSuggest extends EditorSuggest<SuggestEntry> {
 	private async appendCharacterToDevNote(fountain: TFile, name: string): Promise<void> {
 		const project = resolveActiveProject(fountain, this.plugin.scanner);
 		if (!project) return;
-		const cfg = this.plugin.settings.global;
+		const cfg = resolveProjectSettings(project, this.plugin.settings);
 		const ref = sceneDevNotePath(fountain, project, cfg);
 		if (!ref.file) return;
 

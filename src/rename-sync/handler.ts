@@ -10,6 +10,7 @@ import {
 	fountainScenesArrayEntry,
 } from "../fountain/file-detection";
 import { readScenesArray, writeScenesArray } from "../longform/scenes-array";
+import { resolveProjectSettings } from "../settings/resolve";
 
 // Paths that we ourselves just initiated a rename to. Events for these are
 // skipped to prevent ping-pong loops (we rename dev note → that fires another
@@ -128,7 +129,6 @@ async function syncDevNoteRename(
 	oldPath: string,
 	newFile: TFile,
 ): Promise<void> {
-	const cfg = plugin.settings.global;
 	const oldSceneName = baseFromMd(oldPath);
 	const newSceneName = newFile.basename;
 	if (oldSceneName === newSceneName) return;
@@ -168,8 +168,6 @@ async function syncDevNoteRename(
 
 	await safeRename(plugin, oldFountain, newFountainPath);
 	await updateScenesEntry(plugin, project, oldSceneName, newSceneName);
-	// Suppress unused-var lint; cfg may be used by future format-conversion logic.
-	void cfg;
 }
 
 // ── conflict resolution ──────────────────────────────────────────────────
@@ -229,7 +227,6 @@ async function renameToResolved(
 	originalSceneName: string,
 	resolvedName: string,
 ): Promise<void> {
-	const cfg = plugin.settings.global;
 	const devFolder = devScenesFolderFor(plugin, project);
 
 	const justRenamedIsFountain = isFountainFile(justRenamedFile);
@@ -246,7 +243,6 @@ async function renameToResolved(
 	await safeRename(plugin, devFile, targetDevPath);
 	await updateScenesEntry(plugin, project, originalSceneName, resolvedName);
 	new Notice(`Renamed both files to "${resolvedName}".`);
-	void cfg;
 }
 
 // ── auto-inject into Longform scenes: ───────────────────────────────────
@@ -314,7 +310,7 @@ function projectFromPath(plugin: FirstDraftPlugin, path: string): ProjectMeta | 
 }
 
 function devScenesFolderFor(plugin: FirstDraftPlugin, project: ProjectMeta): string {
-	const cfg = plugin.settings.global;
+	const cfg = resolveProjectSettings(project, plugin.settings);
 	return normalizePath(
 		`${project.projectRootPath}/${cfg.developmentFolder}/${cfg.scenesSubfolder}`,
 	);
