@@ -25,6 +25,10 @@ import {
 	runInsertCharacterCueCommand,
 	runInsertLocationReferenceCommand,
 } from "./development/insert-cue";
+import {
+	runDeleteCharacterCommand,
+	runDeleteLocationCommand,
+} from "./development/delete-entity";
 import { isPluginEnabled, KNOWN_PLUGIN_IDS, resolveFountainMode } from "./fountain/plugin-mode";
 import { runMigrateProjectCommand } from "./fountain/migrate";
 import { runSyncScreenplayScenesCommand } from "./longform/sync-scenes";
@@ -154,6 +158,22 @@ export default class FirstDraftPlugin extends Plugin {
 			name: "Insert location reference",
 			callback: () => {
 				runInsertLocationReferenceCommand(this);
+			},
+		});
+
+		this.addCommand({
+			id: "delete-character",
+			name: "Delete character",
+			callback: () => {
+				runDeleteCharacterCommand(this);
+			},
+		});
+
+		this.addCommand({
+			id: "delete-location",
+			name: "Delete location",
+			callback: () => {
+				runDeleteLocationCommand(this);
 			},
 		});
 
