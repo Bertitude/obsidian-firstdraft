@@ -32,6 +32,7 @@ import {
 import { isPluginEnabled, KNOWN_PLUGIN_IDS, resolveFountainMode } from "./fountain/plugin-mode";
 import { runMigrateProjectCommand } from "./fountain/migrate";
 import { runSyncSluglinesCommand } from "./fountain/sync-sluglines";
+import { installRenameSync } from "./rename-sync/handler";
 import { runSyncScreenplayScenesCommand } from "./longform/sync-scenes";
 import { toggleFirstDraftMode, exitFirstDraftModeSync } from "./firstdraft-mode/toggle";
 import { installCursorScrollHandler } from "./cursor-scroll/handler";
@@ -56,6 +57,7 @@ export default class FirstDraftPlugin extends Plugin {
 		this.addSettingTab(new FirstDraftSettingTab(this.app, this));
 		registerEventHandlers(this);
 		installCursorScrollHandler(this);
+		installRenameSync(this);
 
 		this.addRibbonIcon("notebook-pen", "Open dev notes panel", () => {
 			void activateDevNotesView(this);

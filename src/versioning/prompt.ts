@@ -5,7 +5,7 @@ import { App, Modal } from "obsidian";
 
 export function promptForLabel(
 	app: App,
-	options: { title: string; placeholder?: string; defaultValue?: string },
+	options: { title: string; description?: string; placeholder?: string; defaultValue?: string },
 ): Promise<string | null> {
 	return new Promise((resolve) => {
 		new LabelPromptModal(app, options, resolve).open();
@@ -18,7 +18,12 @@ class LabelPromptModal extends Modal {
 
 	constructor(
 		app: App,
-		private readonly options: { title: string; placeholder?: string; defaultValue?: string },
+		private readonly options: {
+			title: string;
+			description?: string;
+			placeholder?: string;
+			defaultValue?: string;
+		},
 		private readonly done: (label: string | null) => void,
 	) {
 		super(app);
@@ -27,6 +32,9 @@ class LabelPromptModal extends Modal {
 	onOpen(): void {
 		const { contentEl } = this;
 		contentEl.createEl("h3", { text: this.options.title });
+		if (this.options.description) {
+			contentEl.createEl("p", { text: this.options.description });
+		}
 
 		this.input = contentEl.createEl("input", {
 			type: "text",
