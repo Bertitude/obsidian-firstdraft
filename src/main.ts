@@ -31,6 +31,7 @@ import {
 } from "./development/delete-entity";
 import { isPluginEnabled, KNOWN_PLUGIN_IDS, resolveFountainMode } from "./fountain/plugin-mode";
 import { runMigrateProjectCommand } from "./fountain/migrate";
+import { runSyncSluglinesCommand } from "./fountain/sync-sluglines";
 import { runSyncScreenplayScenesCommand } from "./longform/sync-scenes";
 import { toggleFirstDraftMode, exitFirstDraftModeSync } from "./firstdraft-mode/toggle";
 import { installCursorScrollHandler } from "./cursor-scroll/handler";
@@ -201,6 +202,14 @@ export default class FirstDraftPlugin extends Plugin {
 			name: "Toggle First Draft Mode",
 			callback: () => {
 				void toggleFirstDraftMode(this);
+			},
+		});
+
+		this.addCommand({
+			id: "sync-sluglines-to-fountain",
+			name: "Sync sluglines from dev note to fountain",
+			callback: () => {
+				void runSyncSluglinesCommand(this);
 			},
 		});
 
