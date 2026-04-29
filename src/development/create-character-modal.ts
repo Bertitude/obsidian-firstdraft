@@ -4,6 +4,7 @@ import type { ProjectMeta } from "../types";
 import { resolveActiveProject } from "../projects/resolver";
 import { resolveProjectSettings } from "../settings/resolve";
 import { sanitizeFilename, toTitleCase } from "../utils/sanitize";
+import { ensureEpisodeCharacterNote } from "./episode-character-notes";
 
 // "Create character" — modal-based entity creation for the show-bible cast.
 //
@@ -196,6 +197,12 @@ class CreateCharacterModal extends Modal {
 					fm.roles = composeRoles(this.level, this.project, seasonKey);
 				},
 			);
+
+			// If the user is creating from inside an episode, auto-create the
+			// episode-specific character note alongside the canonical. The
+			// helper is a no-op for non-episode projects, so this is safe to
+			// always call.
+			await ensureEpisodeCharacterNote(this.plugin, this.project, finalName);
 
 			this.finished = true;
 			this.resolve({ file: created, displayName: finalName });

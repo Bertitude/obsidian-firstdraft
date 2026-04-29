@@ -14,6 +14,7 @@ import { buildExpandedRoster, sequenceDevNotePath } from "../views/lookups";
 import { linkifyEntity, type DevEntity } from "../development/linkify";
 import { sanitizeFilename, toTitleCase } from "../utils/sanitize";
 import { openCreateCharacterModal } from "../development/create-character-modal";
+import { ensureEpisodeCharacterNote } from "../development/episode-character-notes";
 import { isFountainFile } from "../fountain/file-detection";
 
 // Suggests character names when the cursor is on a character-cue line in a
@@ -240,6 +241,10 @@ export class CharacterCueSuggest extends EditorSuggest<SuggestEntry> {
 				fm.characters = existing;
 			},
 		);
+
+		// Auto-create the episode-specific character note. No-op for non-
+		// episode projects.
+		await ensureEpisodeCharacterNote(this.plugin, project, name);
 	}
 }
 

@@ -6,6 +6,8 @@ import { resolveProjectSettings } from "../settings/resolve";
 import { buildExpandedRoster, characterRoster, locationRoster, sequenceDevNotePath } from "../views/lookups";
 import { sanitizeFilename, toTitleCase } from "../utils/sanitize";
 import { linkifyEntity, type DevEntity } from "./linkify";
+import { openCreateCharacterModal } from "./create-character-modal";
+import { ensureEpisodeCharacterNote } from "./episode-character-notes";
 
 // Plugin-mode-independent picker commands. These work in any editor regardless
 // of which fountain plugin is active — they don't rely on EditorSuggest. The
@@ -190,10 +192,46 @@ class InsertPickerModal extends SuggestModal<PickerEntry> {
 			return;
 		}
 		const folderCasing = toTitleCase(sanitized);
-		const subfolder =
-			this.kind === "character" ? cfg.charactersSubfolder : cfg.locationsSubfolder;
+
+		// Characters route through the unified Create Character modal so the
+		// file lands at series-level (when the active project is an episode
+		// with a series root) and gets the roles: frontmatter populated. Same
+		// flow as the palette + selection-create + autocomplete-create paths.
+		if (this.kind === "character") {
+			const result = await openCreateCharacterModal(this.plugin, folderCasing);
+			if (!result) {
+				// User cancelled the modal — still insert the cue so they don't
+				// lose their typed text, but skip the entity-creation side
+				// effects.
+				this.insertAtCursor(name);
+				return;
+			}
+			this.insertAtCursor(name);
+			await this.syncToDevNote(result.displayName);
+			new Notice(`Created character: ${result.displayName}`);
+
+			const entity: DevEntity = {
+				name: result.displayName,
+				canonicalFilePath: result.file.path,
+			};
+			if (cfg.autoLinkifyOnCreate) {
+				const linkifyResult = await linkifyEntity(this.plugin, this.project, entity);
+				if (linkifyResult.totalReplacements > 0) {
+					new Notice(
+						`Linkified ${linkifyResult.totalReplacements} mention(s) across ${linkifyResult.filesModified} file(s).`,
+					);
+				} else {
+					new Notice("No mentions to linkify.");
+				}
+			}
+			return;
+		}
+
+		// Locations: keep the episode-scoped flow. Locations don't have a
+		// series-level promotion model yet (recurring locations could land
+		// there but the workflow isn't built out — defer).
 		const folderPath = normalizePath(
-			`${this.project.projectRootPath}/${cfg.developmentFolder}/${subfolder}/${folderCasing}`,
+			`${this.project.projectRootPath}/${cfg.developmentFolder}/${cfg.locationsSubfolder}/${folderCasing}`,
 		);
 		const docPath = normalizePath(`${folderPath}/${folderCasing}.md`);
 
@@ -201,15 +239,11 @@ class InsertPickerModal extends SuggestModal<PickerEntry> {
 			await ensureFolderExists(this.plugin.app, folderPath);
 			const isNewFile = !this.plugin.app.vault.getAbstractFileByPath(docPath);
 			if (isNewFile) {
-				const template =
-					this.kind === "character"
-						? cfg.characterNoteTemplate
-						: cfg.locationNoteTemplate;
-				await this.plugin.app.vault.create(docPath, template);
+				await this.plugin.app.vault.create(docPath, cfg.locationNoteTemplate);
 			}
 			this.insertAtCursor(name);
 			await this.syncToDevNote(folderCasing);
-			new Notice(`Created ${this.kind}: ${folderCasing}`);
+			new Notice(`Created location: ${folderCasing}`);
 
 			if (isNewFile) {
 				const entity: DevEntity = { name: folderCasing, canonicalFilePath: docPath };
@@ -225,7 +259,7 @@ class InsertPickerModal extends SuggestModal<PickerEntry> {
 				}
 			}
 		} catch (e) {
-			new Notice(`Could not create ${this.kind}: ${(e as Error).message}`);
+			new Notice(`Could not create location: ${(e as Error).message}`);
 		}
 	}
 
@@ -255,6 +289,13 @@ class InsertPickerModal extends SuggestModal<PickerEntry> {
 				fm[field] = existing;
 			},
 		);
+
+		// Auto-create the episode-specific character note when a character is
+		// added to an episode's dev note. No-op for non-episode projects and
+		// for locations.
+		if (this.kind === "character") {
+			await ensureEpisodeCharacterNote(this.plugin, this.project, name);
+		}
 	}
 }
 

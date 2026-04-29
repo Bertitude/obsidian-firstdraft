@@ -112,11 +112,40 @@ function collectCandidateFiles(
 	project: ProjectMeta,
 	excludeCanonicalPath: string,
 ): TFile[] {
-	const root = app.vault.getAbstractFileByPath(project.projectRootPath);
-	if (!(root instanceof TFolder)) return [];
+	// Scope: walk everything under the active project's root by default. But
+	// when the entity's canonical lives OUTSIDE the project root — typical
+	// for a series-level character referenced from inside one of its
+	// episodes — expand the walk to the smallest folder that contains both
+	// the canonical and the project root. That's the series root, so a
+	// single linkify pass sweeps every sibling episode's prose at once.
+	const scopePath = computeScopeRoot(project.projectRootPath, excludeCanonicalPath);
+	const root = app.vault.getAbstractFileByPath(scopePath);
+	if (!(root instanceof TFolder)) {
+		// Fall back to project root if the computed scope isn't a folder.
+		const fallback = app.vault.getAbstractFileByPath(project.projectRootPath);
+		if (!(fallback instanceof TFolder)) return [];
+		const out: TFile[] = [];
+		walk(fallback, out, excludeCanonicalPath);
+		return out;
+	}
 	const out: TFile[] = [];
 	walk(root, out, excludeCanonicalPath);
 	return out;
+}
+
+function computeScopeRoot(projectRoot: string, canonicalPath: string): string {
+	if (canonicalPath.startsWith(projectRoot + "/")) return projectRoot;
+	// Common-ancestor walk. For an episode at `Babylon/Seasons/S01/E1` and
+	// canonical at `Babylon/Development/Characters/Antonia/Antonia.md`, the
+	// shared prefix is `Babylon` — the series root.
+	const a = projectRoot.split("/");
+	const b = canonicalPath.split("/");
+	const common: string[] = [];
+	for (let i = 0; i < Math.min(a.length, b.length); i++) {
+		if (a[i] === b[i]) common.push(a[i]!);
+		else break;
+	}
+	return common.join("/");
 }
 
 function walk(folder: TFolder, out: TFile[], excludeCanonicalPath: string): void {
