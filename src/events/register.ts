@@ -5,6 +5,7 @@ import { getOutlineView } from "../views/outline-view";
 import { getCharacterMatrixView } from "../views/character-matrix-view";
 import { getBeatSheetView } from "../views/beat-sheet-view";
 import { getProjectHomeView } from "../views/project-home-view";
+import { getProjectNotesView } from "../views/project-notes-view";
 
 // Centralised event wiring. Listeners are attached via plugin.registerEvent so they
 // detach automatically on unload.
@@ -34,6 +35,7 @@ export function registerEventHandlers(plugin: FirstDraftPlugin): void {
 			void getCharacterMatrixView(plugin)?.refresh();
 			void getBeatSheetView(plugin)?.refresh();
 			void getProjectHomeView(plugin)?.refresh();
+			void getProjectNotesView(plugin)?.refresh();
 		}),
 	);
 
@@ -46,6 +48,7 @@ export function registerEventHandlers(plugin: FirstDraftPlugin): void {
 			void getCharacterMatrixView(plugin)?.refresh();
 			void getBeatSheetView(plugin)?.refresh();
 			void getProjectHomeView(plugin)?.refresh();
+			void getProjectNotesView(plugin)?.refresh();
 		}),
 	);
 
@@ -67,6 +70,7 @@ export function registerEventHandlers(plugin: FirstDraftPlugin): void {
 			void getCharacterMatrixView(plugin)?.refresh();
 			void getBeatSheetView(plugin)?.refresh();
 			void getProjectHomeView(plugin)?.refresh();
+			void getProjectNotesView(plugin)?.refresh();
 		}),
 	);
 
@@ -77,6 +81,7 @@ export function registerEventHandlers(plugin: FirstDraftPlugin): void {
 			void getCharacterMatrixView(plugin)?.refresh();
 			void getBeatSheetView(plugin)?.refresh();
 			void getProjectHomeView(plugin)?.refresh();
+			void getProjectNotesView(plugin)?.refresh();
 		}),
 	);
 
@@ -88,6 +93,7 @@ export function registerEventHandlers(plugin: FirstDraftPlugin): void {
 			void getCharacterMatrixView(plugin)?.refresh();
 			void getBeatSheetView(plugin)?.refresh();
 			void getProjectHomeView(plugin)?.refresh();
+			void getProjectNotesView(plugin)?.refresh();
 		}),
 	);
 }

@@ -301,8 +301,23 @@
 	opacity: 0.5;
 }
 
-.firstdraft-outline-row.is-drop-target {
+/* Two drop modes during drag-reorder:
+ *   .is-drop-swap  — cursor in the middle of a target → exchange positions
+ *   .is-drop-before / .is-drop-after — cursor at top/bottom edge → insert
+ *     into the gap above/below. Uses box-shadow rather than border so the
+ *     indicator line doesn't shift the row's height during dragover.
+ */
+.firstdraft-outline-row.is-drop-swap {
 	border-color: var(--interactive-accent);
+	background: var(--background-modifier-hover);
+}
+
+.firstdraft-outline-row.is-drop-before {
+	box-shadow: 0 -2px 0 0 var(--interactive-accent);
+}
+
+.firstdraft-outline-row.is-drop-after {
+	box-shadow: 0 2px 0 0 var(--interactive-accent);
 }
 
 .firstdraft-outline-row.is-orphan {
@@ -933,4 +948,143 @@ body.firstdraft-active .workspace-split.mod-left-split .workspace-tab-header-con
 .firstdraft-home-empty-wrap {
 	text-align: center;
 	padding: var(--size-4-4);
+}
+
+/* ─── Project notes panel (right sidebar) ─────────────────────────────────
+ * Lightweight list view: header with project + tag + Add note button, then
+ * two sections (References, Notes). Each entry is a clickable row with a
+ * source badge (folder/tag/ref), parent path, relative date, and excerpt.
+ */
+
+.firstdraft-pnotes {
+	padding: var(--size-4-2);
+}
+
+.firstdraft-pnotes-header {
+	display: flex;
+	flex-direction: column;
+	gap: var(--size-2-1);
+	padding-bottom: var(--size-4-2);
+	margin-bottom: var(--size-4-2);
+	border-bottom: 1px solid var(--background-modifier-border);
+}
+
+.firstdraft-pnotes-title {
+	margin: 0;
+	font-size: var(--font-ui-large);
+}
+
+.firstdraft-pnotes-subtitle {
+	font-size: var(--font-ui-smaller);
+	color: var(--text-muted);
+}
+
+.firstdraft-pnotes-actions {
+	margin-top: var(--size-2-2);
+}
+
+.firstdraft-pnotes-add {
+	width: 100%;
+}
+
+.firstdraft-pnotes-section {
+	margin-bottom: var(--size-4-3);
+}
+
+.firstdraft-pnotes-section-title {
+	font-size: var(--font-ui-small);
+	text-transform: uppercase;
+	letter-spacing: 0.06em;
+	color: var(--text-muted);
+	margin: 0 0 var(--size-2-2) 0;
+	font-weight: 600;
+}
+
+.firstdraft-pnotes-empty {
+	font-size: var(--font-ui-smaller);
+	color: var(--text-muted);
+	font-style: italic;
+	margin: 0 0 var(--size-2-2) 0;
+}
+
+.firstdraft-pnotes-tag {
+	font-style: normal;
+	font-family: var(--font-monospace);
+	background: var(--background-modifier-border);
+	padding: 0 var(--size-2-1);
+	border-radius: var(--radius-s);
+}
+
+.firstdraft-pnotes-list {
+	display: flex;
+	flex-direction: column;
+	gap: var(--size-2-2);
+}
+
+.firstdraft-pnotes-entry {
+	padding: var(--size-2-3) var(--size-2-3);
+	border-radius: var(--radius-s);
+	background: var(--background-secondary);
+	cursor: pointer;
+	transition: background 0.1s ease;
+}
+
+.firstdraft-pnotes-entry:hover {
+	background: var(--background-modifier-hover);
+}
+
+.firstdraft-pnotes-entry-top {
+	display: flex;
+	align-items: baseline;
+	justify-content: space-between;
+	gap: var(--size-2-2);
+}
+
+.firstdraft-pnotes-entry-title {
+	font-weight: 600;
+	font-size: var(--font-ui-small);
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.firstdraft-pnotes-badge {
+	flex-shrink: 0;
+	font-size: var(--font-ui-smaller);
+	color: var(--text-muted);
+	background: var(--background-modifier-border);
+	padding: 0 var(--size-2-1);
+	border-radius: var(--radius-s);
+	text-transform: uppercase;
+	letter-spacing: 0.04em;
+}
+
+.firstdraft-pnotes-badge.is-tag {
+	background: var(--color-accent-1);
+	color: var(--text-on-accent);
+}
+
+.firstdraft-pnotes-badge.is-folder {
+	background: var(--background-modifier-border-hover);
+}
+
+.firstdraft-pnotes-badge.is-reference {
+	background: var(--background-modifier-success);
+}
+
+.firstdraft-pnotes-entry-sub {
+	font-size: var(--font-ui-smaller);
+	color: var(--text-faint);
+	margin-top: var(--size-2-1);
+}
+
+.firstdraft-pnotes-entry-excerpt {
+	font-size: var(--font-ui-smaller);
+	color: var(--text-muted);
+	margin-top: var(--size-2-1);
+	line-height: 1.4;
+	display: -webkit-box;
+	-webkit-line-clamp: 3;
+	-webkit-box-orient: vertical;
+	overflow: hidden;
 }

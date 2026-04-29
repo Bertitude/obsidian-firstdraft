@@ -3,6 +3,7 @@ import type FirstDraftPlugin from "../main";
 import type { FirstDraftModeConfig } from "../types";
 import { isPluginEnabled } from "../fountain/plugin-mode";
 import { activateProjectHomeView } from "../views/project-home-view";
+import { activateProjectNotesView } from "../views/project-notes-view";
 
 const TYPEWRITER_PLUGIN_ID = "obsidian-typewriter-mode";
 const TYPEWRITER_TOGGLE_COMMAND = "obsidian-typewriter-mode:toggle-typewriter-scroll";
@@ -53,6 +54,13 @@ async function enterFirstDraftMode(plugin: FirstDraftPlugin): Promise<void> {
 	// Make sure the sidebar is expanded — FDM is now sidebar-with-Project-Home
 	// by design. The legacy hideLeftSidebar setting is ignored.
 	plugin.app.workspace.leftSplit.expand();
+
+	// Optional: open the project notes panel in the right sidebar too. Off by
+	// default to keep FDM minimal; opt-in via the FDM settings toggle.
+	if (cfg.openProjectNotes) {
+		await activateProjectNotesView(plugin);
+		plugin.app.workspace.rightSplit.expand();
+	}
 
 	cfg.active = true;
 	applyBodyClasses(true, cfg);

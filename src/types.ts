@@ -15,6 +15,7 @@ export interface GlobalConfig {
 	sequencesSubfolder: string;
 	locationsSubfolder: string;
 	referencesSubfolder: string;
+	notesSubfolder: string;
 	characterCardFields: string[];
 	sceneNoteTemplate: string;
 	characterNoteTemplate: string;
@@ -37,6 +38,8 @@ export interface ProjectConfig {
 	sequencesSubfolder?: string;
 	locationsSubfolder?: string;
 	referencesSubfolder?: string;
+	notesSubfolder?: string;
+	noteTag?: string;
 	characterCardFields?: string[];
 	sceneNoteTemplate?: string;
 	characterNoteTemplate?: string;
@@ -49,6 +52,7 @@ export interface FirstDraftModeConfig {
 	hideRibbon: boolean;
 	hideStatusBar: boolean;
 	hideLeftSidebar: boolean;
+	openProjectNotes: boolean;
 }
 
 // ─── Runtime project metadata ──────────────────────────────────────────────

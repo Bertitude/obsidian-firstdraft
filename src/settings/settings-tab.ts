@@ -190,6 +190,21 @@ export class FirstDraftSettingTab extends PluginSettingTab {
 						await this.save();
 					}),
 			);
+
+		new Setting(containerEl)
+			.setName("Notes subfolder name")
+			.setDesc(
+				"Folder name (anywhere under a project) whose .md files surface in the project notes panel.",
+			)
+			.addText((t) =>
+				t
+					.setPlaceholder(DEFAULT_SETTINGS.global.notesSubfolder)
+					.setValue(g.notesSubfolder)
+					.onChange(async (v) => {
+						g.notesSubfolder = v.trim() || DEFAULT_SETTINGS.global.notesSubfolder;
+						await this.save();
+					}),
+			);
 	}
 
 	private renderTemplates(): void {
@@ -330,6 +345,16 @@ export class FirstDraftSettingTab extends PluginSettingTab {
 					m.hideStatusBar = v;
 					await this.save();
 					reapplyIfActive();
+				}),
+			);
+
+		new Setting(containerEl)
+			.setName("Open project notes panel")
+			.setDesc("Auto-open the project notes panel in the right sidebar when first draft mode is enabled.")
+			.addToggle((t) =>
+				t.setValue(m.openProjectNotes).onChange(async (v) => {
+					m.openProjectNotes = v;
+					await this.save();
 				}),
 			);
 

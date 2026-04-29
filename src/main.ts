@@ -20,11 +20,18 @@ import {
 	activateProjectHomeView,
 } from "./views/project-home-view";
 import {
+	ProjectNotesView,
+	activateProjectNotesView,
+	activateProjectNotesViewSplit,
+} from "./views/project-notes-view";
+import { runCreateProjectNoteCommand } from "./development/create-project-note";
+import {
 	VIEW_TYPE_DEV_NOTES,
 	VIEW_TYPE_OUTLINE,
 	VIEW_TYPE_CHARACTER_MATRIX,
 	VIEW_TYPE_BEAT_SHEET,
 	VIEW_TYPE_PROJECT_HOME,
+	VIEW_TYPE_PROJECT_NOTES,
 } from "./views/view-types";
 import { runCreateTreatmentCommand, runPromoteTreatmentCommand } from "./treatment/promote";
 import {
@@ -101,6 +108,10 @@ export default class FirstDraftPlugin extends Plugin {
 			VIEW_TYPE_PROJECT_HOME,
 			(leaf) => new ProjectHomeView(leaf, this),
 		);
+		this.registerView(
+			VIEW_TYPE_PROJECT_NOTES,
+			(leaf) => new ProjectNotesView(leaf, this),
+		);
 		this.registerEditorSuggest(new CharacterCueSuggest(this));
 		this.addSettingTab(new FirstDraftSettingTab(this.app, this));
 		registerEventHandlers(this);
@@ -127,6 +138,30 @@ export default class FirstDraftPlugin extends Plugin {
 			name: "Open project home",
 			callback: () => {
 				void activateProjectHomeView(this);
+			},
+		});
+
+		this.addCommand({
+			id: "open-project-notes-panel",
+			name: "Open project notes panel",
+			callback: () => {
+				void activateProjectNotesView(this);
+			},
+		});
+
+		this.addCommand({
+			id: "open-project-notes-panel-split",
+			name: "Open project notes panel (split with dev notes)",
+			callback: () => {
+				void activateProjectNotesViewSplit(this);
+			},
+		});
+
+		this.addCommand({
+			id: "create-project-note",
+			name: "Add note (contextual)",
+			callback: () => {
+				void runCreateProjectNoteCommand(this);
 			},
 		});
 

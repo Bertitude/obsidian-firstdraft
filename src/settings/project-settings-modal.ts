@@ -2,6 +2,7 @@ import { App, Modal, Setting } from "obsidian";
 import type FirstDraftPlugin from "../main";
 import type { ProjectConfig, ProjectMeta } from "../types";
 import { pruneEmptyOverride } from "./resolve";
+import { deriveNoteTag } from "../projects/note-tag";
 
 // Per-project settings overlay. Mirrors the overridable subset of the global
 // settings tab (folder names, templates, character card fields). Each field
@@ -39,6 +40,7 @@ class ProjectSettingsModal extends Modal {
 		});
 
 		this.renderFolderNames();
+		this.renderNoteTag();
 		this.renderTemplates();
 		this.renderCharacterCardFields();
 	}
@@ -74,11 +76,12 @@ class ProjectSettingsModal extends Modal {
 		this.folderRow("Sequences subfolder", "sequencesSubfolder", g.sequencesSubfolder);
 		this.folderRow("Locations subfolder", "locationsSubfolder", g.locationsSubfolder);
 		this.folderRow("References subfolder", "referencesSubfolder", g.referencesSubfolder);
+		this.folderRow("Notes subfolder", "notesSubfolder", g.notesSubfolder);
 	}
 
 	private folderRow(
 		label: string,
-		field: "developmentFolder" | "charactersSubfolder" | "sequencesSubfolder" | "locationsSubfolder" | "referencesSubfolder",
+		field: "developmentFolder" | "charactersSubfolder" | "sequencesSubfolder" | "locationsSubfolder" | "referencesSubfolder" | "notesSubfolder",
 		globalValue: string,
 	): void {
 		const setting = new Setting(this.contentEl).setName(label);
@@ -107,6 +110,52 @@ class ProjectSettingsModal extends Modal {
 				.onClick(async () => {
 					const cur = this.getOverride();
 					delete cur[field];
+					await this.save();
+					this.refresh();
+				}),
+		);
+	}
+
+	// ── Note tag ────────────────────────────────────────────────────────
+
+	// Per-project override for the project's "note tag" — used by the project
+	// notes panel to discover tagged notes anywhere in the vault. Default is
+	// derived from the project title (kebab-case). Stored without the leading
+	// `#` so the user can paste either form.
+	private renderNoteTag(): void {
+		const { contentEl } = this;
+		const auto = deriveNoteTag(this.project);
+
+		new Setting(contentEl).setName("Project notes panel").setHeading();
+
+		const setting = new Setting(contentEl).setName("Note tag");
+		setting.setDesc(
+			`Tag used to discover project-related notes anywhere in the vault. Default: #${auto}`,
+		);
+
+		setting.addText((t) => {
+			const override = this.getOverride();
+			t.setPlaceholder(auto)
+				.setValue(override.noteTag ?? "")
+				.onChange(async (v) => {
+					const trimmed = v.trim().replace(/^#/, "");
+					const cur = this.getOverride();
+					if (trimmed === "" || trimmed === auto) {
+						delete cur.noteTag;
+					} else {
+						cur.noteTag = trimmed;
+					}
+					await this.save();
+				});
+		});
+
+		setting.addExtraButton((btn) =>
+			btn
+				.setIcon("rotate-ccw")
+				.setTooltip("Reset to default")
+				.onClick(async () => {
+					const cur = this.getOverride();
+					delete cur.noteTag;
 					await this.save();
 					this.refresh();
 				}),
