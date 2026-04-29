@@ -78,7 +78,17 @@ function displayProject(p: ProjectMeta): string {
 		const ep = p.episode ?? "";
 		const t = p.title ?? "";
 		const series = p.series ?? "";
-		return ep ? `${series} ${ep}${t ? " — " + t : ""}`.trim() : t || p.projectRootPath;
+		return ep
+			? `${series} ${ep}${t ? " — " + t : ""}`.trim()
+			: t || lastSegment(p.projectRootPath);
 	}
-	return p.title ?? p.projectRootPath;
+	// Feature: prefer frontmatter title, fall back to the project's folder name
+	// (NOT the full path — that's where the picker was showing the entire
+	// "Project Development/Film/Fraidy Fraidy" string for projects without a
+	// title set in frontmatter).
+	return p.title ?? lastSegment(p.projectRootPath);
+}
+
+function lastSegment(path: string): string {
+	return path.split("/").pop() ?? path;
 }

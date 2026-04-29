@@ -8,6 +8,13 @@ import type { ProjectMeta, ProjectType } from "../types";
 // Owns an in-memory map keyed by index file path. Updated incrementally on
 // metadata changes and file deletions; full scan runs once after the metadata
 // cache resolves.
+//
+// Files inside snapshot/draft folders (`_versions`, `Drafts`) are skipped —
+// snapshots of an Index.md retain its frontmatter and would otherwise be
+// detected as duplicate projects. Same skip-set used by linkify, migrate,
+// and delete-entity for the same reason.
+
+const SKIP_FOLDER_NAMES = new Set(["_versions", "Drafts"]);
 
 export class ProjectScanner {
 	readonly projects = new Map<string, ProjectMeta>();
@@ -51,6 +58,12 @@ export class ProjectScanner {
 
 	private evaluate(file: TFile): void {
 		if (file.extension !== "md") return;
+		// Skip files inside snapshot/draft folders — they're copies of project
+		// indexes and shouldn't be detected as separate projects.
+		if (file.path.split("/").some((seg) => SKIP_FOLDER_NAMES.has(seg))) {
+			this.projects.delete(file.path);
+			return;
+		}
 		const cache = this.app.metadataCache.getFileCache(file);
 		const fm = cache?.frontmatter;
 		const meta = this.deriveMeta(file, fm);
