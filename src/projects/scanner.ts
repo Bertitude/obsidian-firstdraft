@@ -1,9 +1,13 @@
 import { App, TFile, TFolder, normalizePath } from "obsidian";
 import type { ProjectMeta, ProjectType } from "../types";
 
-// Detects Longform projects by scanning vault markdown files for `longform:` frontmatter.
-// Owns an in-memory map keyed by index file path. Updated incrementally on metadata
-// changes and file deletions; full scan runs once after the metadata cache resolves.
+// Detects FirstDraft projects by scanning vault markdown files for either
+// `firstdraft:` (new schema) or `longform:` (legacy / Longform-compatible
+// schema). The two have the same shape — sequenceFolder + scenes — so detection
+// just picks the first present block. New writes prefer `firstdraft:`.
+// Owns an in-memory map keyed by index file path. Updated incrementally on
+// metadata changes and file deletions; full scan runs once after the metadata
+// cache resolves.
 
 export class ProjectScanner {
 	readonly projects = new Map<string, ProjectMeta>();
@@ -59,17 +63,20 @@ export class ProjectScanner {
 
 	private deriveMeta(file: TFile, fm: Record<string, unknown> | undefined): ProjectMeta | null {
 		if (!fm) return null;
-		const longform = fm.longform;
-		if (!longform || typeof longform !== "object" || Array.isArray(longform)) return null;
+		const block = readProjectBlock(fm);
+		if (!block) return null;
 
-		const sceneFolder = (longform as Record<string, unknown>).sceneFolder;
-		if (typeof sceneFolder !== "string" || sceneFolder.trim() === "") return null;
+		// Read sequenceFolder (new) with fallback to sceneFolder (legacy from
+		// the Longform-shape era). Same key inside whichever project block.
+		const folderRaw = block.sequenceFolder ?? block.sceneFolder;
+		if (typeof folderRaw !== "string" || folderRaw.trim() === "") return null;
+		const sequenceFolder = folderRaw;
 
 		const parent = file.parent;
 		if (!parent) return null;
 
 		const projectRootPath = parent.path;
-		const sceneFolderPath = normalizePath(`${projectRootPath}/${sceneFolder}`);
+		const sequenceFolderPath = normalizePath(`${projectRootPath}/${sequenceFolder}`);
 
 		const series = typeof fm.series === "string" && fm.series.trim() !== "" ? fm.series : undefined;
 		const projectType: ProjectType = series ? "tv-episode" : "feature";
@@ -87,7 +94,7 @@ export class ProjectScanner {
 			status: stringField(fm.status),
 			indexFilePath: file.path,
 			projectRootPath,
-			sceneFolderPath,
+			sequenceFolderPath,
 			seriesDevelopmentPath,
 		};
 	}
@@ -113,4 +120,34 @@ export class ProjectScanner {
 
 function stringField(v: unknown): string | undefined {
 	return typeof v === "string" && v.trim() !== "" ? v : undefined;
+}
+
+// Read the project block from frontmatter. Prefers `firstdraft:` (new schema)
+// but falls back to `longform:` (legacy / Longform-compatible) so unmigrated
+// projects keep working. Both shapes carry the same keys (sequenceFolder, scenes).
+export function readProjectBlock(
+	fm: Record<string, unknown>,
+): Record<string, unknown> | null {
+	for (const key of ["firstdraft", "longform"]) {
+		const v = fm[key];
+		if (v && typeof v === "object" && !Array.isArray(v)) {
+			return v as Record<string, unknown>;
+		}
+	}
+	return null;
+}
+
+// Returns which key (`firstdraft` or `longform`) currently holds the project
+// block. Used by writers that need to update the right block in-place. New
+// projects should always use `firstdraft`.
+export function projectBlockKey(
+	fm: Record<string, unknown>,
+): "firstdraft" | "longform" | null {
+	if (fm.firstdraft && typeof fm.firstdraft === "object" && !Array.isArray(fm.firstdraft)) {
+		return "firstdraft";
+	}
+	if (fm.longform && typeof fm.longform === "object" && !Array.isArray(fm.longform)) {
+		return "longform";
+	}
+	return null;
 }
