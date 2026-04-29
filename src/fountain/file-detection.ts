@@ -83,11 +83,43 @@ export function sceneNameFromArrayEntry(entry: string): string {
 // Build candidate full file paths for a scenes-array entry inside a fountain
 // folder. Returns paths to try in order — caller looks up each via vault and
 // uses the first match. Defaults to the most likely path if none exist.
+//
+// Tolerates two structural shapes:
+//   - flat:   <folder>/<entry>[.fountain[.md]]
+//   - folder: <folder>/<stem>/<entry>[.fountain[.md]]
+//
+// The folder shape is created by atomization (sequence becomes its own folder
+// containing a Scenes/ subfolder). Both shapes are checked so existing flat
+// sequences keep working alongside atomized folder-shaped ones.
 export function fountainPathCandidates(folder: string, entry: string): string[] {
 	if (entry.endsWith(".fountain")) {
-		// New format: entry already includes .fountain, so file is .fountain.md
-		return [`${folder}/${entry}.md`, `${folder}/${entry}`];
+		const stem = entry.slice(0, -FOUNTAIN_MD_SUFFIX.length);
+		return [
+			`${folder}/${entry}.md`,                  // flat .fountain.md
+			`${folder}/${entry}`,                     // flat .fountain
+			`${folder}/${stem}/${entry}.md`,          // folder shape .fountain.md
+			`${folder}/${stem}/${entry}`,             // folder shape .fountain
+		];
 	}
-	// Legacy: entry is plain basename, file is .fountain
-	return [`${folder}/${entry}.fountain`, `${folder}/${entry}.fountain.md`];
+	return [
+		`${folder}/${entry}.fountain`,                // flat .fountain
+		`${folder}/${entry}.fountain.md`,             // flat .fountain.md
+		`${folder}/${entry}/${entry}.fountain`,       // folder shape .fountain
+		`${folder}/${entry}/${entry}.fountain.md`,    // folder shape .fountain.md
+	];
+}
+
+// Build candidate paths for a sequence DEV NOTE. Mirrors the fountain side:
+// flat dev note vs folder-shaped (atomized) dev note.
+//
+//   flat:   <devSequencesFolder>/<name>.md
+//   folder: <devSequencesFolder>/<name>/<name>.md
+//
+// `name` is the human-friendly sequence name (no extension parts). Caller
+// uses the first existing match.
+export function devNotePathCandidates(devSequencesFolder: string, name: string): string[] {
+	return [
+		`${devSequencesFolder}/${name}.md`,           // flat
+		`${devSequencesFolder}/${name}/${name}.md`,   // folder shape
+	];
 }

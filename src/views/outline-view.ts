@@ -278,6 +278,18 @@ export class OutlineView extends ItemView {
 			void tag;
 		}
 
+		// Atomized indicator: small pill showing scene count when the
+		// sequence has been atomized into per-slugline scenes. Doesn't
+		// render for orphans (they shouldn't be atomized anyway, and stacking
+		// pills would crowd the title row).
+		if (row.atomized && !row.orphan) {
+			title.createSpan({
+				cls: "firstdraft-outline-tag is-atomized",
+				text: `${row.atomizedSceneCount} scene${row.atomizedSceneCount === 1 ? "" : "s"}`,
+				attr: { "aria-label": "This sequence has been atomized into scenes" },
+			});
+		}
+
 		const meta = main.createDiv({ cls: "firstdraft-outline-meta" });
 		this.renderChips(meta, row.characters, "char");
 		this.renderChips(meta, row.locations, "loc");

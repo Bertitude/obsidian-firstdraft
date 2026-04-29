@@ -65,6 +65,8 @@ import {
 } from "./development/assign-beat";
 import { runSplitSceneCommand } from "./development/split-scene";
 import { runMergeSceneCommand } from "./development/merge-scenes";
+import { runAtomizeSequenceCommand } from "./development/atomize";
+import { runUpdateSequenceCommand } from "./development/update-sequence";
 import { runMigrateStableIdsCommand } from "./development/migrate-stable-ids";
 import { runCreateNewSceneCommand } from "./development/create-scene";
 import { toggleProjectLock, clearProjectLockOnUnload } from "./project-lock/lock";
@@ -330,6 +332,22 @@ export default class FirstDraftPlugin extends Plugin {
 			name: "Merge sequence with…",
 			callback: () => {
 				void runMergeSceneCommand(this);
+			},
+		});
+
+		this.addCommand({
+			id: "atomize-sequence",
+			name: "Atomize sequence into scenes",
+			callback: () => {
+				void runAtomizeSequenceCommand(this);
+			},
+		});
+
+		this.addCommand({
+			id: "update-sequence-from-scenes",
+			name: "Update sequence from scenes",
+			callback: () => {
+				void runUpdateSequenceCommand(this);
 			},
 		});
 

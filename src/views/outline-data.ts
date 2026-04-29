@@ -2,6 +2,7 @@ import { App, TFile, TFolder, normalizePath } from "obsidian";
 import type { GlobalConfig, ProjectMeta } from "../types";
 import { readScenesArray } from "../longform/scenes-array";
 import {
+	devNotePathCandidates,
 	fountainPathCandidates,
 	isFountainFile,
 	sceneNameFromArrayEntry,
@@ -22,6 +23,8 @@ export interface OutlineRow {
 	versionCount: number;
 	orphan: boolean; // dev note exists but not in the project's scenes array
 	missing: boolean; // listed in scenes array but no dev note or fountain found
+	atomized: boolean; // dev note's parent folder contains a populated Scenes/ subfolder
+	atomizedSceneCount: number; // number of scene dev notes; 0 when not atomized
 	indexFilePath: string; // Index.md this row belongs to — needed in season mode
 }
 
@@ -85,11 +88,10 @@ function buildRow(
 	indexFilePath: string,
 ): OutlineRow {
 	const sequenceName = sceneNameFromArrayEntry(entry);
-	const devNotePath = normalizePath(`${devScenesPath}/${sequenceName}.md`);
 
 	// Try both fountain formats — the array entry may be either a plain
 	// basename (legacy .fountain) or a basename ending in .fountain (new
-	// .fountain.md). Use whichever file exists.
+	// .fountain.md). Also tolerates folder-shape (atomized) sequences.
 	let fountainFile: TFile | null = null;
 	let fountainPath = "";
 	for (const candidate of fountainPathCandidates(fountainFolderPath, entry)) {
@@ -103,7 +105,21 @@ function buildRow(
 		if (!fountainPath) fountainPath = normalized;
 	}
 
-	const devNoteFile = fileAt(app, devNotePath);
+	// Dev note path: try flat first, then folder-shape (matches the same
+	// promotion atomization performs on the fountain side).
+	let devNotePath = "";
+	let devNoteFile: TFile | null = null;
+	for (const candidate of devNotePathCandidates(devScenesPath, sequenceName)) {
+		const normalized = normalizePath(candidate);
+		const f = fileAt(app, normalized);
+		if (f) {
+			devNotePath = normalized;
+			devNoteFile = f;
+			break;
+		}
+		if (!devNotePath) devNotePath = normalized;
+	}
+	void devNotePath;
 
 	const fmRecord = devNoteFile
 		? (app.metadataCache.getFileCache(devNoteFile)?.frontmatter as
@@ -120,6 +136,13 @@ function buildRow(
 
 	const missing = !devNoteFile && !fountainFile;
 
+	// Atomized when the dev note lives in folder shape AND its parent folder
+	// has a populated Scenes/ subfolder. We probe the dev side because that's
+	// where slugline_key frontmatter (the canonical scene identity) lives;
+	// the fountain side could in theory be in folder shape without dev-side
+	// scenes, but in practice atomize creates both at once.
+	const { atomized, atomizedSceneCount } = probeAtomized(app, devNoteFile);
+
 	return {
 		sequenceName,
 		devNoteFile,
@@ -131,8 +154,32 @@ function buildRow(
 		versionCount,
 		orphan,
 		missing,
+		atomized,
+		atomizedSceneCount,
 		indexFilePath,
 	};
+}
+
+function probeAtomized(
+	app: App,
+	devNote: TFile | null,
+): { atomized: boolean; atomizedSceneCount: number } {
+	if (!devNote) return { atomized: false, atomizedSceneCount: 0 };
+	const parent = devNote.parent;
+	if (!parent) return { atomized: false, atomizedSceneCount: 0 };
+	// Folder shape: the dev note's parent folder name matches the dev note's
+	// basename. Flat shape's parent is just the Sequences/ subfolder, which
+	// won't match.
+	if (parent.name !== devNote.basename) return { atomized: false, atomizedSceneCount: 0 };
+	const scenesFolder = app.vault.getAbstractFileByPath(
+		normalizePath(`${parent.path}/Scenes`),
+	);
+	if (!(scenesFolder instanceof TFolder)) return { atomized: false, atomizedSceneCount: 0 };
+	let count = 0;
+	for (const child of scenesFolder.children) {
+		if (child instanceof TFile && child.extension === "md") count += 1;
+	}
+	return { atomized: count > 0, atomizedSceneCount: count };
 }
 
 function fileAt(app: App, path: string): TFile | null {

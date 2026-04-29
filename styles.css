@@ -372,6 +372,13 @@
 	color: var(--text-error);
 }
 
+/* Atomized indicator — sequence has been split into per-slugline scenes.
+   Subtle accent so it reads as informational, not warning. */
+.firstdraft-outline-tag.is-atomized {
+	background: var(--background-modifier-success);
+	color: var(--text-success);
+}
+
 /* Clickable variant of the "Not in project" pill — same visual size as the
    static tag, but rendered as a button with hover affordance and pointer
    cursor so it reads as actionable. */

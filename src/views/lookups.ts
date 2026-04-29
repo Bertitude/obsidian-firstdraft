@@ -1,6 +1,11 @@
 import { App, TFile, TFolder, normalizePath } from "obsidian";
 import type { GlobalConfig, ProjectMeta } from "../types";
-import { fountainFilename, fountainSceneName, isFountainFile } from "../fountain/file-detection";
+import {
+	devNotePathCandidates,
+	fountainFilename,
+	fountainSceneName,
+	isFountainFile,
+} from "../fountain/file-detection";
 
 // Folder/file lookups for the dev-notes panel. Phase 5 will extend the GlobalConfig
 // argument with per-project overrides; the call sites stay the same.
@@ -38,19 +43,35 @@ export interface LocationEntry {
 	canonicalFile: TFile | null;
 }
 
-// Scene dev note path = projectRoot/Development/Scenes/<sequenceName>.md
+// Scene dev note path = <project>/<dev>/<sequencesSubfolder>/<sequenceName>.md
 // sequenceName is the human-friendly name without fountain extension parts so
 // the same dev note matches both .fountain and .fountain.md scene files.
+//
+// Tolerates atomized (folder-shape) sequences: the dev note may live at
+// `<dev>/<sequencesSubfolder>/<name>/<name>.md` instead of the flat
+// `<dev>/<sequencesSubfolder>/<name>.md`. First existing match wins.
+// `path` returned is the canonical (flat) shape when neither file exists yet
+// — that's where new dev notes get created by default; atomization moves
+// existing flat dev notes into folder shape on its first run.
 export function sequenceDevNotePath(
 	scene: TFile,
 	project: ProjectMeta,
 	cfg: GlobalConfig,
 ): DevNoteRef {
 	const sequenceName = fountainSceneName(scene);
-	const path = normalizePath(
-		`${project.projectRootPath}/${cfg.developmentFolder}/${cfg.sequencesSubfolder}/${sequenceName}.md`,
+	const devFolder = normalizePath(
+		`${project.projectRootPath}/${cfg.developmentFolder}/${cfg.sequencesSubfolder}`,
 	);
-	return { path, file: lookupFile(scene.vault as unknown, path) };
+	const candidates = devNotePathCandidates(devFolder, sequenceName).map((p) =>
+		normalizePath(p),
+	);
+	for (const candidate of candidates) {
+		const file = lookupFile(scene.vault as unknown, candidate);
+		if (file) return { path: candidate, file };
+	}
+	// No existing match — return the flat path as the default creation
+	// target. Atomization promotes flat to folder when needed.
+	return { path: candidates[0]!, file: null };
 }
 
 // Given any active file inside a project, return the matching pair of fountain +
