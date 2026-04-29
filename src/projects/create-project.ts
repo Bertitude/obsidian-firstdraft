@@ -2,6 +2,7 @@ import { App, Modal, Notice, Setting, TFile, TFolder, normalizePath, TextCompone
 import type FirstDraftPlugin from "../main";
 import type { GlobalConfig } from "../types";
 import { sanitizeFilename } from "../utils/sanitize";
+import { FolderSuggest } from "../utils/folder-suggest";
 import { activateProjectHomeView } from "../views/project-home-view";
 
 // "Create FirstDraft project" — scaffolds a fresh project from scratch.
@@ -102,7 +103,7 @@ class CreateProjectModal extends Modal {
 		new Setting(contentEl)
 			.setName("Parent folder")
 			.setDesc(
-				'Where to create the project folder. Defaults from your settings (Default project locations). Leave empty for vault root.',
+				'Where to create the project folder. Type to search existing folders or enter a new path (created on submit). Defaults from your settings.',
 			)
 			.addText((t) => {
 				this.parentInput = t;
@@ -112,6 +113,10 @@ class CreateProjectModal extends Modal {
 						this.parentFolder = v.trim();
 						this.parentEditedManually = true;
 					});
+				// Folder picker dropdown — populates from existing vault folders,
+				// matching by substring. User can also type a new path that
+				// doesn't exist yet; ensureFolder() walks the segments at submit.
+				new FolderSuggest(this.plugin.app, t.inputEl);
 			});
 
 		new Setting(contentEl)

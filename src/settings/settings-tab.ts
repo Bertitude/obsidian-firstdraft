@@ -8,6 +8,7 @@ import {
 } from "./defaults";
 import { describeMode, resolveFountainMode } from "../fountain/plugin-mode";
 import { applyBodyClasses } from "../firstdraft-mode/toggle";
+import { FolderSuggest } from "../utils/folder-suggest";
 
 export class FirstDraftSettingTab extends PluginSettingTab {
 	plugin: FirstDraftPlugin;
@@ -45,17 +46,17 @@ export class FirstDraftSettingTab extends PluginSettingTab {
 		new Setting(containerEl)
 			.setName("Default project parent folder")
 			.setDesc(
-				'Where new projects land by default. Empty = vault root. e.g. "Project Development".',
+				'Where new projects land by default. Type to search existing folders or enter a new path. Empty = vault root. e.g. "Project Development".',
 			)
-			.addText((t) =>
-				t
-					.setPlaceholder("(vault root)")
+			.addText((t) => {
+				t.setPlaceholder("(vault root)")
 					.setValue(g.defaultProjectParent)
 					.onChange(async (v) => {
 						g.defaultProjectParent = v.trim();
 						await this.save();
-					}),
-			);
+					});
+				new FolderSuggest(this.plugin.app, t.inputEl);
+			});
 
 		new Setting(containerEl)
 			.setName("Feature subfolder")
