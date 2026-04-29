@@ -80,6 +80,12 @@ export interface ProjectMeta {
 	season?: string;
 	episode?: string;
 	title?: string;
+	// Optional secondary/subtitle. Pattern: "Power: Book II", "Star Wars:
+	// A New Hope", "Babylon: Rise of a Shotta". Title stays the primary
+	// name; subtitle is the secondary segment when present. Display
+	// helpers compose them as "Title: Subtitle". Episodes don't use this
+	// field (their title structure is already S01E01 — Pilot).
+	subtitle?: string;
 	logline?: string;
 	status?: string;
 	indexFilePath: string;

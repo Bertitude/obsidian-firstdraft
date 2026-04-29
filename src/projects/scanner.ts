@@ -116,6 +116,7 @@ export class ProjectScanner {
 			season: stringField(fm.season),
 			episode: stringField(fm.episode),
 			title: stringField(fm.title),
+			subtitle: stringField(fm.subtitle),
 			logline: stringField(fm.logline),
 			status: stringField(fm.status),
 			indexFilePath: file.path,

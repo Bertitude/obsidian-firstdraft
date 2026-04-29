@@ -42,6 +42,7 @@ function guessSeriesRoot(plugin: FirstDraftPlugin, file: TFile): string {
 
 class InitializeSeriesRootModal extends Modal {
 	private title = "";
+	private subtitle = "";
 	private folderPath: string;
 
 	constructor(
@@ -80,13 +81,22 @@ class InitializeSeriesRootModal extends Modal {
 
 		new Setting(contentEl)
 			.setName("Series title")
-			.setDesc("Display name for the series. Defaults to the folder name.")
+			.setDesc("Primary name for the series. Defaults to the folder name.")
 			.addText((t) =>
 				t.setPlaceholder(lastSegment(this.folderPath))
 					.setValue(this.title)
 					.onChange((v) => {
 						this.title = v.trim();
 					}),
+			);
+
+		new Setting(contentEl)
+			.setName("Subtitle")
+			.setDesc('Optional. Shown alongside the title as "Title: Subtitle" (e.g. Power: Book II).')
+			.addText((t) =>
+				t.setPlaceholder("(none)").onChange((v) => {
+					this.subtitle = v.trim();
+				}),
 			);
 
 		new Setting(contentEl)
@@ -130,21 +140,23 @@ class InitializeSeriesRootModal extends Modal {
 		try {
 			const created = await this.plugin.app.vault.create(
 				indexPath,
-				seriesIndexBody(title, cfg),
+				seriesIndexBody(title, this.subtitle, cfg),
 			);
 			this.close();
 			await this.plugin.app.workspace.getLeaf(false).openFile(created);
 			void activateProjectHomeView(this.plugin);
-			new Notice(`Initialized series "${title}".`);
+			const fullName = this.subtitle ? `${title}: ${this.subtitle}` : title;
+			new Notice(`Initialized series "${fullName}".`);
 		} catch (e) {
 			new Notice(`Initialize failed: ${(e as Error).message}`);
 		}
 	}
 }
 
-function seriesIndexBody(title: string, cfg: GlobalConfig): string {
+function seriesIndexBody(title: string, subtitle: string, cfg: GlobalConfig): string {
+	const subtitleLine = subtitle ? `\nsubtitle: ${yamlString(subtitle)}` : "";
 	return `---
-title: ${yamlString(title)}
+title: ${yamlString(title)}${subtitleLine}
 firstdraft:
   kind: series
 ---

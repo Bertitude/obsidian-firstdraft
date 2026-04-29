@@ -839,14 +839,27 @@ body.firstdraft-active .workspace-split.mod-left-split .workspace-tab-header-con
 }
 
 .firstdraft-home-title {
-	margin: 0 0 var(--size-4-1) 0;
-	flex: 1;
+	margin: 0;
 }
 
 .firstdraft-home-title-row {
 	display: flex;
-	align-items: center;
+	align-items: flex-start;
 	gap: var(--size-2-2);
+	margin-bottom: var(--size-4-1);
+}
+
+.firstdraft-home-title-block {
+	flex: 1;
+}
+
+/* Two-tier title: primary title is the H1, subtitle (when present) renders
+   below at smaller scale and muted color so it reads as secondary. */
+.firstdraft-home-subtitle {
+	font-size: var(--font-ui-medium);
+	color: var(--text-muted);
+	font-style: italic;
+	margin-top: var(--size-2-1);
 }
 
 .firstdraft-home-cog {

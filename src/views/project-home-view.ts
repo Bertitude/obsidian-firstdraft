@@ -9,6 +9,10 @@ import { activateOutlineView } from "./outline-view";
 import { activateCharacterMatrixView } from "./character-matrix-view";
 import { stripId } from "../utils/stable-id";
 import { openProjectSettingsModal } from "../settings/project-settings-modal";
+import {
+	displayProjectFullTitle,
+	displayProjectPrimaryTitle,
+} from "../projects/display";
 import { VIEW_TYPE_PROJECT_HOME } from "./view-types";
 
 // Project Home — full-pane dashboard for a project. Single landing page that
@@ -93,12 +97,14 @@ export class ProjectHomeView extends ItemView {
 
 		// "← Back to series" for tv-episode projects whose scanner knows
 		// about a parent series root. Lives above the title so it reads as
-		// breadcrumb navigation.
+		// breadcrumb navigation. Uses the primary title only so subtitled
+		// franchise series ("Power: Book II") read as "← Power" rather
+		// than crowding the breadcrumb with the full label.
 		if (data.parentSeries) {
 			const parent = data.parentSeries;
 			const back = header.createEl("a", {
 				cls: "firstdraft-home-breadcrumb",
-				text: `← ${parent.title ?? lastSegment(parent.projectRootPath)}`,
+				text: `← ${displayProjectPrimaryTitle(parent)}`,
 				attr: { href: "#" },
 			});
 			back.addEventListener("click", (e) => {
@@ -114,15 +120,34 @@ export class ProjectHomeView extends ItemView {
 			});
 		}
 
-		// Title row: title text + cog icon for Project Settings. Cog uses
-		// mousedown (with click stopPropagation) for the same focus-eating
-		// reason as the dev-notes-panel cog and other right/left sidebar
-		// buttons — Obsidian's leaf focus model swallows the first click.
+		// Title row: title block (primary + optional subtitle) + cog icon
+		// for Project Settings. Cog uses mousedown (with click stopPropagation)
+		// for the same focus-eating reason as the dev-notes-panel cog and
+		// other sidebar buttons — Obsidian's leaf focus model swallows the
+		// first click.
 		const titleRow = header.createDiv({ cls: "firstdraft-home-title-row" });
-		titleRow.createEl("h1", {
-			text: displayProject(data.project),
-			cls: "firstdraft-home-title",
-		});
+		const titleBlock = titleRow.createDiv({ cls: "firstdraft-home-title-block" });
+		// For tv-episode projects we keep the existing season/episode
+		// composition; for series and features we render two-tier when a
+		// subtitle is set ("Power" big, "Book II" smaller below).
+		if (data.project.projectType === "tv-episode") {
+			titleBlock.createEl("h1", {
+				text: displayProject(data.project),
+				cls: "firstdraft-home-title",
+			});
+		} else {
+			titleBlock.createEl("h1", {
+				text: displayProjectPrimaryTitle(data.project),
+				cls: "firstdraft-home-title",
+			});
+			const sub = data.project.subtitle?.trim();
+			if (sub && sub !== "") {
+				titleBlock.createEl("div", {
+					text: sub,
+					cls: "firstdraft-home-subtitle",
+				});
+			}
+		}
 		const cog = titleRow.createEl("button", {
 			cls: "firstdraft-home-cog clickable-icon",
 			attr: { "aria-label": "Project settings" },
@@ -413,9 +438,9 @@ function displayProject(p: ProjectMeta): string {
 		const fallback = lastSegment(p.projectRootPath);
 		return ep ? `${series} ${ep}${t ? " — " + t : ""}`.trim() : t || fallback;
 	}
-	// For features, prefer frontmatter title; fall back to the project folder
-	// name (much friendlier than the full index path).
-	return p.title ?? lastSegment(p.projectRootPath);
+	// Features and series: full label with subtitle when present
+	// ("Babylon: Rise of a Shotta") via the shared display helper.
+	return displayProjectFullTitle(p);
 }
 
 function lastSegment(path: string): string {

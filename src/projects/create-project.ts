@@ -40,6 +40,7 @@ export function runCreateProjectCommand(plugin: FirstDraftPlugin): void {
 
 class CreateProjectModal extends Modal {
 	private title = "";
+	private subtitle = "";
 	private parentFolder = "";
 	private kind: ProjectKind = "feature";
 	private parentInput?: TextComponent;
@@ -64,13 +65,22 @@ class CreateProjectModal extends Modal {
 
 		new Setting(contentEl)
 			.setName("Title")
-			.setDesc("Display name for the project. Used as the folder name and in the index.")
+			.setDesc("Primary name for the project. Used as the folder name and in the index.")
 			.addText((t) =>
 				t
-					.setPlaceholder("e.g. Fraidy Fraidy")
+					.setPlaceholder("e.g. Babylon")
 					.onChange((v) => {
 						this.title = v;
 					}),
+			);
+
+		new Setting(contentEl)
+			.setName("Subtitle")
+			.setDesc('Optional. Shown alongside the title as "Title: Subtitle" (e.g. Power: Book II).')
+			.addText((t) =>
+				t.setPlaceholder("(none)").onChange((v) => {
+					this.subtitle = v.trim();
+				}),
 			);
 
 		new Setting(contentEl)
@@ -150,6 +160,7 @@ class CreateProjectModal extends Modal {
 			return;
 		}
 
+		const subtitle = this.subtitle.trim();
 		try {
 			let openTarget: TFile;
 			if (this.kind === "series") {
@@ -157,6 +168,7 @@ class CreateProjectModal extends Modal {
 					this.plugin.app,
 					projectPath,
 					title,
+					subtitle,
 					cfg,
 				);
 			} else {
@@ -164,6 +176,7 @@ class CreateProjectModal extends Modal {
 					this.plugin.app,
 					projectPath,
 					title,
+					subtitle,
 					cfg,
 				);
 			}
@@ -172,10 +185,11 @@ class CreateProjectModal extends Modal {
 			// then activate Project Home so navigation surfaces are ready.
 			await this.plugin.app.workspace.getLeaf(false).openFile(openTarget);
 			void activateProjectHomeView(this.plugin);
+			const fullName = subtitle ? `${title}: ${subtitle}` : title;
 			new Notice(
 				this.kind === "series"
-					? `Created series "${title}". Add your first episode with "Create episode".`
-					: `Created project "${title}".`,
+					? `Created series "${fullName}". Add your first episode with "Create episode".`
+					: `Created project "${fullName}".`,
 			);
 		} catch (e) {
 			new Notice(`Create failed: ${(e as Error).message}`);
@@ -205,6 +219,7 @@ async function scaffoldSeriesProject(
 	app: App,
 	projectPath: string,
 	title: string,
+	subtitle: string,
 	cfg: GlobalConfig,
 ): Promise<TFile> {
 	await ensureFolder(app, projectPath);
@@ -230,7 +245,7 @@ async function scaffoldSeriesProject(
 	await ensureFolder(app, `${projectPath}/${cfg.seasonsFolder}`);
 
 	const indexPath = normalizePath(`${projectPath}/Index.md`);
-	const index = await app.vault.create(indexPath, seriesIndexBody(title, cfg));
+	const index = await app.vault.create(indexPath, seriesIndexBody(title, subtitle, cfg));
 	return index;
 }
 
@@ -238,6 +253,7 @@ async function scaffoldProject(
 	app: App,
 	projectPath: string,
 	title: string,
+	subtitle: string,
 	cfg: GlobalConfig,
 ): Promise<TFile> {
 	// Create the folder chain. ensureFolder walks segments so multi-level
@@ -271,7 +287,7 @@ async function scaffoldProject(
 	// points at the top-level fountain folder; sequences: starts empty (gets
 	// populated as the user creates/promotes scenes).
 	const indexPath = normalizePath(`${projectPath}/Index.md`);
-	await app.vault.create(indexPath, indexBody(title, cfg));
+	await app.vault.create(indexPath, indexBody(title, subtitle, cfg));
 
 	// Write the welcome Treatment.md and return it so the caller can open it.
 	const treatmentPath = normalizePath(
@@ -284,9 +300,10 @@ async function scaffoldProject(
 	return treatment;
 }
 
-function indexBody(title: string, cfg: GlobalConfig): string {
+function indexBody(title: string, subtitle: string, cfg: GlobalConfig): string {
+	const subtitleLine = subtitle ? `\nsubtitle: ${yamlString(subtitle)}` : "";
 	return `---
-title: ${yamlString(title)}
+title: ${yamlString(title)}${subtitleLine}
 firstdraft:
   sequenceFolder: ${yamlString(cfg.sequencesSubfolder)}
   sequences: []
@@ -297,9 +314,10 @@ firstdraft:
 `;
 }
 
-function seriesIndexBody(title: string, cfg: GlobalConfig): string {
+function seriesIndexBody(title: string, subtitle: string, cfg: GlobalConfig): string {
+	const subtitleLine = subtitle ? `\nsubtitle: ${yamlString(subtitle)}` : "";
 	return `---
-title: ${yamlString(title)}
+title: ${yamlString(title)}${subtitleLine}
 firstdraft:
   kind: series
 ---

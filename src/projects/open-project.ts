@@ -2,6 +2,7 @@ import { Notice, SuggestModal, TFile } from "obsidian";
 import type FirstDraftPlugin from "../main";
 import type { ProjectMeta } from "../types";
 import { activateProjectHomeView } from "../views/project-home-view";
+import { displayProjectFullTitle } from "./display";
 
 // "Open FirstDraft project" command. Lists all projects the scanner has
 // detected — i.e. files with a `longform: { sequenceFolder: "..." }`
@@ -92,11 +93,9 @@ function displayProject(p: ProjectMeta): string {
 			? `${series} ${ep}${t ? " — " + t : ""}`.trim()
 			: t || lastSegment(p.projectRootPath);
 	}
-	// Feature and series: prefer frontmatter title, fall back to the
-	// project's folder name (NOT the full path — that's where the picker
-	// was showing the entire "Project Development/Film/Fraidy Fraidy"
-	// string for projects without a title set in frontmatter).
-	return p.title ?? lastSegment(p.projectRootPath);
+	// Series and features: full label includes subtitle when present
+	// ("Babylon: Rise of a Shotta") via the shared display helper.
+	return displayProjectFullTitle(p);
 }
 
 function lastSegment(path: string): string {

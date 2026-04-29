@@ -2,10 +2,13 @@ import type { ProjectMeta, FirstDraftSettings } from "../types";
 
 // Derives a project's "note tag" — the tag users add to notes anywhere in
 // the vault to surface them in the project notes panel. Default form is a
-// kebab-case slug of the project title, falling back to the project's
-// folder name (NOT the index file's basename — that would resolve to
-// "index" for any project whose frontmatter lacks a `title:` field). Per-
-// project override lives in `settings.projects[indexFilePath].noteTag`.
+// kebab-case slug of the project's PRIMARY title (ignoring any subtitle so
+// franchise variants like "Power: Book II" share `#power`), falling back
+// to the project's folder name (NOT the index file's basename — that would
+// resolve to "index" for any project whose frontmatter lacks a `title:`
+// field). Per-project override lives in
+// `settings.projects[indexFilePath].noteTag` for users who want something
+// different (e.g. `#power-book-ii` to disambiguate within a franchise).
 //
 // Returned WITHOUT the leading `#` — callers add it where needed (UI display
 // vs. metadataCache lookup may want different forms).
