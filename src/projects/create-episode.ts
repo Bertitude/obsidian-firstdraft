@@ -4,6 +4,7 @@ import type { GlobalConfig, ProjectMeta } from "../types";
 import { resolveActiveProject } from "./resolver";
 import { resolveProjectSettings } from "../settings/resolve";
 import { sanitizeFilename } from "../utils/sanitize";
+import { yamlString } from "../utils/yaml";
 import { activateProjectHomeView } from "../views/project-home-view";
 
 // "Create episode" — adds a new episode to the active series project.
@@ -305,13 +306,13 @@ function episodeIndexBody(
 	cfg: GlobalConfig,
 ): string {
 	return `---
-title: ${title}
-series: ${seriesTitle}
-season: "${seasonNum}"
-episode: ${episodeCode}
+title: ${yamlString(title)}
+series: ${yamlString(seriesTitle)}
+season: ${yamlString(seasonNum)}
+episode: ${yamlString(episodeCode)}
 firstdraft:
   kind: episode
-  sequenceFolder: ${cfg.sequencesSubfolder}
+  sequenceFolder: ${yamlString(cfg.sequencesSubfolder)}
   sequences: []
 ---
 

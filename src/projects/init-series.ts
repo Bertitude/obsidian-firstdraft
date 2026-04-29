@@ -4,6 +4,7 @@ import type { GlobalConfig } from "../types";
 import { resolveProjectSettings } from "../settings/resolve";
 import { activateProjectHomeView } from "../views/project-home-view";
 import { FolderSuggest } from "../utils/folder-suggest";
+import { yamlString } from "../utils/yaml";
 
 // "Initialize series root" — creates a series-kind Index.md at a folder that
 // already contains episode projects (the migration path for setups like
@@ -143,7 +144,7 @@ class InitializeSeriesRootModal extends Modal {
 
 function seriesIndexBody(title: string, cfg: GlobalConfig): string {
 	return `---
-title: ${title}
+title: ${yamlString(title)}
 firstdraft:
   kind: series
 ---

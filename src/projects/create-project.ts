@@ -3,6 +3,7 @@ import type FirstDraftPlugin from "../main";
 import type { GlobalConfig } from "../types";
 import { sanitizeFilename } from "../utils/sanitize";
 import { FolderSuggest } from "../utils/folder-suggest";
+import { yamlString } from "../utils/yaml";
 import { activateProjectHomeView } from "../views/project-home-view";
 
 // "Create FirstDraft project" — scaffolds a fresh project from scratch.
@@ -285,9 +286,9 @@ async function scaffoldProject(
 
 function indexBody(title: string, cfg: GlobalConfig): string {
 	return `---
-title: ${title}
+title: ${yamlString(title)}
 firstdraft:
-  sequenceFolder: ${cfg.sequencesSubfolder}
+  sequenceFolder: ${yamlString(cfg.sequencesSubfolder)}
   sequences: []
 ---
 
@@ -298,7 +299,7 @@ firstdraft:
 
 function seriesIndexBody(title: string, cfg: GlobalConfig): string {
 	return `---
-title: ${title}
+title: ${yamlString(title)}
 firstdraft:
   kind: series
 ---
