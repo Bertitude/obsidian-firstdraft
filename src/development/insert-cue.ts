@@ -8,6 +8,7 @@ import { sanitizeFilename, toTitleCase } from "../utils/sanitize";
 import { linkifyEntity, type DevEntity } from "./linkify";
 import { openCreateCharacterModal } from "./create-character-modal";
 import { ensureEpisodeCharacterNote } from "./episode-character-notes";
+import { isFountainFile } from "../fountain/file-detection";
 
 // Plugin-mode-independent picker commands. These work in any editor regardless
 // of which fountain plugin is active — they don't rely on EditorSuggest. The
@@ -181,7 +182,20 @@ class InsertPickerModal extends SuggestModal<PickerEntry> {
 	private handleInsertExisting(value: PickerEntry): void {
 		this.insertAtCursor(value.name);
 		const stored = value.folderCasing ?? value.name;
-		void this.syncToDevNote(stored);
+		void this.afterCharacterAdded(stored);
+	}
+
+	// Called after a character is inserted (either picked from the roster or
+	// freshly created). Syncs to the paired dev note's characters: array
+	// when the active file is a fountain (existing behavior), and always
+	// auto-creates the episode-specific character note when the active
+	// project is a tv-episode. Locations skip both — they don't have a
+	// per-episode-notes model.
+	private async afterCharacterAdded(name: string): Promise<void> {
+		await this.syncToDevNote(name);
+		if (this.kind === "character") {
+			await ensureEpisodeCharacterNote(this.plugin, this.project, name);
+		}
 	}
 
 	private async handleCreate(name: string): Promise<void> {
@@ -207,7 +221,11 @@ class InsertPickerModal extends SuggestModal<PickerEntry> {
 				return;
 			}
 			this.insertAtCursor(name);
-			await this.syncToDevNote(result.displayName);
+			// afterCharacterAdded handles dev-note sync (fountain only) AND
+			// the episode-character-note auto-create. The modal's submit path
+			// also auto-creates the episode note when active is an episode,
+			// so this is belt-and-suspenders idempotent (no-op second run).
+			await this.afterCharacterAdded(result.displayName);
 			new Notice(`Created character: ${result.displayName}`);
 
 			const entity: DevEntity = {
@@ -264,14 +282,35 @@ class InsertPickerModal extends SuggestModal<PickerEntry> {
 	}
 
 	private insertAtCursor(name: string): void {
-		// Characters: name + newline so cursor lands on dialogue line.
-		// Locations: just the name; cursor stays in flow of action prose.
-		const text = this.kind === "character" ? `${name}\n` : name;
-		this.editor.replaceSelection(text);
+		// Markdown / prose context: wikilink for both characters and
+		// locations. Wikilink form leverages Obsidian's path-proximity
+		// resolver — from inside an episode, character links point to the
+		// episode-level note (if it exists) or the canonical at series
+		// level (otherwise). Wikilink resolution is case-insensitive, so
+		// inserting `[[ANTONIA]]` still resolves to Antonia.md.
+		const inFountain = this.file ? isFountainFile(this.file) : false;
+		if (!inFountain) {
+			this.editor.replaceSelection(`[[${name}]]`);
+			return;
+		}
+		// Fountain context: cue style for characters (NAME + newline so the
+		// cursor lands on the dialogue line below); slugline-style plain
+		// name for locations (woven into action prose).
+		this.editor.replaceSelection(
+			this.kind === "character" ? `${name}\n` : name,
+		);
 	}
 
 	private async syncToDevNote(name: string): Promise<void> {
 		if (!this.file) return;
+		// Dev-note sync only fires from a fountain — sequenceDevNotePath looks
+		// up the *paired* dev note for a fountain, which doesn't apply when
+		// the user is already inside a Treatment, episode Index, or any
+		// non-fountain markdown file. Skipping here avoids accidentally
+		// writing characters: into the wrong file (a different sequence dev
+		// note happening to share the active file's basename).
+		if (!isFountainFile(this.file)) return;
+
 		const cfg = resolveProjectSettings(this.project, this.plugin.settings);
 		const ref = sequenceDevNotePath(this.file, this.project, cfg);
 		if (!ref.file) return;
@@ -289,13 +328,6 @@ class InsertPickerModal extends SuggestModal<PickerEntry> {
 				fm[field] = existing;
 			},
 		);
-
-		// Auto-create the episode-specific character note when a character is
-		// added to an episode's dev note. No-op for non-episode projects and
-		// for locations.
-		if (this.kind === "character") {
-			await ensureEpisodeCharacterNote(this.plugin, this.project, name);
-		}
 	}
 }
 
