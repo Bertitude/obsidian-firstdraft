@@ -166,28 +166,18 @@ export default class FirstDraftPlugin extends Plugin {
 			},
 		});
 
+		// FirstDraft palette: a SuggestModal scoped to FirstDraft commands only.
+		// We don't try to intercept Cmd/Ctrl+P automatically — Obsidian's hotkey
+		// dispatcher operates above any DOM event layer we can reach (tested both
+		// document keydown with capture phase and app.scope.register; neither
+		// wins the race against the built-in palette binding). Users bind their
+		// own hotkey in Settings → Hotkeys.
 		this.addCommand({
 			id: "open-firstdraft-palette",
 			name: "Open FirstDraft palette",
 			callback: () => {
 				openFirstDraftPalette(this);
 			},
-		});
-
-		// Intercept Cmd/Ctrl+P while First Draft Mode is active so the keystroke
-		// opens the FirstDraft-only palette instead of the global one. Default
-		// palette stays available outside FDM for cross-plugin access.
-		this.registerDomEvent(document, "keydown", (e: KeyboardEvent) => {
-			if (!this.settings.global.firstDraftMode.active) return;
-			if (e.key !== "p" && e.key !== "P") return;
-			const isMod = navigator.platform.includes("Mac") ? e.metaKey : e.ctrlKey;
-			if (!isMod) return;
-			// Don't hijack Cmd+Shift+P (some plugins use it for variants) or
-			// Cmd+Alt+P. Only the bare Cmd/Ctrl+P stroke maps to our palette.
-			if (e.shiftKey || e.altKey) return;
-			e.preventDefault();
-			e.stopPropagation();
-			openFirstDraftPalette(this);
 		});
 
 		this.addCommand({
