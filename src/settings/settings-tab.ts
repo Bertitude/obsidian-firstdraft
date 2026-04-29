@@ -22,12 +22,70 @@ export class FirstDraftSettingTab extends PluginSettingTab {
 		containerEl.empty();
 
 		this.renderFolderNames();
+		this.renderProjectDefaults();
 		this.renderTemplates();
 		this.renderCharacterCardFields();
 		this.renderFirstDraftMode();
 		this.renderDevelopmentEntities();
 		this.renderFountainPlugin();
 		this.renderDebug();
+	}
+
+	// Default parent locations for new projects scaffolded via the
+	// "Create FirstDraft project" command. The general parent is the
+	// top-level container; the per-type subfolders sort feature vs series
+	// projects underneath it. All three default to empty (vault root); a
+	// typical setup might use "Project Development" / "Film" / "Series".
+	private renderProjectDefaults(): void {
+		const { containerEl } = this;
+		const g = this.plugin.settings.global;
+
+		new Setting(containerEl).setName("Default project locations").setHeading();
+
+		new Setting(containerEl)
+			.setName("Default project parent folder")
+			.setDesc(
+				'Where new projects land by default. Empty = vault root. e.g. "Project Development".',
+			)
+			.addText((t) =>
+				t
+					.setPlaceholder("(vault root)")
+					.setValue(g.defaultProjectParent)
+					.onChange(async (v) => {
+						g.defaultProjectParent = v.trim();
+						await this.save();
+					}),
+			);
+
+		new Setting(containerEl)
+			.setName("Feature subfolder")
+			.setDesc(
+				'Optional subfolder under the project parent for feature projects. e.g. "Film". Empty = no extra nesting.',
+			)
+			.addText((t) =>
+				t
+					.setPlaceholder("(none)")
+					.setValue(g.defaultFeatureSubfolder)
+					.onChange(async (v) => {
+						g.defaultFeatureSubfolder = v.trim();
+						await this.save();
+					}),
+			);
+
+		new Setting(containerEl)
+			.setName("Series subfolder")
+			.setDesc(
+				'Optional subfolder under the project parent for series projects. e.g. "Series". Empty = no extra nesting.',
+			)
+			.addText((t) =>
+				t
+					.setPlaceholder("(none)")
+					.setValue(g.defaultSeriesSubfolder)
+					.onChange(async (v) => {
+						g.defaultSeriesSubfolder = v.trim();
+						await this.save();
+					}),
+			);
 	}
 
 	private renderFountainPlugin(): void {

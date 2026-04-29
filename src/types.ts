@@ -16,6 +16,9 @@ export interface GlobalConfig {
 	locationsSubfolder: string;
 	referencesSubfolder: string;
 	notesSubfolder: string;
+	defaultProjectParent: string;
+	defaultFeatureSubfolder: string;
+	defaultSeriesSubfolder: string;
 	characterCardFields: string[];
 	sceneNoteTemplate: string;
 	characterNoteTemplate: string;

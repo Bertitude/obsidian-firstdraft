@@ -1,4 +1,4 @@
-import { App, Modal, Notice, Setting, TFile, TFolder, normalizePath } from "obsidian";
+import { App, Modal, Notice, Setting, TFile, TFolder, normalizePath, TextComponent } from "obsidian";
 import type FirstDraftPlugin from "../main";
 import type { GlobalConfig } from "../types";
 import { sanitizeFilename } from "../utils/sanitize";
@@ -24,6 +24,13 @@ import { activateProjectHomeView } from "../views/project-home-view";
 //
 // All subfolder names come from the user's global config so a project
 // scaffolded under custom folder names lands in the right places.
+//
+// Project type: feature or series. Series scaffolding is deferred until
+// the series-as-project refactor lands — until then, picking Series in
+// the modal is a no-op (the option exists in the UI for discoverability
+// but routes back to Feature with an explanatory notice).
+
+type ProjectKind = "feature" | "series";
 
 export function runCreateProjectCommand(plugin: FirstDraftPlugin): void {
 	new CreateProjectModal(plugin).open();
@@ -32,6 +39,12 @@ export function runCreateProjectCommand(plugin: FirstDraftPlugin): void {
 class CreateProjectModal extends Modal {
 	private title = "";
 	private parentFolder = "";
+	private kind: ProjectKind = "feature";
+	private parentInput?: TextComponent;
+	// True when the user has manually edited the parent folder field; we
+	// stop auto-syncing it to the project-type default once they have so
+	// their custom path doesn't get clobbered if they also change type.
+	private parentEditedManually = false;
 
 	constructor(private readonly plugin: FirstDraftPlugin) {
 		super(plugin.app);
@@ -39,8 +52,13 @@ class CreateProjectModal extends Modal {
 
 	onOpen(): void {
 		const { contentEl } = this;
+		const cfg = this.plugin.settings.global;
+
 		contentEl.addClass("firstdraft-create-project");
 		contentEl.createEl("h2", { text: "Create FirstDraft project" });
+
+		// Initialise the parent folder from settings + default kind.
+		this.parentFolder = computeDefaultParent(cfg, this.kind);
 
 		new Setting(contentEl)
 			.setName("Title")
@@ -54,17 +72,47 @@ class CreateProjectModal extends Modal {
 			);
 
 		new Setting(contentEl)
+			.setName("Project type")
+			.setDesc(
+				"Feature for a single screenplay; Series for a TV/episodic project. Series scaffolding is coming with the series-as-project refactor.",
+			)
+			.addDropdown((d) => {
+				d.addOption("feature", "Feature");
+				d.addOption("series", "Series (coming soon)");
+				d.setValue(this.kind);
+				d.onChange((value) => {
+					if (value === "series") {
+						new Notice(
+							"Series creation is coming with the series-as-project refactor. Sticking with Feature for now.",
+							5000,
+						);
+						d.setValue("feature");
+						return;
+					}
+					this.kind = value as ProjectKind;
+					// Keep the parent folder in sync with the type's default
+					// unless the user has typed their own value.
+					if (!this.parentEditedManually) {
+						this.parentFolder = computeDefaultParent(cfg, this.kind);
+						this.parentInput?.setValue(this.parentFolder);
+					}
+				});
+			});
+
+		new Setting(contentEl)
 			.setName("Parent folder")
 			.setDesc(
-				'Where to create the project folder. Leave empty for vault root. e.g. "Project Development/Film".',
+				'Where to create the project folder. Defaults from your settings (Default project locations). Leave empty for vault root.',
 			)
-			.addText((t) =>
-				t
-					.setPlaceholder("(vault root)")
+			.addText((t) => {
+				this.parentInput = t;
+				t.setPlaceholder("(vault root)")
+					.setValue(this.parentFolder)
 					.onChange((v) => {
 						this.parentFolder = v.trim();
-					}),
-			);
+						this.parentEditedManually = true;
+					});
+			});
 
 		new Setting(contentEl)
 			.addButton((b) => b.setButtonText("Cancel").onClick(() => this.close()))
@@ -87,6 +135,13 @@ class CreateProjectModal extends Modal {
 		const title = this.title.trim();
 		if (!title) {
 			new Notice("Title is required.");
+			return;
+		}
+		// Defensive: even though the dropdown bounces Series back to Feature,
+		// guard the create path so a future entry point can't accidentally
+		// scaffold a half-implemented series project.
+		if (this.kind !== "feature") {
+			new Notice("Series scaffolding isn't implemented yet — coming with the series-as-project refactor.");
 			return;
 		}
 		const folderName = sanitizeFilename(title, cfg.filenameReplacementChar);
@@ -121,6 +176,19 @@ class CreateProjectModal extends Modal {
 			new Notice(`Create failed: ${(e as Error).message}`);
 		}
 	}
+}
+
+// Compose the default parent folder from settings + project kind.
+// `defaultProjectParent` is the top-level container; the per-kind
+// subfolder (`defaultFeatureSubfolder` / `defaultSeriesSubfolder`)
+// nests projects of that kind underneath. Either may be empty.
+function computeDefaultParent(cfg: GlobalConfig, kind: ProjectKind): string {
+	const segments: string[] = [];
+	if (cfg.defaultProjectParent.trim() !== "") segments.push(cfg.defaultProjectParent.trim());
+	const sub =
+		kind === "feature" ? cfg.defaultFeatureSubfolder : cfg.defaultSeriesSubfolder;
+	if (sub.trim() !== "") segments.push(sub.trim());
+	return segments.join("/");
 }
 
 async function scaffoldProject(
