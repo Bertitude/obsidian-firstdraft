@@ -61,7 +61,7 @@ export async function runCreateNewSceneCommand(
 	const arrayEntry = fountainScenesArrayEntry(sequenceName, cfg.fountainFileFormat);
 	await appendSceneToArray(plugin.app, project.indexFilePath, arrayEntry);
 	await plugin.app.workspace.getLeaf(false).openFile(created);
-	new Notice(`Created scene "${userTypedName}".`);
+	new Notice(`Created sequence "${userTypedName}".`);
 }
 
 async function promptForNewSceneName(
@@ -69,19 +69,19 @@ async function promptForNewSceneName(
 	project: ProjectMeta,
 	cfg: { filenameReplacementChar: string },
 ): Promise<string | null> {
-	let candidate = "New Scene";
+	let candidate = "New Sequence";
 	let description: string | undefined;
 
 	while (true) {
 		const name = await promptForLabel(plugin.app, {
-			title: "Create new scene",
-			description: description ?? "Working title for the new scene:",
+			title: "Create new sequence",
+			description: description ?? "Working title for the new sequence:",
 			defaultValue: candidate,
 		});
 		if (name === null) return null;
 		const sanitized = sanitizeFilename(name, cfg.filenameReplacementChar);
 		if (!sanitized) {
-			candidate = "New Scene";
+			candidate = "New Sequence";
 			description = "Name has no valid filename characters. Try another.";
 			continue;
 		}

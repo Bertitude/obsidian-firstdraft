@@ -112,7 +112,7 @@ export class ProjectHomeView extends ItemView {
 					void this.plugin.app.workspace.getLeaf(false).openFile(data.treatmentFile);
 			});
 		}
-		this.actionButton(wrap, "plus-square", "New scene", () => {
+		this.actionButton(wrap, "plus-square", "New sequence", () => {
 			void this.runCommand("create-new-scene");
 		});
 	}
