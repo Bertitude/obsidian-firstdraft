@@ -67,16 +67,16 @@ Backstory of the location relevant to the story.
 `;
 
 // prettier-ignore
-export const OUTLINE_TEMPLATE = `---
-type: outline
+export const TREATMENT_TEMPLATE = `---
+type: treatment
 status: draft
 promoted_at:
 ---
 
-# Outline
+# Treatment
 
 <!-- Add one H2 per beat. The H2 title becomes the scene's filename when
-     you run "FirstDraft: Promote outline to scenes". The prose under each
+     you run "FirstDraft: Promote treatment to scenes". The prose under each
      H2 becomes the dev note's "Sequence Overview" section. -->
 
 ## First beat
@@ -91,7 +91,7 @@ export const DEFAULT_SETTINGS: FirstDraftSettings = {
 	global: {
 		developmentFolder: "Development",
 		charactersSubfolder: "Characters",
-		scenesSubfolder: "Scenes",
+		sequencesSubfolder: "Sequences",
 		locationsSubfolder: "Locations",
 		referencesSubfolder: "References",
 		characterCardFields: ["arc", "motivation", "first_appearance"],

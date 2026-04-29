@@ -48,9 +48,9 @@ async function routeRename(
 
 	if (isFountainFile(file)) {
 		const wasInScreen =
-			oldProject !== null && oldPath.startsWith(oldProject.sceneFolderPath + "/");
+			oldProject !== null && oldPath.startsWith(oldProject.sequenceFolderPath + "/");
 		const isInScreen =
-			newProject !== null && file.path.startsWith(newProject.sceneFolderPath + "/");
+			newProject !== null && file.path.startsWith(newProject.sequenceFolderPath + "/");
 
 		if (wasInScreen && isInScreen && oldProject === newProject && oldProject !== null) {
 			await syncFountainRename(plugin, oldProject, oldPath, file);
@@ -171,7 +171,7 @@ async function syncDevNoteRename(
 	const formatOfExisting =
 		oldFountain.extension === "fountain" ? "fountain" : "fountain-md";
 	const newFountainPath = normalizePath(
-		`${project.sceneFolderPath}/${fountainFilename(newSceneName, formatOfExisting)}`,
+		`${project.sequenceFolderPath}/${fountainFilename(newSceneName, formatOfExisting)}`,
 	);
 
 	const conflict = plugin.app.vault.getAbstractFileByPath(newFountainPath);
@@ -232,10 +232,10 @@ function nameAvailable(
 ): boolean {
 	const devFolder = devScenesFolderFor(plugin, project);
 	const fountainMd = normalizePath(
-		`${project.sceneFolderPath}/${fountainFilename(name, "fountain-md")}`,
+		`${project.sequenceFolderPath}/${fountainFilename(name, "fountain-md")}`,
 	);
 	const fountainBare = normalizePath(
-		`${project.sceneFolderPath}/${fountainFilename(name, "fountain")}`,
+		`${project.sequenceFolderPath}/${fountainFilename(name, "fountain")}`,
 	);
 	const dev = normalizePath(`${devFolder}/${name}.md`);
 
@@ -262,7 +262,7 @@ async function renameToResolved(
 
 	const formatOfFountain = fountainFile.extension === "fountain" ? "fountain" : "fountain-md";
 	const targetFountainPath = normalizePath(
-		`${project.sceneFolderPath}/${fountainFilename(resolvedName, formatOfFountain)}`,
+		`${project.sequenceFolderPath}/${fountainFilename(resolvedName, formatOfFountain)}`,
 	);
 	const targetDevPath = normalizePath(`${devFolder}/${resolvedName}.md`);
 
@@ -277,7 +277,7 @@ async function renameToResolved(
 async function handleFountainCreate(plugin: FirstDraftPlugin, file: TFile): Promise<void> {
 	const project = projectFromPath(plugin, file.path);
 	if (!project) return;
-	if (!file.path.startsWith(project.sceneFolderPath + "/")) return;
+	if (!file.path.startsWith(project.sequenceFolderPath + "/")) return;
 	await injectFountainIntoScenes(plugin, project, file);
 }
 
@@ -339,17 +339,17 @@ function projectFromPath(plugin: FirstDraftPlugin, path: string): ProjectMeta | 
 function devScenesFolderFor(plugin: FirstDraftPlugin, project: ProjectMeta): string {
 	const cfg = resolveProjectSettings(project, plugin.settings);
 	return normalizePath(
-		`${project.projectRootPath}/${cfg.developmentFolder}/${cfg.scenesSubfolder}`,
+		`${project.projectRootPath}/${cfg.developmentFolder}/${cfg.sequencesSubfolder}`,
 	);
 }
 
 function findFountain(
 	plugin: FirstDraftPlugin,
 	project: ProjectMeta,
-	sceneName: string,
+	sequenceName: string,
 ): TFile | null {
 	for (const fmt of ["fountain-md", "fountain"] as const) {
-		const path = normalizePath(`${project.sceneFolderPath}/${fountainFilename(sceneName, fmt)}`);
+		const path = normalizePath(`${project.sequenceFolderPath}/${fountainFilename(sequenceName, fmt)}`);
 		const hit = plugin.app.vault.getAbstractFileByPath(path);
 		if (hit instanceof TFile) return hit;
 	}

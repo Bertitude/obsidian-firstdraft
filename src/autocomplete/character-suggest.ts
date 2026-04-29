@@ -13,7 +13,7 @@ import {
 import type FirstDraftPlugin from "../main";
 import { resolveActiveProject } from "../projects/resolver";
 import { resolveProjectSettings } from "../settings/resolve";
-import { buildExpandedRoster, sceneDevNotePath } from "../views/lookups";
+import { buildExpandedRoster, sequenceDevNotePath } from "../views/lookups";
 import { linkifyEntity, type DevEntity } from "../development/linkify";
 import { sanitizeFilename, toTitleCase } from "../utils/sanitize";
 import { isFountainFile } from "../fountain/file-detection";
@@ -104,7 +104,7 @@ export class CharacterCueSuggest extends EditorSuggest<SuggestEntry> {
 		if (!project) return [];
 
 		const cfg = resolveProjectSettings(project, this.plugin.settings);
-		const devNoteRef = sceneDevNotePath(context.file, project, cfg);
+		const devNoteRef = sequenceDevNotePath(context.file, project, cfg);
 
 		const roster = await buildExpandedRoster(
 			this.plugin.app,
@@ -223,7 +223,7 @@ export class CharacterCueSuggest extends EditorSuggest<SuggestEntry> {
 		const project = resolveActiveProject(fountain, this.plugin.scanner);
 		if (!project) return;
 		const cfg = resolveProjectSettings(project, this.plugin.settings);
-		const ref = sceneDevNotePath(fountain, project, cfg);
+		const ref = sequenceDevNotePath(fountain, project, cfg);
 		if (!ref.file) return;
 
 		await this.plugin.app.fileManager.processFrontMatter(

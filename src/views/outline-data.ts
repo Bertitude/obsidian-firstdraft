@@ -7,12 +7,12 @@ import {
 	sceneNameFromArrayEntry,
 } from "../fountain/file-detection";
 
-// Builds the row data the treatment view renders. Source of truth for order is
-// Longform's `scenes:` array; dev notes that aren't in the array are surfaced
-// at the bottom as orphans.
+// Builds the row data the outline view renders. Source of truth for order is
+// the project's `scenes:` array; dev notes that aren't in the array are
+// surfaced at the bottom as orphans.
 
-export interface TreatmentRow {
-	sceneName: string; // basename without extension
+export interface OutlineRow {
+	sequenceName: string; // basename without extension
 	devNoteFile: TFile | null;
 	fountainFile: TFile | null;
 	intentExcerpt: string;
@@ -20,14 +20,14 @@ export interface TreatmentRow {
 	locations: string[];
 	sluglines: string[];
 	versionCount: number;
-	orphan: boolean; // dev note exists but not in Longform's scenes array
+	orphan: boolean; // dev note exists but not in the project's scenes array
 	missing: boolean; // listed in scenes array but no dev note or fountain found
 	indexFilePath: string; // Index.md this row belongs to — needed in season mode
 }
 
-export interface TreatmentData {
+export interface OutlineData {
 	project: ProjectMeta;
-	rows: TreatmentRow[];
+	rows: OutlineRow[];
 	scenesArray: string[];
 }
 
@@ -37,20 +37,20 @@ const SEPARATOR = " — ";
 // label so dev notes authored before the rename continue to render in treatment.
 const INTENT_HEADING = /^##\s+Sequence (?:Overview|intent)\s*$/im;
 
-export function buildTreatmentData(
+export function buildOutlineData(
 	app: App,
 	project: ProjectMeta,
 	cfg: GlobalConfig,
-): TreatmentData {
+): OutlineData {
 	const scenesArray = readScenesArray(app, project.indexFilePath);
 
-	const fountainFolderPath = project.sceneFolderPath;
+	const fountainFolderPath = project.sequenceFolderPath;
 	const devScenesPath = normalizePath(
-		`${project.projectRootPath}/${cfg.developmentFolder}/${cfg.scenesSubfolder}`,
+		`${project.projectRootPath}/${cfg.developmentFolder}/${cfg.sequencesSubfolder}`,
 	);
 
 	const seen = new Set<string>();
-	const rows: TreatmentRow[] = [];
+	const rows: OutlineRow[] = [];
 
 	for (const entry of scenesArray) {
 		const row = buildRow(app, entry, fountainFolderPath, devScenesPath, false, project.indexFilePath);
@@ -83,9 +83,9 @@ function buildRow(
 	devScenesPath: string,
 	orphan: boolean,
 	indexFilePath: string,
-): TreatmentRow {
-	const sceneName = sceneNameFromArrayEntry(entry);
-	const devNotePath = normalizePath(`${devScenesPath}/${sceneName}.md`);
+): OutlineRow {
+	const sequenceName = sceneNameFromArrayEntry(entry);
+	const devNotePath = normalizePath(`${devScenesPath}/${sequenceName}.md`);
 
 	// Try both fountain formats — the array entry may be either a plain
 	// basename (legacy .fountain) or a basename ending in .fountain (new
@@ -116,12 +116,12 @@ function buildRow(
 
 	const intentExcerpt = devNoteFile ? extractIntentExcerpt(app, devNoteFile) : "";
 	const sluglines = fountainFile ? extractSluglines(app, fountainFile) : [];
-	const versionCount = countVersions(app, devNoteFile, fountainFile, sceneName);
+	const versionCount = countVersions(app, devNoteFile, fountainFile, sequenceName);
 
 	const missing = !devNoteFile && !fountainFile;
 
 	return {
-		sceneName,
+		sequenceName,
 		devNoteFile,
 		fountainFile,
 		intentExcerpt,
@@ -196,7 +196,7 @@ function countVersions(
 	app: App,
 	devNote: TFile | null,
 	fountain: TFile | null,
-	sceneName: string,
+	sequenceName: string,
 ): number {
 	let total = 0;
 	for (const source of [devNote, fountain]) {
@@ -207,7 +207,7 @@ function countVersions(
 			normalizePath(`${parent.path}/${VERSIONS_FOLDER}`),
 		);
 		if (!(versionsFolder instanceof TFolder)) continue;
-		const prefix = `${sceneName}${SEPARATOR}`;
+		const prefix = `${sequenceName}${SEPARATOR}`;
 		for (const child of versionsFolder.children) {
 			if (child instanceof TFile && child.basename.startsWith(prefix)) total += 1;
 		}
@@ -240,9 +240,9 @@ function collectLocations(fm: Record<string, unknown> | undefined): string[] {
 
 export async function enrichRowAsync(
 	app: App,
-	row: TreatmentRow,
+	row: OutlineRow,
 	maxIntentChars = 200,
-): Promise<TreatmentRow> {
+): Promise<OutlineRow> {
 	const next = { ...row };
 
 	if (row.devNoteFile) {

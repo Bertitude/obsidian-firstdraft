@@ -3,11 +3,11 @@ import type FirstDraftPlugin from "../main";
 import type { GlobalConfig, ProjectMeta } from "../types";
 import { resolveActiveProject } from "../projects/resolver";
 import { resolveProjectSettings } from "../settings/resolve";
-import { scenePairFromActive } from "../views/lookups";
+import { sequencePairFromActive } from "../views/lookups";
 import { fountainScenesArrayEntry } from "../fountain/file-detection";
 import { readScenesArray, writeScenesArray } from "../longform/scenes-array";
 import { snapshotFile, todayLabel } from "../versioning/snapshot";
-import { buildTreatmentData, type TreatmentRow } from "../views/treatment-data";
+import { buildOutlineData, type OutlineRow } from "../views/outline-data";
 
 // Merge two scenes into one. Inverse of split-scene.
 //
@@ -34,42 +34,42 @@ export async function runMergeSceneCommand(
 		return;
 	}
 	const cfg = resolveProjectSettings(project, plugin.settings);
-	const pair = scenePairFromActive(plugin.app, active, project, cfg);
+	const pair = sequencePairFromActive(plugin.app, active, project, cfg);
 	if (!pair) {
 		new Notice("Active file isn't a scene fountain or dev note.");
 		return;
 	}
 
-	const treatment = buildTreatmentData(plugin.app, project, cfg);
-	const candidates = treatment.rows.filter((r) => r.sceneName !== pair.sceneName);
+	const treatment = buildOutlineData(plugin.app, project, cfg);
+	const candidates = treatment.rows.filter((r) => r.sequenceName !== pair.sequenceName);
 	if (candidates.length === 0) {
 		new Notice("No other scenes in this project to merge with.");
 		return;
 	}
 
-	new MergePickerModal(plugin, project, cfg, pair.sceneName, candidates).open();
+	new MergePickerModal(plugin, project, cfg, pair.sequenceName, candidates).open();
 }
 
-class MergePickerModal extends SuggestModal<TreatmentRow> {
+class MergePickerModal extends SuggestModal<OutlineRow> {
 	constructor(
 		private readonly plugin: FirstDraftPlugin,
 		private readonly project: ProjectMeta,
 		private readonly cfg: GlobalConfig,
 		private readonly activeSceneName: string,
-		private readonly candidates: TreatmentRow[],
+		private readonly candidates: OutlineRow[],
 	) {
 		super(plugin.app);
 		this.setPlaceholder(`Merge "${activeSceneName}" with…`);
 	}
 
-	getSuggestions(query: string): TreatmentRow[] {
+	getSuggestions(query: string): OutlineRow[] {
 		const q = query.trim().toUpperCase();
 		if (q === "") return this.candidates;
-		return this.candidates.filter((r) => r.sceneName.toUpperCase().includes(q));
+		return this.candidates.filter((r) => r.sequenceName.toUpperCase().includes(q));
 	}
 
-	renderSuggestion(value: TreatmentRow, el: HTMLElement): void {
-		el.createEl("div", { text: value.sceneName });
+	renderSuggestion(value: OutlineRow, el: HTMLElement): void {
+		el.createEl("div", { text: value.sequenceName });
 		const meta: string[] = [];
 		if (value.orphan) meta.push("orphan");
 		if (value.missing) meta.push("missing files");
@@ -81,8 +81,8 @@ class MergePickerModal extends SuggestModal<TreatmentRow> {
 		}
 	}
 
-	onChooseSuggestion(value: TreatmentRow): void {
-		void runMerge(this.plugin, this.project, this.cfg, this.activeSceneName, value.sceneName);
+	onChooseSuggestion(value: OutlineRow): void {
+		void runMerge(this.plugin, this.project, this.cfg, this.activeSceneName, value.sequenceName);
 	}
 }
 
@@ -93,8 +93,8 @@ async function runMerge(
 	activeSceneName: string,
 	pickedSceneName: string,
 ): Promise<void> {
-	const treatment = buildTreatmentData(plugin.app, project, cfg);
-	const findRow = (name: string) => treatment.rows.find((r) => r.sceneName === name) ?? null;
+	const treatment = buildOutlineData(plugin.app, project, cfg);
+	const findRow = (name: string) => treatment.rows.find((r) => r.sequenceName === name) ?? null;
 	const activeRow = findRow(activeSceneName);
 	const pickedRow = findRow(pickedSceneName);
 	if (!activeRow || !pickedRow) {
@@ -193,9 +193,9 @@ async function runMerge(
 
 	// Update Longform scenes: remove later's entry.
 	const laterEntries = new Set([
-		laterRow.sceneName,
-		fountainScenesArrayEntry(laterRow.sceneName, "fountain"),
-		fountainScenesArrayEntry(laterRow.sceneName, "fountain-md"),
+		laterRow.sequenceName,
+		fountainScenesArrayEntry(laterRow.sequenceName, "fountain"),
+		fountainScenesArrayEntry(laterRow.sequenceName, "fountain-md"),
 	]);
 	const filtered = scenesArray.filter((e) => !laterEntries.has(e));
 	if (filtered.length !== scenesArray.length) {
@@ -226,10 +226,10 @@ async function runMerge(
 		.map((d) => `${d.field}=${formatDroppedValue(d.value)}`)
 		.join(", ");
 	const tail = droppedSummary
-		? ` Dropped from "${laterRow.sceneName}": ${droppedSummary}.`
+		? ` Dropped from "${laterRow.sequenceName}": ${droppedSummary}.`
 		: "";
 	new Notice(
-		`Merged "${laterRow.sceneName}" into "${earlierRow.sceneName}".${tail}`,
+		`Merged "${laterRow.sequenceName}" into "${earlierRow.sequenceName}".${tail}`,
 		8000,
 	);
 }

@@ -37,7 +37,7 @@ export async function runMigrateProjectCommand(plugin: FirstDraftPlugin): Promis
 		return;
 	}
 
-	const fountainFiles = collectFountainFiles(plugin.app, project.sceneFolderPath);
+	const fountainFiles = collectFountainFiles(plugin.app, project.sequenceFolderPath);
 	if (fountainFiles.length === 0) {
 		new Notice("No .fountain files found in this project's screenplay folder.");
 		return;

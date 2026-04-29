@@ -68,8 +68,8 @@ async function snapshotProject(
 	const finalRoot = await ensureUniqueFolder(plugin.app, draftsRoot);
 
 	const sources = [
-		project.sceneFolderPath, // configured fountain folder
-		normalizePath(`${project.projectRootPath}/${cfg.developmentFolder}/${cfg.scenesSubfolder}`),
+		project.sequenceFolderPath, // configured fountain folder
+		normalizePath(`${project.projectRootPath}/${cfg.developmentFolder}/${cfg.sequencesSubfolder}`),
 	];
 
 	let copied = 0;

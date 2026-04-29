@@ -6,8 +6,8 @@ import { findSiblingEpisodes } from "../projects/episodes";
 import { resolveProjectSettings } from "../settings/resolve";
 import { writeScenesArray } from "../longform/scenes-array";
 import { stripId } from "../utils/stable-id";
-import { buildTreatmentData, enrichRowAsync, type TreatmentRow } from "./treatment-data";
-import { VIEW_TYPE_TREATMENT } from "./view-types";
+import { buildOutlineData, enrichRowAsync, type OutlineRow } from "./outline-data";
+import { VIEW_TYPE_OUTLINE } from "./view-types";
 
 // Treatment list view: one row per scene in the active project, ordered by
 // Longform's scenes array. Rows are draggable; dropping persists the new
@@ -21,14 +21,14 @@ type Mode = "episode" | "season";
 
 interface SeasonGroup {
 	project: ProjectMeta;
-	rows: TreatmentRow[];
+	rows: OutlineRow[];
 	scenesArray: string[];
 }
 
-export class TreatmentView extends ItemView {
+export class OutlineView extends ItemView {
 	private project: ProjectMeta | null = null;
 	private mode: Mode = "episode";
-	private rows: TreatmentRow[] = [];
+	private rows: OutlineRow[] = [];
 	private groups: SeasonGroup[] = [];
 
 	constructor(
@@ -39,11 +39,11 @@ export class TreatmentView extends ItemView {
 	}
 
 	getViewType(): string {
-		return VIEW_TYPE_TREATMENT;
+		return VIEW_TYPE_OUTLINE;
 	}
 
 	getDisplayText(): string {
-		return this.project ? `Treatment — ${displayProject(this.project)}` : "Treatment";
+		return this.project ? `Outline — ${displayProject(this.project)}` : "Outline";
 	}
 
 	getIcon(): string {
@@ -51,7 +51,7 @@ export class TreatmentView extends ItemView {
 	}
 
 	async onOpen(): Promise<void> {
-		this.contentEl.addClass("firstdraft-treatment");
+		this.contentEl.addClass("firstdraft-outline");
 		await this.refresh();
 	}
 
@@ -84,7 +84,7 @@ export class TreatmentView extends ItemView {
 			return;
 		}
 
-		const list = this.contentEl.createDiv({ cls: "firstdraft-treatment-list" });
+		const list = this.contentEl.createDiv({ cls: "firstdraft-outline-list" });
 		this.renderGroups(list);
 
 		// Async enrichment: fetch intent excerpts and sluglines from disk and
@@ -95,7 +95,7 @@ export class TreatmentView extends ItemView {
 	private buildGroups(project: ProjectMeta, mode: Mode): SeasonGroup[] {
 		if (mode === "episode" || project.projectType !== "tv-episode") {
 			const cfg = resolveProjectSettings(project, this.plugin.settings);
-			const data = buildTreatmentData(this.plugin.app, project, cfg);
+			const data = buildOutlineData(this.plugin.app, project, cfg);
 			return [{ project, rows: data.rows, scenesArray: data.scenesArray }];
 		}
 
@@ -105,7 +105,7 @@ export class TreatmentView extends ItemView {
 		const siblings = findSiblingEpisodes(this.plugin, project);
 		return siblings.map((p) => {
 			const cfg = resolveProjectSettings(p, this.plugin.settings);
-			const data = buildTreatmentData(this.plugin.app, p, cfg);
+			const data = buildOutlineData(this.plugin.app, p, cfg);
 			return { project: p, rows: data.rows, scenesArray: data.scenesArray };
 		});
 	}
@@ -119,9 +119,9 @@ export class TreatmentView extends ItemView {
 		// Season mode — emit an episode header before each group's rows.
 		let cursor = 0;
 		for (const group of this.groups) {
-			const header = list.createDiv({ cls: "firstdraft-treatment-group-header" });
+			const header = list.createDiv({ cls: "firstdraft-outline-group-header" });
 			header.createEl("h3", { text: displayProject(group.project) });
-			const sub = header.createSpan({ cls: "firstdraft-treatment-group-meta" });
+			const sub = header.createSpan({ cls: "firstdraft-outline-group-meta" });
 			sub.setText(`${group.rows.length} scene${group.rows.length === 1 ? "" : "s"}`);
 			for (const row of group.rows) {
 				this.renderRow(list, row, cursor);
@@ -133,7 +133,7 @@ export class TreatmentView extends ItemView {
 	private async enrichVisibleRows(list: HTMLElement): Promise<void> {
 		// Walk the row elements (skipping group headers) in DOM order and patch
 		// each with async-loaded intent + sluglines.
-		const rowEls = Array.from(list.querySelectorAll<HTMLElement>(".firstdraft-treatment-row"));
+		const rowEls = Array.from(list.querySelectorAll<HTMLElement>(".firstdraft-outline-row"));
 		for (let i = 0; i < this.rows.length; i++) {
 			const row = this.rows[i];
 			if (!row) continue;
@@ -145,20 +145,20 @@ export class TreatmentView extends ItemView {
 	}
 
 	private renderHeader(project: ProjectMeta, isTV: boolean): void {
-		const header = this.contentEl.createDiv({ cls: "firstdraft-treatment-header" });
-		const top = header.createDiv({ cls: "firstdraft-treatment-header-top" });
+		const header = this.contentEl.createDiv({ cls: "firstdraft-outline-header" });
+		const top = header.createDiv({ cls: "firstdraft-outline-header-top" });
 		top.createEl("h2", { text: displayProject(project) });
 		if (isTV) this.renderModeToggle(top);
-		const sub = header.createDiv({ cls: "firstdraft-treatment-subtitle" });
+		const sub = header.createDiv({ cls: "firstdraft-outline-subtitle" });
 		sub.setText(`${this.rows.length} scene${this.rows.length === 1 ? "" : "s"}`);
 	}
 
 	private renderModeToggle(parent: HTMLElement): void {
-		const wrap = parent.createDiv({ cls: "firstdraft-treatment-mode" });
+		const wrap = parent.createDiv({ cls: "firstdraft-outline-mode" });
 		const make = (label: string, value: Mode) => {
 			const btn = wrap.createEl("button", {
 				text: label,
-				cls: "firstdraft-treatment-mode-btn" + (this.mode === value ? " is-active" : ""),
+				cls: "firstdraft-outline-mode-btn" + (this.mode === value ? " is-active" : ""),
 			});
 			btn.addEventListener("mousedown", (e) => {
 				if (e.button !== 0) return;
@@ -172,67 +172,67 @@ export class TreatmentView extends ItemView {
 	}
 
 	private renderEmptyNoProject(): void {
-		const wrap = this.contentEl.createDiv({ cls: "firstdraft-treatment-empty" });
+		const wrap = this.contentEl.createDiv({ cls: "firstdraft-outline-empty" });
 		wrap.createEl("p", {
-			text: "Open a file inside a project to see its treatment.",
+			text: "Open a file inside a project to see its outline.",
 		});
 	}
 
 	private renderEmptyNoScenes(): void {
-		const wrap = this.contentEl.createDiv({ cls: "firstdraft-treatment-empty" });
+		const wrap = this.contentEl.createDiv({ cls: "firstdraft-outline-empty" });
 		wrap.createEl("p", {
-			text: "No scenes yet. Start with an outline and promote it to scenes.",
+			text: "No sequences yet. Start with a treatment and promote it to sequences.",
 		});
 		const btn = wrap.createEl("button", {
-			text: "Create outline",
+			text: "Create treatment",
 			cls: "mod-cta",
 		});
 		btn.addEventListener("mousedown", (e) => {
 			if (e.button !== 0) return;
-			void runCreateOutlineFromButton(this.plugin);
+			void runCreateTreatmentFromButton(this.plugin);
 		});
 	}
 
-	private renderRow(parent: HTMLElement, row: TreatmentRow, index: number): void {
+	private renderRow(parent: HTMLElement, row: OutlineRow, index: number): void {
 		const el = parent.createDiv({
-			cls: "firstdraft-treatment-row" + (row.orphan ? " is-orphan" : "") + (row.missing ? " is-missing" : ""),
+			cls: "firstdraft-outline-row" + (row.orphan ? " is-orphan" : "") + (row.missing ? " is-missing" : ""),
 			attr: { draggable: "true", "data-index": String(index) },
 		});
 
-		const handle = el.createDiv({ cls: "firstdraft-treatment-handle", attr: { "aria-label": "Drag to reorder" } });
+		const handle = el.createDiv({ cls: "firstdraft-outline-handle", attr: { "aria-label": "Drag to reorder" } });
 		setIcon(handle, "grip-vertical");
 
-		const main = el.createDiv({ cls: "firstdraft-treatment-main" });
+		const main = el.createDiv({ cls: "firstdraft-outline-main" });
 
-		const title = main.createDiv({ cls: "firstdraft-treatment-title" });
-		title.setText(stripId(row.sceneName));
+		const title = main.createDiv({ cls: "firstdraft-outline-title" });
+		title.setText(stripId(row.sequenceName));
 
 		if (row.orphan) {
-			const tag = title.createSpan({ cls: "firstdraft-treatment-tag", text: "not in script order" });
+			const tag = title.createSpan({ cls: "firstdraft-outline-tag", text: "not in script order" });
 			void tag;
 		} else if (row.missing) {
-			const tag = title.createSpan({ cls: "firstdraft-treatment-tag is-warning", text: "no files" });
+			const tag = title.createSpan({ cls: "firstdraft-outline-tag is-warning", text: "no files" });
 			void tag;
 		}
 
-		const meta = main.createDiv({ cls: "firstdraft-treatment-meta" });
+		const meta = main.createDiv({ cls: "firstdraft-outline-meta" });
 		this.renderChips(meta, row.characters, "char");
 		this.renderChips(meta, row.locations, "loc");
 		if (row.versionCount > 0) {
 			meta.createSpan({
-				cls: "firstdraft-treatment-version",
+				cls: "firstdraft-outline-version",
 				text: `v${row.versionCount + 1}`,
 				attr: { "aria-label": `${row.versionCount} prior version${row.versionCount === 1 ? "" : "s"}` },
 			});
 		}
 
-		const excerpt = main.createDiv({ cls: "firstdraft-treatment-excerpt" });
+		const excerpt = main.createDiv({ cls: "firstdraft-outline-excerpt" });
 		excerpt.setText(row.intentExcerpt);
 
-		const sluglines = main.createDiv({ cls: "firstdraft-treatment-sluglines" });
+		const sluglines = main.createDiv({ cls: "firstdraft-outline-sluglines" });
 		sluglines.setText(row.sluglines.join(" · "));
 
-		const actions = el.createDiv({ cls: "firstdraft-treatment-actions" });
+		const actions = el.createDiv({ cls: "firstdraft-outline-actions" });
 		this.renderRowActions(actions, row);
 
 		// Click on the body opens the dev note (or fountain if no dev note exists).
@@ -244,18 +244,18 @@ export class TreatmentView extends ItemView {
 	private renderChips(parent: HTMLElement, names: string[], kind: "char" | "loc"): void {
 		for (const name of names) {
 			parent.createSpan({
-				cls: `firstdraft-treatment-chip is-${kind}`,
+				cls: `firstdraft-outline-chip is-${kind}`,
 				text: name,
 			});
 		}
 	}
 
-	private renderRowActions(parent: HTMLElement, row: TreatmentRow): void {
+	private renderRowActions(parent: HTMLElement, row: OutlineRow): void {
 		const fountain = row.fountainFile;
 		if (fountain) {
 			const btn = parent.createEl("button", {
-				cls: "clickable-icon firstdraft-treatment-action",
-				attr: { "aria-label": "Open scene file" },
+				cls: "clickable-icon firstdraft-outline-action",
+				attr: { "aria-label": "Open sequence file" },
 			});
 			setIcon(btn, "file-text");
 			btn.addEventListener("click", (e) => {
@@ -266,7 +266,7 @@ export class TreatmentView extends ItemView {
 		const devNote = row.devNoteFile;
 		if (devNote) {
 			const btn = parent.createEl("button", {
-				cls: "clickable-icon firstdraft-treatment-action",
+				cls: "clickable-icon firstdraft-outline-action",
 				attr: { "aria-label": "Open dev note" },
 			});
 			setIcon(btn, "notebook-pen");
@@ -277,7 +277,7 @@ export class TreatmentView extends ItemView {
 		}
 	}
 
-	private openPrimary(row: TreatmentRow): void {
+	private openPrimary(row: OutlineRow): void {
 		const target = row.devNoteFile ?? row.fountainFile;
 		if (!target) {
 			new Notice("No file to open for this row.");
@@ -341,7 +341,7 @@ export class TreatmentView extends ItemView {
 		if (!moved) return;
 		orderable.splice(targetOrder, 0, moved);
 
-		const newScenes = orderable.map((r) => r.sceneName);
+		const newScenes = orderable.map((r) => r.sequenceName);
 		try {
 			await writeScenesArray(this.plugin.app, group.project.indexFilePath, newScenes);
 			group.rows = [...orderable, ...orphans];
@@ -352,10 +352,10 @@ export class TreatmentView extends ItemView {
 	}
 }
 
-function updateRowExtras(rowEl: HTMLElement, row: TreatmentRow): void {
-	const excerpt = rowEl.querySelector(".firstdraft-treatment-excerpt");
+function updateRowExtras(rowEl: HTMLElement, row: OutlineRow): void {
+	const excerpt = rowEl.querySelector(".firstdraft-outline-excerpt");
 	if (excerpt) excerpt.textContent = row.intentExcerpt;
-	const sluglines = rowEl.querySelector(".firstdraft-treatment-sluglines");
+	const sluglines = rowEl.querySelector(".firstdraft-outline-sluglines");
 	if (sluglines) sluglines.textContent = row.sluglines.join(" · ");
 }
 
@@ -375,23 +375,23 @@ function basenameOf(path: string): string {
 
 // Imports the create-outline command lazily to keep the view module's import
 // surface small. Used by the empty-state button.
-async function runCreateOutlineFromButton(plugin: FirstDraftPlugin): Promise<void> {
-	const { runCreateOutlineCommand } = await import("../outline/promote");
-	await runCreateOutlineCommand(plugin);
+async function runCreateTreatmentFromButton(plugin: FirstDraftPlugin): Promise<void> {
+	const { runCreateTreatmentCommand } = await import("../treatment/promote");
+	await runCreateTreatmentCommand(plugin);
 }
 
-export async function activateTreatmentView(plugin: FirstDraftPlugin): Promise<void> {
+export async function activateOutlineView(plugin: FirstDraftPlugin): Promise<void> {
 	const { workspace } = plugin.app;
-	let leaf = workspace.getLeavesOfType(VIEW_TYPE_TREATMENT)[0] ?? null;
+	let leaf = workspace.getLeavesOfType(VIEW_TYPE_OUTLINE)[0] ?? null;
 	if (!leaf) {
 		leaf = workspace.getLeaf("tab");
-		await leaf.setViewState({ type: VIEW_TYPE_TREATMENT, active: true });
+		await leaf.setViewState({ type: VIEW_TYPE_OUTLINE, active: true });
 	}
 	void workspace.revealLeaf(leaf);
 }
 
-export function getTreatmentView(plugin: FirstDraftPlugin): TreatmentView | null {
-	const leaves = plugin.app.workspace.getLeavesOfType(VIEW_TYPE_TREATMENT);
+export function getOutlineView(plugin: FirstDraftPlugin): OutlineView | null {
+	const leaves = plugin.app.workspace.getLeavesOfType(VIEW_TYPE_OUTLINE);
 	const view = leaves[0]?.view;
-	return view instanceof TreatmentView ? view : null;
+	return view instanceof OutlineView ? view : null;
 }

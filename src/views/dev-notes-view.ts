@@ -4,7 +4,7 @@ import type { ProjectMeta } from "../types";
 import { resolveActiveProject } from "../projects/resolver";
 import { resolveProjectSettings } from "../settings/resolve";
 import { openProjectSettingsModal } from "../settings/project-settings-modal";
-import { characterRoster, scenePairFromActive } from "./lookups";
+import { characterRoster, sequencePairFromActive } from "./lookups";
 import {
 	renderHeader,
 	renderEmptyState,
@@ -74,7 +74,7 @@ export class DevNotesView extends ItemView {
 		}
 
 		const cfg = resolveProjectSettings(project, this.plugin.settings);
-		const pair = scenePairFromActive(this.app, file, project, cfg);
+		const pair = sequencePairFromActive(this.app, file, project, cfg);
 		if (!pair) {
 			renderEmptyState(
 				this.contentEl,

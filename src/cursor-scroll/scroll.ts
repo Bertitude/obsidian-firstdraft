@@ -15,8 +15,8 @@ export function scrollDevNotesToSlugline(
 	if (target === "") return false;
 
 	// Limit search to the rendered scene body. Other sections (characters,
-	// locations) sit outside `.firstdraft-scene-body` and shouldn't be matched.
-	const body = view.contentEl.querySelector(".firstdraft-scene-body");
+	// locations) sit outside `.firstdraft-sequence-body` and shouldn't be matched.
+	const body = view.contentEl.querySelector(".firstdraft-sequence-body");
 	if (!body) return false;
 
 	const headings = body.querySelectorAll<HTMLElement>("h2");

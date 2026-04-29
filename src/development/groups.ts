@@ -3,7 +3,7 @@ import type FirstDraftPlugin from "../main";
 import type { ProjectMeta } from "../types";
 import { resolveActiveProject } from "../projects/resolver";
 import { resolveProjectSettings } from "../settings/resolve";
-import { characterRoster, scenePairFromActive, type CharacterEntry } from "../views/lookups";
+import { characterRoster, sequencePairFromActive, type CharacterEntry } from "../views/lookups";
 import { sanitizeFilename, toTitleCase } from "../utils/sanitize";
 import { linkifyEntity, type DevEntity, type LinkifyResult } from "./linkify";
 
@@ -49,7 +49,7 @@ export function runTagSelectionAsGroupCommand(
 	// If the user invoked this from a dev note, the group should also land in
 	// that note's characters: array on creation. Resolve here so the modal can
 	// pass it through to the create step.
-	const pair = scenePairFromActive(plugin.app, file, project, cfg);
+	const pair = sequencePairFromActive(plugin.app, file, project, cfg);
 	const targetDevNote =
 		pair && pair.activeMode === "dev-note" ? pair.devNoteFile : null;
 

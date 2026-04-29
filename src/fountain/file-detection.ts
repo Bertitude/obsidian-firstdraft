@@ -59,17 +59,17 @@ export function fountainSceneNameFromPath(path: string): string {
 }
 
 // Build the filename for a NEW scene file based on the configured format.
-// `sceneName` is the user-facing name (e.g. "Cold Open"); the suffix is added.
-export function fountainFilename(sceneName: string, format: FountainFileFormat): string {
-	return format === "fountain-md" ? `${sceneName}.fountain.md` : `${sceneName}.fountain`;
+// `sequenceName` is the user-facing name (e.g. "Cold Open"); the suffix is added.
+export function fountainFilename(sequenceName: string, format: FountainFileFormat): string {
+	return format === "fountain-md" ? `${sequenceName}.fountain.md` : `${sequenceName}.fountain`;
 }
 
 // Returns what Longform's scenes: array entry should be for a fountain file.
 // This is the file's basename — Longform looks up files by basename inside
-// sceneFolder, so `Cold Open.fountain.md` (basename = "Cold Open.fountain")
+// sequenceFolder, so `Cold Open.fountain.md` (basename = "Cold Open.fountain")
 // stores as "Cold Open.fountain" in the array.
-export function fountainScenesArrayEntry(sceneName: string, format: FountainFileFormat): string {
-	return format === "fountain-md" ? `${sceneName}.fountain` : sceneName;
+export function fountainScenesArrayEntry(sequenceName: string, format: FountainFileFormat): string {
+	return format === "fountain-md" ? `${sequenceName}.fountain` : sequenceName;
 }
 
 // Inverse: given a Longform scenes-array entry, return the human-friendly

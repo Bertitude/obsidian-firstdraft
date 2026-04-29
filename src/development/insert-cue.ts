@@ -3,7 +3,7 @@ import type FirstDraftPlugin from "../main";
 import type { ProjectMeta } from "../types";
 import { resolveActiveProject } from "../projects/resolver";
 import { resolveProjectSettings } from "../settings/resolve";
-import { buildExpandedRoster, characterRoster, locationRoster, sceneDevNotePath } from "../views/lookups";
+import { buildExpandedRoster, characterRoster, locationRoster, sequenceDevNotePath } from "../views/lookups";
 import { sanitizeFilename, toTitleCase } from "../utils/sanitize";
 import { linkifyEntity, type DevEntity } from "./linkify";
 
@@ -57,7 +57,7 @@ async function openPicker(plugin: FirstDraftPlugin, kind: EntryKind): Promise<vo
 	}
 
 	const cfg = resolveProjectSettings(project, plugin.settings);
-	const devNoteRef = file ? sceneDevNotePath(file, project, cfg) : null;
+	const devNoteRef = file ? sequenceDevNotePath(file, project, cfg) : null;
 	const entries = await buildPickerRoster(plugin, project, kind, devNoteRef?.file ?? null);
 
 	new InsertPickerModal(plugin, kind, entries, project, file, editor).open();
@@ -239,7 +239,7 @@ class InsertPickerModal extends SuggestModal<PickerEntry> {
 	private async syncToDevNote(name: string): Promise<void> {
 		if (!this.file) return;
 		const cfg = resolveProjectSettings(this.project, this.plugin.settings);
-		const ref = sceneDevNotePath(this.file, this.project, cfg);
+		const ref = sequenceDevNotePath(this.file, this.project, cfg);
 		if (!ref.file) return;
 
 		const field = this.kind === "character" ? "characters" : "locations";

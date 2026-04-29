@@ -2,7 +2,7 @@ import { Notice, TFile } from "obsidian";
 import type FirstDraftPlugin from "../main";
 import { resolveActiveProject } from "../projects/resolver";
 import { resolveProjectSettings } from "../settings/resolve";
-import { characterRoster, parseCharacterCues, scenePairFromActive } from "../views/lookups";
+import { characterRoster, parseCharacterCues, sequencePairFromActive } from "../views/lookups";
 
 // Phase 4g — Sync characters from fountain to dev note. Scans the active scene's
 // fountain file for character cues, filters by the project roster (so typos and
@@ -26,7 +26,7 @@ export async function runSyncCharactersCommand(plugin: FirstDraftPlugin): Promis
 	}
 
 	const cfg = resolveProjectSettings(project, plugin.settings);
-	const pair = scenePairFromActive(plugin.app, active, project, cfg);
+	const pair = sequencePairFromActive(plugin.app, active, project, cfg);
 	if (!pair) {
 		new Notice("Active file isn't a scene fountain or dev note.");
 		return;

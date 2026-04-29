@@ -1,6 +1,6 @@
 import type { App, TFile } from "obsidian";
 import type { GlobalConfig, ProjectMeta } from "../types";
-import { buildTreatmentData, type TreatmentRow } from "./treatment-data";
+import { buildOutlineData, type OutlineRow } from "./outline-data";
 
 // Phase 3c — Beat sheet data builder.
 //
@@ -14,7 +14,7 @@ import { buildTreatmentData, type TreatmentRow } from "./treatment-data";
 //   - Scenes with no beat: at all land in an "Unassigned" pseudo-group.
 
 export interface BeatSceneRef {
-	sceneName: string;
+	sequenceName: string;
 	devNoteFile: TFile | null;
 	fountainFile: TFile | null;
 }
@@ -54,7 +54,7 @@ export function buildBeatSheet(
 	const adhocScenes = new Map<string, BeatSceneRef[]>(); // ad-hoc beat → scenes
 	const unassigned: BeatSceneRef[] = [];
 
-	const treatment = buildTreatmentData(app, project, cfg);
+	const treatment = buildOutlineData(app, project, cfg);
 	for (const row of treatment.rows) {
 		const ref = toRef(row);
 		const beat = readSceneBeat(app, row);
@@ -102,9 +102,9 @@ export function buildBeatSheet(
 	return { project, declaredBeats, groups };
 }
 
-function toRef(row: TreatmentRow): BeatSceneRef {
+function toRef(row: OutlineRow): BeatSceneRef {
 	return {
-		sceneName: row.sceneName,
+		sequenceName: row.sequenceName,
 		devNoteFile: row.devNoteFile,
 		fountainFile: row.fountainFile,
 	};
@@ -126,7 +126,7 @@ function readDeclaredBeats(app: App, project: ProjectMeta): string[] {
 	return out;
 }
 
-function readSceneBeat(app: App, row: TreatmentRow): string | null {
+function readSceneBeat(app: App, row: OutlineRow): string | null {
 	if (!row.devNoteFile) return null;
 	const fm = app.metadataCache.getFileCache(row.devNoteFile)?.frontmatter as
 		| Record<string, unknown>

@@ -107,7 +107,7 @@ export class BeatSheetView extends ItemView {
 			cls: "firstdraft-beats-row firstdraft-beats-header-row",
 		});
 		headerRow.createDiv({ text: "Beat", cls: "firstdraft-beats-col-header" });
-		headerRow.createDiv({ text: "Scenes", cls: "firstdraft-beats-col-header" });
+		headerRow.createDiv({ text: "Sequences", cls: "firstdraft-beats-col-header" });
 
 		for (const group of data.groups) {
 			const rowEl = wrap.createDiv({ cls: "firstdraft-beats-row" });
@@ -152,7 +152,7 @@ export class BeatSheetView extends ItemView {
 				const item = scenesCell.createEl("div", {
 					cls: "firstdraft-beats-row-scene",
 				});
-				item.setText(stripId(scene.sceneName));
+				item.setText(stripId(scene.sequenceName));
 				if (scene.devNoteFile) {
 					item.dataset.devNotePath = scene.devNoteFile.path;
 					item.draggable = true;

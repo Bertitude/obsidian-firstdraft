@@ -189,7 +189,7 @@ export class CharacterMatrixView extends ItemView {
 			cls: "firstdraft-matrix-col-header",
 		});
 		headerRow.createDiv({
-			text: "Scenes",
+			text: "Sequences",
 			cls: "firstdraft-matrix-col-header",
 		});
 
@@ -265,7 +265,7 @@ export class CharacterMatrixView extends ItemView {
 					cls: "firstdraft-matrix-row-scene",
 				});
 				item.createSpan({
-					text: stripId(scene.sceneName),
+					text: stripId(scene.sequenceName),
 					cls: "firstdraft-matrix-row-scene-name",
 				});
 				const count = cueRow[idx] ?? 0;

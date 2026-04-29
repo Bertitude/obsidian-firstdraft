@@ -71,14 +71,14 @@ class ProjectSettingsModal extends Modal {
 
 		this.folderRow("Development folder", "developmentFolder", g.developmentFolder);
 		this.folderRow("Characters subfolder", "charactersSubfolder", g.charactersSubfolder);
-		this.folderRow("Scenes subfolder", "scenesSubfolder", g.scenesSubfolder);
+		this.folderRow("Sequences subfolder", "sequencesSubfolder", g.sequencesSubfolder);
 		this.folderRow("Locations subfolder", "locationsSubfolder", g.locationsSubfolder);
 		this.folderRow("References subfolder", "referencesSubfolder", g.referencesSubfolder);
 	}
 
 	private folderRow(
 		label: string,
-		field: "developmentFolder" | "charactersSubfolder" | "scenesSubfolder" | "locationsSubfolder" | "referencesSubfolder",
+		field: "developmentFolder" | "charactersSubfolder" | "sequencesSubfolder" | "locationsSubfolder" | "referencesSubfolder",
 		globalValue: string,
 	): void {
 		const setting = new Setting(this.contentEl).setName(label);

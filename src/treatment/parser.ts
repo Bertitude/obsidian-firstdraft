@@ -8,7 +8,7 @@ export interface Beat {
 	body: string; // markdown content between this H2 and the next, trimmed
 }
 
-export function parseOutlineBeats(markdown: string): Beat[] {
+export function parseTreatmentBeats(markdown: string): Beat[] {
 	const stripped = stripFrontmatter(markdown);
 	const lines = stripped.split(/\r?\n/);
 	const beats: Beat[] = [];

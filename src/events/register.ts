@@ -1,9 +1,10 @@
 import { TFile } from "obsidian";
 import type FirstDraftPlugin from "../main";
 import { getDevNotesView } from "../views/dev-notes-view";
-import { getTreatmentView } from "../views/treatment-view";
+import { getOutlineView } from "../views/outline-view";
 import { getCharacterMatrixView } from "../views/character-matrix-view";
 import { getBeatSheetView } from "../views/beat-sheet-view";
+import { getProjectHomeView } from "../views/project-home-view";
 
 // Centralised event wiring. Listeners are attached via plugin.registerEvent so they
 // detach automatically on unload.
@@ -29,9 +30,10 @@ export function registerEventHandlers(plugin: FirstDraftPlugin): void {
 			// Treatment view: any frontmatter change to a dev note in the active
 			// project's scenes folder, or to the project's Index.md, can affect the
 			// list. Cheap to just rebuild.
-			void getTreatmentView(plugin)?.refresh();
+			void getOutlineView(plugin)?.refresh();
 			void getCharacterMatrixView(plugin)?.refresh();
 			void getBeatSheetView(plugin)?.refresh();
+			void getProjectHomeView(plugin)?.refresh();
 		}),
 	);
 
@@ -40,9 +42,10 @@ export function registerEventHandlers(plugin: FirstDraftPlugin): void {
 			scanner.removeFile(file.path);
 			const dev = getDevNotesView(plugin);
 			if (dev && file.path === dev.getCurrentDevNotePath()) void dev.refresh();
-			void getTreatmentView(plugin)?.refresh();
+			void getOutlineView(plugin)?.refresh();
 			void getCharacterMatrixView(plugin)?.refresh();
 			void getBeatSheetView(plugin)?.refresh();
+			void getProjectHomeView(plugin)?.refresh();
 		}),
 	);
 
@@ -60,18 +63,20 @@ export function registerEventHandlers(plugin: FirstDraftPlugin): void {
 				}
 			}
 			void getDevNotesView(plugin)?.refresh();
-			void getTreatmentView(plugin)?.refresh();
+			void getOutlineView(plugin)?.refresh();
 			void getCharacterMatrixView(plugin)?.refresh();
 			void getBeatSheetView(plugin)?.refresh();
+			void getProjectHomeView(plugin)?.refresh();
 		}),
 	);
 
 	plugin.registerEvent(
 		app.workspace.on("active-leaf-change", () => {
 			void getDevNotesView(plugin)?.refresh();
-			void getTreatmentView(plugin)?.refresh();
+			void getOutlineView(plugin)?.refresh();
 			void getCharacterMatrixView(plugin)?.refresh();
 			void getBeatSheetView(plugin)?.refresh();
+			void getProjectHomeView(plugin)?.refresh();
 		}),
 	);
 
@@ -79,9 +84,10 @@ export function registerEventHandlers(plugin: FirstDraftPlugin): void {
 		app.vault.on("create", (file) => {
 			const dev = getDevNotesView(plugin);
 			if (dev && file.path === dev.getCurrentDevNotePath()) void dev.refresh();
-			void getTreatmentView(plugin)?.refresh();
+			void getOutlineView(plugin)?.refresh();
 			void getCharacterMatrixView(plugin)?.refresh();
 			void getBeatSheetView(plugin)?.refresh();
+			void getProjectHomeView(plugin)?.refresh();
 		}),
 	);
 }

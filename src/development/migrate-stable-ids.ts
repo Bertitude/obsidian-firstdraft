@@ -2,7 +2,7 @@ import { Notice, TFile, normalizePath } from "obsidian";
 import type FirstDraftPlugin from "../main";
 import { resolveActiveProject } from "../projects/resolver";
 import { resolveProjectSettings } from "../settings/resolve";
-import { buildTreatmentData, type TreatmentRow } from "../views/treatment-data";
+import { buildOutlineData, type OutlineRow } from "../views/outline-data";
 import {
 	fountainScenesArrayEntry,
 	sceneNameFromArrayEntry,
@@ -34,10 +34,10 @@ export async function runMigrateStableIdsCommand(
 		return;
 	}
 	const cfg = resolveProjectSettings(project, plugin.settings);
-	const treatment = buildTreatmentData(plugin.app, project, cfg);
+	const treatment = buildOutlineData(plugin.app, project, cfg);
 
 	// Collect scenes that need migration (no existing ID on either side).
-	const candidates: TreatmentRow[] = [];
+	const candidates: OutlineRow[] = [];
 	const usedIds = new Set<string>();
 	for (const row of treatment.rows) {
 		const fountainId = row.fountainFile ? extractId(stemOfFountain(row.fountainFile)) : null;
@@ -75,7 +75,7 @@ export async function runMigrateStableIdsCommand(
 			await snapshotFile(plugin.app, row.devNoteFile, stamp);
 		}
 
-		const oldSceneName = row.sceneName;
+		const oldSceneName = row.sequenceName;
 		const newSceneName = applyId(oldSceneName, id);
 
 		// Rename fountain (if present). Filename pattern preserves the existing

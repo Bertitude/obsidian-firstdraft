@@ -8,10 +8,10 @@ import { isFountainFile } from "../fountain/file-detection";
 // scenes: array. Useful when scene files were created or renamed outside the
 // auto-add path (e.g. the user moved files manually, or they pre-existed before
 // FirstDraft started auto-adding on Create scene file). For each .fountain file
-// in the configured sceneFolder, add the basename to scenes: if not already
+// in the configured sequenceFolder, add the basename to scenes: if not already
 // present. Existing entries are left untouched (preserves user-defined ordering).
 
-export async function runSyncScreenplayScenesCommand(plugin: FirstDraftPlugin): Promise<void> {
+export async function runSyncScreenplaySequencesCommand(plugin: FirstDraftPlugin): Promise<void> {
 	const activeFile = plugin.app.workspace.getActiveFile();
 	const project = activeFile ? resolveActiveProject(activeFile, plugin.scanner) : null;
 	if (!project) {
@@ -19,9 +19,9 @@ export async function runSyncScreenplayScenesCommand(plugin: FirstDraftPlugin): 
 		return;
 	}
 
-	const folder = plugin.app.vault.getAbstractFileByPath(project.sceneFolderPath);
+	const folder = plugin.app.vault.getAbstractFileByPath(project.sequenceFolderPath);
 	if (!(folder instanceof TFolder)) {
-		new Notice(`Scene folder not found: ${project.sceneFolderPath}`);
+		new Notice(`Scene folder not found: ${project.sequenceFolderPath}`);
 		return;
 	}
 

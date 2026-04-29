@@ -156,13 +156,13 @@ export class FirstDraftSettingTab extends PluginSettingTab {
 			);
 
 		new Setting(containerEl)
-			.setName("Scenes subfolder")
+			.setName("Sequences subfolder")
 			.addText((t) =>
 				t
-					.setPlaceholder(DEFAULT_SETTINGS.global.scenesSubfolder)
-					.setValue(g.scenesSubfolder)
+					.setPlaceholder(DEFAULT_SETTINGS.global.sequencesSubfolder)
+					.setValue(g.sequencesSubfolder)
 					.onChange(async (v) => {
-						g.scenesSubfolder = v.trim() || DEFAULT_SETTINGS.global.scenesSubfolder;
+						g.sequencesSubfolder = v.trim() || DEFAULT_SETTINGS.global.sequencesSubfolder;
 						await this.save();
 					}),
 			);
@@ -333,20 +333,9 @@ export class FirstDraftSettingTab extends PluginSettingTab {
 				}),
 			);
 
-		new Setting(containerEl)
-			.setName("Collapse left sidebar")
-			.setDesc("Collapse the left sidebar when first draft mode is active.")
-			.addToggle((t) =>
-				t.setValue(m.hideLeftSidebar).onChange(async (v) => {
-					m.hideLeftSidebar = v;
-					await this.save();
-					reapplyIfActive();
-					if (m.active) {
-						if (v) this.plugin.app.workspace.leftSplit.collapse();
-						else this.plugin.app.workspace.leftSplit.expand();
-					}
-				}),
-			);
+		// "Hide left sidebar" toggle removed — FDM now keeps the sidebar open
+		// to host Project Home (other tabs hidden via CSS). The hideLeftSidebar
+		// field stays in settings types for backward compat but is unused.
 	}
 
 	private renderDebug(): void {

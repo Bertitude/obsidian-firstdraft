@@ -12,6 +12,7 @@ import {
 import { readScenesArray, writeScenesArray } from "../longform/scenes-array";
 import { fountainFilename, fountainScenesArrayEntry } from "../fountain/file-detection";
 import { extractId, stripId } from "../utils/stable-id";
+import { projectBlockKey } from "../projects/scanner";
 
 // All DOM construction for the dev-notes panel. Pure helpers — they take a container
 // and append; lifecycle (clearing) is the View's responsibility.
@@ -96,16 +97,16 @@ interface SceneSectionOpts extends SectionOpts {
 export async function renderSceneSection(opts: SceneSectionOpts): Promise<void> {
 	const { container, view, plugin, scene, noteRef, getTemplate } = opts;
 
-	container.createEl("h3", { text: stripId(scene.basename), cls: "firstdraft-scene-title" });
+	container.createEl("h3", { text: stripId(scene.basename), cls: "firstdraft-sequence-title" });
 	container.createEl("hr", { cls: "firstdraft-divider" });
 
-	const body = container.createDiv({ cls: "firstdraft-scene-body" });
+	const body = container.createDiv({ cls: "firstdraft-sequence-body" });
 
 	if (!noteRef.file) {
 		const empty = body.createDiv({ cls: "firstdraft-create-prompt" });
-		empty.createEl("p", { text: "No dev note for this scene yet." });
+		empty.createEl("p", { text: "No dev note for this sequence yet." });
 		const btn = empty.createEl("button", {
-			text: "Create scene note",
+			text: "Create sequence note",
 			cls: "mod-cta",
 		});
 		// mousedown instead of click — Obsidian's sidebar focus model swallows
@@ -115,7 +116,7 @@ export async function renderSceneSection(opts: SceneSectionOpts): Promise<void> 
 			if (btn.disabled) return;
 			btn.disabled = true;
 			btn.setText("Creating…");
-			void createSceneNote(plugin, noteRef.path, getTemplate());
+			void createSequenceNote(plugin, noteRef.path, getTemplate());
 		});
 		return;
 	}
@@ -124,7 +125,7 @@ export async function renderSceneSection(opts: SceneSectionOpts): Promise<void> 
 	await MarkdownRenderer.render(plugin.app, md, body, noteRef.file.path, view);
 }
 
-async function createSceneNote(
+async function createSequenceNote(
 	plugin: FirstDraftPlugin,
 	path: string,
 	template: string,
@@ -146,7 +147,7 @@ async function createSceneNote(
 			);
 		}
 		await plugin.app.workspace.getLeaf(false).openFile(created);
-		new Notice("Scene note created.");
+		new Notice("Sequence note created.");
 	} catch (e) {
 		new Notice(`Could not create scene note: ${(e as Error).message}`);
 	}
@@ -164,16 +165,16 @@ interface FountainSectionOpts extends SectionOpts {
 export function renderFountainSection(opts: FountainSectionOpts): void {
 	const { container, plugin, devNote, fountainFile, project } = opts;
 
-	container.createEl("h3", { text: stripId(devNote.basename), cls: "firstdraft-scene-title" });
+	container.createEl("h3", { text: stripId(devNote.basename), cls: "firstdraft-sequence-title" });
 	container.createEl("hr", { cls: "firstdraft-divider" });
 
-	const body = container.createDiv({ cls: "firstdraft-scene-body" });
+	const body = container.createDiv({ cls: "firstdraft-sequence-body" });
 	const wrap = body.createDiv({ cls: "firstdraft-create-prompt" });
 
 	if (fountainFile) {
-		wrap.createEl("p", { text: "Scene file ready." });
+		wrap.createEl("p", { text: "Sequence file ready." });
 		const link = wrap.createEl("a", {
-			text: "Open scene file →",
+			text: "Open sequence file →",
 			cls: "firstdraft-card-open",
 			attr: { href: "#" },
 		});
@@ -184,9 +185,9 @@ export function renderFountainSection(opts: FountainSectionOpts): void {
 		return;
 	}
 
-	wrap.createEl("p", { text: "No scene file yet. Outline here, draft when ready." });
+	wrap.createEl("p", { text: "No sequence file yet. Plan here, draft when ready." });
 	const btn = wrap.createEl("button", {
-		text: "Create scene file",
+		text: "Create sequence file",
 		cls: "mod-cta",
 	});
 	btn.addEventListener("mousedown", (e) => {
@@ -194,7 +195,7 @@ export function renderFountainSection(opts: FountainSectionOpts): void {
 		if (btn.disabled) return;
 		btn.disabled = true;
 		btn.setText("Creating…");
-		void createSceneFile(plugin, project, devNote.basename);
+		void createSequenceFile(plugin, project, devNote.basename);
 	});
 }
 
@@ -209,24 +210,24 @@ const FOUNTAIN_STARTER = `INT. LOCATION - DAY
 
 `;
 
-// Creates the fountain file for a scene. If the project's Longform sceneFolder
+// Creates the fountain file for a scene. If the project's Longform sequenceFolder
 // is empty or pointing at the project root, this also: (a) updates Index.md to
-// set sceneFolder = "Screenplay", (b) creates the Screenplay/ folder. Always
+// set sequenceFolder = "Screenplay", (b) creates the Screenplay/ folder. Always
 // appends the new file to the longform.scenes array so it shows up in
 // Longform's sidebar without manual drag-and-drop.
-async function createSceneFile(
+async function createSequenceFile(
 	plugin: FirstDraftPlugin,
 	project: ProjectMeta,
-	sceneName: string,
+	sequenceName: string,
 ): Promise<void> {
 	try {
-		const { fountainPath, configChanged } = await ensureSceneFolder(plugin, project);
+		const { fountainPath, configChanged } = await ensureSequenceFolder(plugin, project);
 		const cfg = plugin.settings.global;
-		const filename = fountainFilename(sceneName, cfg.fountainFileFormat);
+		const filename = fountainFilename(sequenceName, cfg.fountainFileFormat);
 		const finalPath = normalizePath(`${fountainPath}/${filename}`);
 
 		if (plugin.app.vault.getAbstractFileByPath(finalPath)) {
-			new Notice("Scene file already exists.");
+			new Notice("Sequence file already exists.");
 			return;
 		}
 
@@ -236,7 +237,7 @@ async function createSceneFile(
 		// format depends on the fountain file format setting — .fountain files
 		// store as plain basename, .fountain.md files store as basename ending
 		// in .fountain.
-		const arrayEntry = fountainScenesArrayEntry(sceneName, cfg.fountainFileFormat);
+		const arrayEntry = fountainScenesArrayEntry(sequenceName, cfg.fountainFileFormat);
 		const scenes = readScenesArray(plugin.app, project.indexFilePath);
 		if (!scenes.includes(arrayEntry)) {
 			scenes.push(arrayEntry);
@@ -248,7 +249,7 @@ async function createSceneFile(
 		new Notice(
 			configChanged
 				? `Created ${DEFAULT_SCENE_FOLDER_NAME}/ folder and added scene to project.`
-				: "Scene file created and added to project.",
+				: "Sequence file created and added to project.",
 		);
 	} catch (e) {
 		new Notice(`Could not create scene file: ${(e as Error).message}`);
@@ -260,12 +261,12 @@ interface SceneFolderEnsured {
 	configChanged: boolean;
 }
 
-async function ensureSceneFolder(
+async function ensureSequenceFolder(
 	plugin: FirstDraftPlugin,
 	project: ProjectMeta,
 ): Promise<SceneFolderEnsured> {
 	const projectRoot = project.projectRootPath;
-	const currentScenePath = project.sceneFolderPath;
+	const currentScenePath = project.sequenceFolderPath;
 	const sceneFolderIsRoot = currentScenePath === projectRoot;
 
 	if (!sceneFolderIsRoot) {
@@ -273,7 +274,7 @@ async function ensureSceneFolder(
 		return { fountainPath: currentScenePath, configChanged: false };
 	}
 
-	// sceneFolder is empty / pointing at the root — set it to "Screenplay" and
+	// sequenceFolder is empty / pointing at the root — set it to "Screenplay" and
 	// create that folder.
 	const newPath = normalizePath(`${projectRoot}/${DEFAULT_SCENE_FOLDER_NAME}`);
 	await ensureFolderExists(plugin, newPath);
@@ -281,9 +282,20 @@ async function ensureSceneFolder(
 	const indexFile = plugin.app.vault.getAbstractFileByPath(project.indexFilePath);
 	if (indexFile instanceof TFile) {
 		await plugin.app.fileManager.processFrontMatter(indexFile, (fm: Record<string, unknown>) => {
-			const longform = (fm.longform as Record<string, unknown> | undefined) ?? {};
-			longform.sceneFolder = DEFAULT_SCENE_FOLDER_NAME;
-			fm.longform = longform;
+			// Update whichever project block already exists; default to
+			// `firstdraft:` for new projects. Within the block, write to
+			// whichever folder key is in use (sequenceFolder new; sceneFolder
+			// legacy). New projects get sequenceFolder.
+			const key = projectBlockKey(fm) ?? "firstdraft";
+			const block = (fm[key] as Record<string, unknown> | undefined) ?? {};
+			const folderKey =
+				"sequenceFolder" in block
+					? "sequenceFolder"
+					: "sceneFolder" in block
+						? "sceneFolder"
+						: "sequenceFolder";
+			block[folderKey] = DEFAULT_SCENE_FOLDER_NAME;
+			fm[key] = block;
 		});
 	}
 	return { fountainPath: newPath, configChanged: true };

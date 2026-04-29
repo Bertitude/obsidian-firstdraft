@@ -3,7 +3,7 @@ import type FirstDraftPlugin from "../main";
 import type { ProjectMeta } from "../types";
 import { resolveActiveProject } from "../projects/resolver";
 import { resolveProjectSettings } from "../settings/resolve";
-import { characterRoster, scenePairFromActive, type CharacterEntry } from "../views/lookups";
+import { characterRoster, sequencePairFromActive, type CharacterEntry } from "../views/lookups";
 import { linkifyEntity, type DevEntity, type LinkifyResult } from "./linkify";
 
 // Phase 4g — Tag a selection as an alias of an existing character. Appends the
@@ -42,7 +42,7 @@ export function runTagSelectionAsAliasCommand(
 	// If the user invoked this from a dev note, auto-add the alias to its
 	// characters: on save (preserves the "name-as-used" semantic). Carry the
 	// dev-note file along to the modal so it's available at choose time.
-	const pair = scenePairFromActive(plugin.app, file, project, cfg);
+	const pair = sequencePairFromActive(plugin.app, file, project, cfg);
 	const targetDevNote =
 		pair && pair.activeMode === "dev-note" ? pair.devNoteFile : null;
 

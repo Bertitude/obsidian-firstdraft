@@ -12,7 +12,7 @@ export interface FirstDraftSettings {
 export interface GlobalConfig {
 	developmentFolder: string;
 	charactersSubfolder: string;
-	scenesSubfolder: string;
+	sequencesSubfolder: string;
 	locationsSubfolder: string;
 	referencesSubfolder: string;
 	characterCardFields: string[];
@@ -34,7 +34,7 @@ export type FountainFileFormat = "fountain" | "fountain-md";
 export interface ProjectConfig {
 	developmentFolder?: string;
 	charactersSubfolder?: string;
-	scenesSubfolder?: string;
+	sequencesSubfolder?: string;
 	locationsSubfolder?: string;
 	referencesSubfolder?: string;
 	characterCardFields?: string[];
@@ -65,6 +65,6 @@ export interface ProjectMeta {
 	status?: string;
 	indexFilePath: string;
 	projectRootPath: string;
-	sceneFolderPath: string;
+	sequenceFolderPath: string;
 	seriesDevelopmentPath: string | null;
 }

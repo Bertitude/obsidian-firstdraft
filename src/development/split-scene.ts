@@ -3,7 +3,7 @@ import type FirstDraftPlugin from "../main";
 import type { ProjectMeta } from "../types";
 import { resolveActiveProject } from "../projects/resolver";
 import { resolveProjectSettings } from "../settings/resolve";
-import { scenePairFromActive } from "../views/lookups";
+import { sequencePairFromActive } from "../views/lookups";
 import { parseCharacterCues } from "../views/lookups";
 import {
 	fountainFilename,
@@ -46,7 +46,7 @@ export async function runSplitSceneCommand(
 		return;
 	}
 	const cfg = resolveProjectSettings(project, plugin.settings);
-	const pair = scenePairFromActive(plugin.app, file, project, cfg);
+	const pair = sequencePairFromActive(plugin.app, file, project, cfg);
 	if (!pair) {
 		new Notice("Active file isn't a scene fountain or dev note.");
 		return;
@@ -100,7 +100,7 @@ async function splitFromFountain(
 
 	// Create the new fountain.
 	const newFountainPath = normalizePath(
-		`${project.sceneFolderPath}/${fountainFilename(newSceneName, cfg.fountainFileFormat)}`,
+		`${project.sequenceFolderPath}/${fountainFilename(newSceneName, cfg.fountainFileFormat)}`,
 	);
 	const newFountainFile = await plugin.app.vault.create(newFountainPath, afterText);
 
@@ -197,7 +197,7 @@ async function splitFromDevNote(
 		await plugin.app.vault.modify(fountainSplit.file, fountainSplit.beforeText);
 	}
 	const newFountainPath = normalizePath(
-		`${project.sceneFolderPath}/${fountainFilename(newSceneName, cfg.fountainFileFormat)}`,
+		`${project.sequenceFolderPath}/${fountainFilename(newSceneName, cfg.fountainFileFormat)}`,
 	);
 	await plugin.app.vault.create(newFountainPath, newFountainContent);
 	await insertSceneAfter(plugin, project, cfg, oldSceneName, newSceneName);
@@ -266,15 +266,15 @@ function nameIsAvailable(
 	plugin: FirstDraftPlugin,
 	project: ProjectMeta,
 	cfg: ReturnType<typeof resolveProjectSettings>,
-	sceneName: string,
+	sequenceName: string,
 ): boolean {
 	const fountainMd = normalizePath(
-		`${project.sceneFolderPath}/${fountainFilename(sceneName, "fountain-md")}`,
+		`${project.sequenceFolderPath}/${fountainFilename(sequenceName, "fountain-md")}`,
 	);
 	const fountainBare = normalizePath(
-		`${project.sceneFolderPath}/${fountainFilename(sceneName, "fountain")}`,
+		`${project.sequenceFolderPath}/${fountainFilename(sequenceName, "fountain")}`,
 	);
-	const devNote = devNotePathFor(project, cfg, sceneName);
+	const devNote = devNotePathFor(project, cfg, sequenceName);
 	for (const p of [fountainMd, fountainBare, devNote]) {
 		if (plugin.app.vault.getAbstractFileByPath(p)) return false;
 	}
@@ -284,10 +284,10 @@ function nameIsAvailable(
 function devNotePathFor(
 	project: ProjectMeta,
 	cfg: ReturnType<typeof resolveProjectSettings>,
-	sceneName: string,
+	sequenceName: string,
 ): string {
 	return normalizePath(
-		`${project.projectRootPath}/${cfg.developmentFolder}/${cfg.scenesSubfolder}/${sceneName}.md`,
+		`${project.projectRootPath}/${cfg.developmentFolder}/${cfg.sequencesSubfolder}/${sequenceName}.md`,
 	);
 }
 
@@ -295,11 +295,11 @@ function findPairedFountain(
 	plugin: FirstDraftPlugin,
 	project: ProjectMeta,
 	cfg: ReturnType<typeof resolveProjectSettings>,
-	sceneName: string,
+	sequenceName: string,
 ): TFile | null {
 	for (const fmt of ["fountain-md", "fountain"] as const) {
 		const path = normalizePath(
-			`${project.sceneFolderPath}/${fountainFilename(sceneName, fmt)}`,
+			`${project.sequenceFolderPath}/${fountainFilename(sequenceName, fmt)}`,
 		);
 		const f = plugin.app.vault.getAbstractFileByPath(path);
 		if (f instanceof TFile) return f;
@@ -344,11 +344,11 @@ async function createPairedDevNote(
 	plugin: FirstDraftPlugin,
 	project: ProjectMeta,
 	cfg: ReturnType<typeof resolveProjectSettings>,
-	sceneName: string,
+	sequenceName: string,
 	fountainContent: string,
 	id: string,
 ): Promise<void> {
-	const path = devNotePathFor(project, cfg, sceneName);
+	const path = devNotePathFor(project, cfg, sequenceName);
 	const content = buildSplitDevNoteContent(cfg.sceneNoteTemplate, fountainContent, "");
 	await ensureFolderExists(plugin, parentPath(path));
 	const created = await plugin.app.vault.create(path, content);

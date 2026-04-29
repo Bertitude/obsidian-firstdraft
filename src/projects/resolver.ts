@@ -3,8 +3,8 @@ import type { ProjectMeta } from "../types";
 import type { ProjectScanner } from "./scanner";
 
 // Resolves which project an arbitrary file belongs to. We match by project root
-// (the folder containing Index.md), not by the Longform sceneFolder. Many vaults
-// have Longform projects where sceneFolder is "." or pointed at a different folder
+// (the folder containing Index.md), not by the Longform sequenceFolder. Many vaults
+// have Longform projects where sequenceFolder is "." or pointed at a different folder
 // than where fountain files actually live; matching by root makes the panel work
 // regardless of how the user's Longform projects are configured. Most-specific
 // (longest) project root wins, supporting nested projects.

@@ -6,7 +6,7 @@ import {
 	resolveCharacterByNameOrAlias,
 	type CharacterEntry,
 } from "./lookups";
-import { buildTreatmentData, type TreatmentRow } from "./treatment-data";
+import { buildOutlineData, type OutlineRow } from "./outline-data";
 
 // Phase 3b — Character matrix data builder. Computes the rows × scenes
 // presence grid for one or more projects (single project in episode mode,
@@ -17,7 +17,7 @@ import { buildTreatmentData, type TreatmentRow } from "./treatment-data";
 // resolveCharacterByNameOrAlias when matching against scene characters: arrays.
 
 export interface MatrixSceneCol {
-	sceneName: string;
+	sequenceName: string;
 	devNoteFile: TFile | null;
 	fountainFile: TFile | null;
 	indexFilePath: string;
@@ -45,7 +45,7 @@ export async function buildCharacterMatrix(
 	cfg: GlobalConfig,
 ): Promise<MatrixData> {
 	const rows = characterRoster(app, project, cfg);
-	const treatment = buildTreatmentData(app, project, cfg);
+	const treatment = buildOutlineData(app, project, cfg);
 	const scenes: MatrixSceneCol[] = treatment.rows.map((row) =>
 		toSceneCol(row, project),
 	);
@@ -63,14 +63,14 @@ export async function buildSeasonMatrix(
 ): Promise<MatrixData> {
 	const dedupedRows = new Map<string, CharacterEntry>();
 	const allScenes: MatrixSceneCol[] = [];
-	const sceneRowsList: TreatmentRow[][] = [];
+	const sceneRowsList: OutlineRow[][] = [];
 
 	for (const { project, cfg } of projects) {
 		const roster = characterRoster(app, project, cfg);
 		for (const entry of roster) {
 			if (!dedupedRows.has(entry.name)) dedupedRows.set(entry.name, entry);
 		}
-		const treatment = buildTreatmentData(app, project, cfg);
+		const treatment = buildOutlineData(app, project, cfg);
 		const episodeLabel = displayEpisode(project);
 		for (const row of treatment.rows) {
 			allScenes.push(toSceneCol(row, project, episodeLabel));
@@ -81,19 +81,19 @@ export async function buildSeasonMatrix(
 	const rows = [...dedupedRows.values()].sort((a, b) =>
 		a.name.localeCompare(b.name),
 	);
-	const flatTreatmentRows = sceneRowsList.flat();
-	const presence = computePresence(rows, flatTreatmentRows);
-	const cueCounts = await computeCueCounts(app, rows, flatTreatmentRows);
+	const flatOutlineRows = sceneRowsList.flat();
+	const presence = computePresence(rows, flatOutlineRows);
+	const cueCounts = await computeCueCounts(app, rows, flatOutlineRows);
 	return { rows, scenes: allScenes, presence, cueCounts };
 }
 
 function toSceneCol(
-	row: TreatmentRow,
+	row: OutlineRow,
 	project: ProjectMeta,
 	episodeLabel?: string,
 ): MatrixSceneCol {
 	return {
-		sceneName: row.sceneName,
+		sequenceName: row.sequenceName,
 		devNoteFile: row.devNoteFile,
 		fountainFile: row.fountainFile,
 		indexFilePath: project.indexFilePath,
@@ -104,7 +104,7 @@ function toSceneCol(
 
 function computePresence(
 	rows: CharacterEntry[],
-	treatmentRows: TreatmentRow[],
+	treatmentRows: OutlineRow[],
 ): boolean[][] {
 	const out: boolean[][] = rows.map(() => new Array(treatmentRows.length).fill(false));
 	for (let s = 0; s < treatmentRows.length; s++) {
@@ -129,7 +129,7 @@ function computePresence(
 async function computeCueCounts(
 	app: App,
 	rows: CharacterEntry[],
-	treatmentRows: TreatmentRow[],
+	treatmentRows: OutlineRow[],
 ): Promise<number[][]> {
 	const out: number[][] = rows.map(() => new Array(treatmentRows.length).fill(0));
 	for (let s = 0; s < treatmentRows.length; s++) {

@@ -4,12 +4,12 @@ import type { ProjectMeta } from "../types";
 import { resolveActiveProject } from "../projects/resolver";
 import { resolveProjectSettings } from "../settings/resolve";
 import { snapshotFile, todayLabel } from "../versioning/snapshot";
-import { parseOutlineBeats, titleToFilename } from "./parser";
+import { parseTreatmentBeats, titleToFilename } from "./parser";
 import { applyId, generateUniqueId } from "../utils/stable-id";
 
-// "Promote outline to scenes": parses the active outline's H2 beats and creates
-// matching dev notes in Development/Scenes/. Auto-snapshots the outline before
-// any changes; never overwrites existing dev notes; updates the outline's
+// "Promote treatment to scenes": parses the active treatment's H2 beats and creates
+// matching dev notes in Development/Scenes/. Auto-snapshots the treatment before
+// any changes; never overwrites existing dev notes; updates the treatment's
 // frontmatter (`status`, `promoted_at`) afterwards.
 
 interface PromoteSummary {
@@ -18,16 +18,16 @@ interface PromoteSummary {
 	createdPaths: string[];
 }
 
-export async function runPromoteOutlineCommand(plugin: FirstDraftPlugin): Promise<void> {
+export async function runPromoteTreatmentCommand(plugin: FirstDraftPlugin): Promise<void> {
 	const file = plugin.app.workspace.getActiveFile();
 	if (!file || file.extension !== "md") {
-		new Notice("Open a Markdown outline first.");
+		new Notice("Open a Markdown treatment first.");
 		return;
 	}
 
 	const project = resolveActiveProject(file, plugin.scanner);
 	if (!project) {
-		new Notice("This outline isn't inside a known project.");
+		new Notice("This treatment isn't inside a known project.");
 		return;
 	}
 
@@ -41,7 +41,7 @@ export async function runPromoteOutlineCommand(plugin: FirstDraftPlugin): Promis
 	}
 
 	try {
-		const summary = await promoteOutline(plugin, file, project);
+		const summary = await promoteTreatment(plugin, file, project);
 		const msg = summaryMessage(summary);
 		new Notice(msg);
 	} catch (e) {
@@ -49,24 +49,24 @@ export async function runPromoteOutlineCommand(plugin: FirstDraftPlugin): Promis
 	}
 }
 
-async function promoteOutline(
+async function promoteTreatment(
 	plugin: FirstDraftPlugin,
-	outline: TFile,
+	treatment: TFile,
 	project: ProjectMeta,
 ): Promise<PromoteSummary> {
 	const cfg = resolveProjectSettings(project, plugin.settings);
 	const scenesFolder = normalizePath(
-		`${project.projectRootPath}/${cfg.developmentFolder}/${cfg.scenesSubfolder}`,
+		`${project.projectRootPath}/${cfg.developmentFolder}/${cfg.sequencesSubfolder}`,
 	);
 
-	const markdown = await plugin.app.vault.read(outline);
-	const beats = parseOutlineBeats(markdown);
+	const markdown = await plugin.app.vault.read(treatment);
+	const beats = parseTreatmentBeats(markdown);
 	if (beats.length === 0) {
-		throw new Error("No H2 beats found in this outline");
+		throw new Error("No H2 beats found in this treatment");
 	}
 
 	// Snapshot first — if this fails we abort before touching anything.
-	await snapshotFile(plugin.app, outline, `promoted ${todayLabel()}`);
+	await snapshotFile(plugin.app, treatment, `promoted ${todayLabel()}`);
 
 	await ensureFolderExists(plugin.app, scenesFolder);
 
@@ -100,8 +100,8 @@ async function promoteOutline(
 		summary.createdPaths.push(path);
 	}
 
-	await plugin.app.fileManager.processFrontMatter(outline, (fm: Record<string, unknown>) => {
-		fm.type = "outline";
+	await plugin.app.fileManager.processFrontMatter(treatment, (fm: Record<string, unknown>) => {
+		fm.type = "treatment";
 		fm.status = "promoted";
 		fm.promoted_at = todayLabel();
 	});
@@ -110,7 +110,7 @@ async function promoteOutline(
 }
 
 // Replaces the empty "## Sequence Overview\n\n## Notes" block in the scene template
-// with the outline beat's prose, leaving the rest of the template intact. Falls
+// with the treatment beat's prose, leaving the rest of the template intact. Falls
 // back to appending the prose if the expected section header isn't present.
 // Tolerates the legacy "Sequence intent" label for projects whose templates
 // were authored before the rename.
@@ -159,12 +159,12 @@ class RepromoteConfirmModal extends Modal {
 
 	onOpen(): void {
 		const { contentEl } = this;
-		contentEl.createEl("h3", { text: "Re-promote outline?" });
+		contentEl.createEl("h3", { text: "Re-promote treatment?" });
 
 		const dateText =
 			typeof this.promotedAt === "string" && this.promotedAt.trim() !== ""
-				? `This outline was promoted on ${this.promotedAt}.`
-				: "This outline has already been promoted.";
+				? `This treatment was promoted on ${this.promotedAt}.`
+				: "This treatment has already been promoted.";
 		contentEl.createEl("p", { text: dateText });
 		contentEl.createEl("p", {
 			text: "Re-running will only create scenes for beats that don't already have a dev note. Existing scenes won't be touched.",
@@ -189,13 +189,13 @@ class RepromoteConfirmModal extends Modal {
 	}
 }
 
-// ── Create outline command ───────────────────────────────────────────────
+// ── Create treatment command ───────────────────────────────────────────────
 
-export async function runCreateOutlineCommand(plugin: FirstDraftPlugin): Promise<void> {
+export async function runCreateTreatmentCommand(plugin: FirstDraftPlugin): Promise<void> {
 	const active = plugin.app.workspace.getActiveFile();
 	const project = active ? resolveActiveProject(active, plugin.scanner) : null;
 	if (!project) {
-		new Notice("Open a file inside a project first, then run create outline.");
+		new Notice("Open a file inside a project first, then run create treatment.");
 		return;
 	}
 
@@ -203,16 +203,16 @@ export async function runCreateOutlineCommand(plugin: FirstDraftPlugin): Promise
 	const folder = normalizePath(`${project.projectRootPath}/${cfg.developmentFolder}`);
 	await ensureFolderExists(plugin.app, folder);
 
-	const desiredPath = normalizePath(`${folder}/Outline.md`);
-	const path = await uniqueOutlinePath(plugin.app, desiredPath);
+	const desiredPath = normalizePath(`${folder}/Treatment.md`);
+	const path = await uniqueTreatmentPath(plugin.app, desiredPath);
 
-	const { OUTLINE_TEMPLATE } = await import("../settings/defaults");
-	const created = await plugin.app.vault.create(path, OUTLINE_TEMPLATE);
+	const { TREATMENT_TEMPLATE } = await import("../settings/defaults");
+	const created = await plugin.app.vault.create(path, TREATMENT_TEMPLATE);
 	await plugin.app.workspace.getLeaf(false).openFile(created);
-	new Notice("Outline created.");
+	new Notice("Treatment created.");
 }
 
-async function uniqueOutlinePath(app: App, desired: string): Promise<string> {
+async function uniqueTreatmentPath(app: App, desired: string): Promise<string> {
 	if (!app.vault.getAbstractFileByPath(desired)) return desired;
 
 	const dot = desired.lastIndexOf(".");
@@ -222,5 +222,5 @@ async function uniqueOutlinePath(app: App, desired: string): Promise<string> {
 		const candidate = `${stem} ${i}${ext}`;
 		if (!app.vault.getAbstractFileByPath(candidate)) return candidate;
 	}
-	throw new Error("Too many existing outlines");
+	throw new Error("Too many existing treatments");
 }

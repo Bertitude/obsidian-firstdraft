@@ -10,8 +10,8 @@ export interface DevNoteRef {
 	file: TFile | null; // null if the note hasn't been created yet
 }
 
-export interface ScenePair {
-	sceneName: string; // shared basename
+export interface SequencePair {
+	sequenceName: string; // shared basename
 	fountainPath: string;
 	fountainFile: TFile | null;
 	devNotePath: string;
@@ -38,17 +38,17 @@ export interface LocationEntry {
 	canonicalFile: TFile | null;
 }
 
-// Scene dev note path = projectRoot/Development/Scenes/<sceneName>.md
-// sceneName is the human-friendly name without fountain extension parts so
+// Scene dev note path = projectRoot/Development/Scenes/<sequenceName>.md
+// sequenceName is the human-friendly name without fountain extension parts so
 // the same dev note matches both .fountain and .fountain.md scene files.
-export function sceneDevNotePath(
+export function sequenceDevNotePath(
 	scene: TFile,
 	project: ProjectMeta,
 	cfg: GlobalConfig,
 ): DevNoteRef {
-	const sceneName = fountainSceneName(scene);
+	const sequenceName = fountainSceneName(scene);
 	const path = normalizePath(
-		`${project.projectRootPath}/${cfg.developmentFolder}/${cfg.scenesSubfolder}/${sceneName}.md`,
+		`${project.projectRootPath}/${cfg.developmentFolder}/${cfg.sequencesSubfolder}/${sequenceName}.md`,
 	);
 	return { path, file: lookupFile(scene.vault as unknown, path) };
 }
@@ -60,16 +60,16 @@ export function sceneDevNotePath(
 // Handles both fountain formats (.fountain and .fountain.md) on the fountain
 // side. For the dev note path, uses the human-friendly scene name (without any
 // .fountain suffix) so a single dev note pairs with either format.
-export function scenePairFromActive(
+export function sequencePairFromActive(
 	app: App,
 	active: TFile,
 	project: ProjectMeta,
 	cfg: GlobalConfig,
-): ScenePair | null {
+): SequencePair | null {
 	const devScenesPath = normalizePath(
-		`${project.projectRootPath}/${cfg.developmentFolder}/${cfg.scenesSubfolder}`,
+		`${project.projectRootPath}/${cfg.developmentFolder}/${cfg.sequencesSubfolder}`,
 	);
-	const fountainFolderPath = project.sceneFolderPath;
+	const fountainFolderPath = project.sequenceFolderPath;
 
 	let mode: "fountain" | "dev-note" | null = null;
 	if (isFountainFile(active) && active.path.startsWith(fountainFolderPath + "/")) {
@@ -83,17 +83,17 @@ export function scenePairFromActive(
 	}
 	if (!mode) return null;
 
-	const sceneName = mode === "fountain" ? fountainSceneName(active) : active.basename;
-	const devNotePath = normalizePath(`${devScenesPath}/${sceneName}.md`);
+	const sequenceName = mode === "fountain" ? fountainSceneName(active) : active.basename;
+	const devNotePath = normalizePath(`${devScenesPath}/${sequenceName}.md`);
 
 	// On the fountain side, look for both formats and prefer whichever exists.
 	// If neither exists, the path returned uses the configured format (the one
 	// we'd create if asked).
 	const fountainMdPath = normalizePath(
-		`${fountainFolderPath}/${fountainFilename(sceneName, "fountain-md")}`,
+		`${fountainFolderPath}/${fountainFilename(sequenceName, "fountain-md")}`,
 	);
 	const fountainPathLegacy = normalizePath(
-		`${fountainFolderPath}/${fountainFilename(sceneName, "fountain")}`,
+		`${fountainFolderPath}/${fountainFilename(sequenceName, "fountain")}`,
 	);
 	const fountainMdFile = lookupFile(app.vault as unknown, fountainMdPath);
 	const fountainLegacyFile = lookupFile(app.vault as unknown, fountainPathLegacy);
@@ -101,11 +101,11 @@ export function scenePairFromActive(
 	const fountainPath = fountainFile
 		? fountainFile.path
 		: normalizePath(
-				`${fountainFolderPath}/${fountainFilename(sceneName, cfg.fountainFileFormat)}`,
+				`${fountainFolderPath}/${fountainFilename(sequenceName, cfg.fountainFileFormat)}`,
 			);
 
 	return {
-		sceneName,
+		sequenceName,
 		fountainPath,
 		fountainFile,
 		devNotePath,
@@ -317,7 +317,7 @@ export function parseCharacterCues(fountain: string): string[] {
 // Combine three roster sources into a single deduplicated list:
 //   1. Character folders in Development/Characters/
 //   2. Names already in the active scene dev note's `characters:` array
-//   3. Cues parsed from every .fountain file in project.sceneFolderPath
+//   3. Cues parsed from every .fountain file in project.sequenceFolderPath
 //
 // Folder-derived entries provide canonical casing; the other sources contribute
 // names with `folderCasing: null`. Caller passes a cache keyed by file path so
@@ -365,7 +365,7 @@ export async function buildExpandedRoster(
 		}
 	}
 
-	const fountainFolder = app.vault.getAbstractFileByPath(project.sceneFolderPath);
+	const fountainFolder = app.vault.getAbstractFileByPath(project.sequenceFolderPath);
 	if (fountainFolder instanceof TFolder) {
 		for (const child of fountainFolder.children) {
 			if (!(child instanceof TFile)) continue;

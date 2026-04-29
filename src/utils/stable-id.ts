@@ -21,22 +21,22 @@ export function generateId(): string {
 // `.md` extensions), or null if no ID present.
 //   "Big Damn Heroes-a3b9" → "a3b9"
 //   "Big Damn Heroes"      → null
-export function extractId(sceneName: string): string | null {
-	const m = ID_SUFFIX_RE.exec(sceneName);
+export function extractId(sequenceName: string): string | null {
+	const m = ID_SUFFIX_RE.exec(sequenceName);
 	return m ? (m[1] ?? null) : null;
 }
 
 // Returns the scene name with the ID suffix removed (or unchanged if no ID).
 //   "Big Damn Heroes-a3b9" → "Big Damn Heroes"
 //   "Big Damn Heroes"      → "Big Damn Heroes"
-export function stripId(sceneName: string): string {
-	return sceneName.replace(ID_SUFFIX_RE, "");
+export function stripId(sequenceName: string): string {
+	return sequenceName.replace(ID_SUFFIX_RE, "");
 }
 
 // Append an ID suffix to a scene name. If the name already has one, replaces
 // it. Used during migration and rename-preservation flows.
-export function applyId(sceneName: string, id: string): string {
-	return `${stripId(sceneName)}-${id}`;
+export function applyId(sequenceName: string, id: string): string {
+	return `${stripId(sequenceName)}-${id}`;
 }
 
 // Generate an ID that doesn't collide with any of the provided existing IDs.

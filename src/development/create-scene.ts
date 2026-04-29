@@ -35,16 +35,16 @@ export async function runCreateNewSceneCommand(
 	if (!userTypedName) return;
 
 	const id = generateId();
-	const sceneName = applyId(userTypedName, id);
+	const sequenceName = applyId(userTypedName, id);
 
 	const scenesFolderPath = normalizePath(
-		`${project.projectRootPath}/${cfg.developmentFolder}/${cfg.scenesSubfolder}`,
+		`${project.projectRootPath}/${cfg.developmentFolder}/${cfg.sequencesSubfolder}`,
 	);
 	await ensureFolderExists(plugin.app, scenesFolderPath);
 
-	const devNotePath = normalizePath(`${scenesFolderPath}/${sceneName}.md`);
+	const devNotePath = normalizePath(`${scenesFolderPath}/${sequenceName}.md`);
 	if (plugin.app.vault.getAbstractFileByPath(devNotePath)) {
-		new Notice(`A dev note named "${sceneName}" already exists.`);
+		new Notice(`A dev note named "${sequenceName}" already exists.`);
 		return;
 	}
 

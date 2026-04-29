@@ -3,7 +3,7 @@ import type FirstDraftPlugin from "../main";
 import type { ProjectMeta } from "../types";
 import { resolveActiveProject } from "../projects/resolver";
 import { resolveProjectSettings } from "../settings/resolve";
-import { scenePairFromActive } from "../views/lookups";
+import { sequencePairFromActive } from "../views/lookups";
 import { isFountainFile } from "../fountain/file-detection";
 import { BEAT_TEMPLATES, type BeatTemplate } from "./beat-templates";
 
@@ -26,7 +26,7 @@ export async function runAssignSceneToBeatCommand(
 		return;
 	}
 	const cfg = resolveProjectSettings(project, plugin.settings);
-	const pair = scenePairFromActive(plugin.app, active, project, cfg);
+	const pair = sequencePairFromActive(plugin.app, active, project, cfg);
 	if (!pair || !pair.devNoteFile) {
 		new Notice("This file isn't paired with a dev note.");
 		return;
@@ -245,7 +245,7 @@ export async function runClearBeatSheetCommand(
 async function countSceneBeatAssignments(
 	plugin: FirstDraftPlugin,
 	project: ProjectMeta,
-	cfg: { developmentFolder: string; scenesSubfolder: string },
+	cfg: { developmentFolder: string; sequencesSubfolder: string },
 ): Promise<number> {
 	const folder = devScenesFolder(plugin, project, cfg);
 	if (!folder) return 0;
@@ -267,7 +267,7 @@ async function countSceneBeatAssignments(
 async function clearAllSceneBeatAssignments(
 	plugin: FirstDraftPlugin,
 	project: ProjectMeta,
-	cfg: { developmentFolder: string; scenesSubfolder: string },
+	cfg: { developmentFolder: string; sequencesSubfolder: string },
 ): Promise<number> {
 	const folder = devScenesFolder(plugin, project, cfg);
 	if (!folder) return 0;
@@ -295,10 +295,10 @@ async function clearAllSceneBeatAssignments(
 function devScenesFolder(
 	plugin: FirstDraftPlugin,
 	project: ProjectMeta,
-	cfg: { developmentFolder: string; scenesSubfolder: string },
+	cfg: { developmentFolder: string; sequencesSubfolder: string },
 ): TFolder | null {
 	const path = normalizePath(
-		`${project.projectRootPath}/${cfg.developmentFolder}/${cfg.scenesSubfolder}`,
+		`${project.projectRootPath}/${cfg.developmentFolder}/${cfg.sequencesSubfolder}`,
 	);
 	const f = plugin.app.vault.getAbstractFileByPath(path);
 	return f instanceof TFolder ? f : null;

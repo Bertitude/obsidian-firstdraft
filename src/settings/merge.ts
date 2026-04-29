@@ -17,6 +17,18 @@ export function mergeSettings(
 	const loadedGlobal = safe.global ?? {};
 	const loadedMode = loadedGlobal.firstDraftMode ?? {};
 
+	// Backward compat: legacy installs stored `scenesSubfolder`. Copy its value
+	// into `sequencesSubfolder` if the new key isn't already present so the
+	// user's customisation (e.g. "Scenes" folder name) survives the rename.
+	const legacy = loadedGlobal as unknown as { scenesSubfolder?: string };
+	if (
+		legacy.scenesSubfolder &&
+		typeof legacy.scenesSubfolder === "string" &&
+		!loadedGlobal.sequencesSubfolder
+	) {
+		loadedGlobal.sequencesSubfolder = legacy.scenesSubfolder;
+	}
+
 	return {
 		projects: safe.projects ?? {},
 		global: {
