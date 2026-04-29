@@ -24,6 +24,25 @@ import { VIEW_TYPE_OUTLINE } from "./view-types";
 
 type Mode = "episode" | "season";
 
+// Drop modes when dragging one row onto another:
+//  - "before": drop into the gap above the target row
+//  - "after":  drop into the gap below the target row
+//  - "swap":   exchange positions with the target row
+// Determined from the cursor's vertical position within the target's
+// bounding rect: top quarter → before, bottom quarter → after, middle
+// half → swap.
+type DropMode = "before" | "after" | "swap";
+
+const DROP_GAP_RATIO = 0.25;
+
+function computeDropMode(e: DragEvent, rowEl: HTMLElement): DropMode {
+	const rect = rowEl.getBoundingClientRect();
+	const ratio = (e.clientY - rect.top) / rect.height;
+	if (ratio < DROP_GAP_RATIO) return "before";
+	if (ratio > 1 - DROP_GAP_RATIO) return "after";
+	return "swap";
+}
+
 interface SeasonGroup {
 	project: ProjectMeta;
 	rows: OutlineRow[];
@@ -65,23 +84,38 @@ export class OutlineView extends ItemView {
 	}
 
 	async refresh(): Promise<void> {
-		this.contentEl.empty();
-
 		const active = this.plugin.app.workspace.getActiveFile();
 		const candidate = active ? resolveActiveProject(active, this.plugin.scanner) : null;
 		this.project = candidate ?? this.project;
 
 		if (!this.project) {
+			this.contentEl.empty();
 			this.renderEmptyNoProject();
 			return;
 		}
 
-		const isTV = this.project.projectType === "tv-episode";
-		if (!isTV) this.mode = "episode"; // mode toggle only meaningful for TV
+		if (this.project.projectType !== "tv-episode") this.mode = "episode";
 
+		// Rebuild groups from disk. After write operations (e.g. handleReorder)
+		// the metadata cache may not have caught up yet — callers that have
+		// just-written in-memory state should call renderFromGroups() directly
+		// instead of refresh() to avoid clobbering it with stale cache reads.
 		this.groups = this.buildGroups(this.project, this.mode);
 		this.rows = this.groups.flatMap((g) => g.rows);
+		this.renderFromGroups();
+	}
 
+	// Pure render — uses whatever this.groups currently holds. Separated from
+	// refresh() so that handlers which mutate this.groups directly (drag-
+	// reorder, add/remove project membership) can render the result without a
+	// disk round-trip that may race with the metadata cache update.
+	private renderFromGroups(): void {
+		this.contentEl.empty();
+		if (!this.project) {
+			this.renderEmptyNoProject();
+			return;
+		}
+		const isTV = this.project.projectType === "tv-episode";
 		this.renderHeader(this.project, isTV);
 
 		if (this.rows.length === 0) {
@@ -219,14 +253,25 @@ export class OutlineView extends ItemView {
 			// Clickable "Add to project" affordance — the static label was
 			// previously the source of confusion ("orphan rows can't be
 			// reordered"). Now the same pill IS the path to make it orderable.
+			//
+			// Uses mousedown rather than click because Obsidian's leaf focus
+			// model swallows the first click event before listeners see it
+			// (same issue we hit on the Project Home cog button). The paired
+			// click listener just stops propagation so the row's main click
+			// handler (which opens the dev note) doesn't fire on the same
+			// gesture.
 			const addBtn = title.createEl("button", {
 				cls: "firstdraft-outline-tag is-action",
 				text: "Not in project · Add",
 				attr: { "aria-label": "Add this sequence to the project" },
 			});
-			addBtn.addEventListener("click", (e) => {
+			addBtn.addEventListener("mousedown", (e) => {
+				if (e.button !== 0) return;
 				e.stopPropagation();
 				void this.handleAddToProject(row);
+			});
+			addBtn.addEventListener("click", (e) => {
+				e.stopPropagation();
 			});
 		} else if (row.missing) {
 			const tag = title.createSpan({ cls: "firstdraft-outline-tag is-warning", text: "no files" });
@@ -297,15 +342,20 @@ export class OutlineView extends ItemView {
 		// Files stay on disk; the sequence drops out of script order and
 		// won't compile. Reversible via the row's "Add to project" pill once
 		// it falls into orphan land. Skipped for orphans (already out).
+		// mousedown for the same reason as the Add pill (focus-eating).
 		if (!row.orphan) {
 			const btn = parent.createEl("button", {
 				cls: "clickable-icon firstdraft-outline-action",
 				attr: { "aria-label": "Remove from project (keeps files on disk)" },
 			});
 			setIcon(btn, "eye-off");
-			btn.addEventListener("click", (e) => {
+			btn.addEventListener("mousedown", (e) => {
+				if (e.button !== 0) return;
 				e.stopPropagation();
 				void this.handleRemoveFromProject(row);
+			});
+			btn.addEventListener("click", (e) => {
+				e.stopPropagation();
 			});
 		}
 	}
@@ -330,24 +380,31 @@ export class OutlineView extends ItemView {
 		});
 		rowEl.addEventListener("dragover", (e) => {
 			e.preventDefault();
-			rowEl.classList.add("is-drop-target");
 			if (e.dataTransfer) e.dataTransfer.dropEffect = "move";
+			const mode = computeDropMode(e, rowEl);
+			rowEl.classList.remove("is-drop-before", "is-drop-after", "is-drop-swap");
+			rowEl.classList.add(`is-drop-${mode}`);
 		});
 		rowEl.addEventListener("dragleave", () => {
-			rowEl.classList.remove("is-drop-target");
+			rowEl.classList.remove("is-drop-before", "is-drop-after", "is-drop-swap");
 		});
 		rowEl.addEventListener("drop", (e) => {
 			e.preventDefault();
-			rowEl.classList.remove("is-drop-target");
+			const mode = computeDropMode(e, rowEl);
+			rowEl.classList.remove("is-drop-before", "is-drop-after", "is-drop-swap");
 			const sourceIdx = Number(e.dataTransfer?.getData("text/plain") ?? "-1");
 			const targetIdx = Number(rowEl.getAttribute("data-index") ?? "-1");
 			if (Number.isNaN(sourceIdx) || Number.isNaN(targetIdx)) return;
 			if (sourceIdx === targetIdx || sourceIdx < 0 || targetIdx < 0) return;
-			void this.handleReorder(sourceIdx, targetIdx);
+			void this.handleReorder(sourceIdx, targetIdx, mode);
 		});
 	}
 
-	private async handleReorder(sourceIdx: number, targetIdx: number): Promise<void> {
+	private async handleReorder(
+		sourceIdx: number,
+		targetIdx: number,
+		mode: DropMode,
+	): Promise<void> {
 		const sourceRow = this.rows[sourceIdx];
 		const targetRow = this.rows[targetIdx];
 		if (!sourceRow || !targetRow) return;
@@ -369,16 +426,43 @@ export class OutlineView extends ItemView {
 		const sourceOrder = orderable.indexOf(sourceRow);
 		const targetOrder = orderable.indexOf(targetRow);
 		if (sourceOrder === -1 || targetOrder === -1) return;
+		if (sourceOrder === targetOrder) return;
 
-		const [moved] = orderable.splice(sourceOrder, 1);
-		if (!moved) return;
-		orderable.splice(targetOrder, 0, moved);
+		// Operate on rows + the original scenesArray entries in parallel so
+		// we preserve each entry's original shape (e.g. the `.fountain`
+		// suffix in fountain-md projects). orderable[i] corresponds to
+		// scenesArray[i] because outline-data builds rows in array order
+		// before appending orphans.
+		const entries = group.scenesArray.slice();
 
-		const newScenes = orderable.map((r) => r.sequenceName);
+		if (mode === "swap") {
+			[orderable[sourceOrder], orderable[targetOrder]] = [
+				orderable[targetOrder]!,
+				orderable[sourceOrder]!,
+			];
+			[entries[sourceOrder], entries[targetOrder]] = [
+				entries[targetOrder]!,
+				entries[sourceOrder]!,
+			];
+		} else {
+			// Gap insert (before/after target). Splice source out first, then
+			// adjust the target index for the removal shift, then insert.
+			const [movedRow] = orderable.splice(sourceOrder, 1);
+			const [movedEntry] = entries.splice(sourceOrder, 1);
+			if (!movedRow || movedEntry === undefined) return;
+			let insertAt = targetOrder;
+			if (sourceOrder < targetOrder) insertAt -= 1;
+			if (mode === "after") insertAt += 1;
+			orderable.splice(insertAt, 0, movedRow);
+			entries.splice(insertAt, 0, movedEntry);
+		}
+
 		try {
-			await writeScenesArray(this.plugin.app, group.project.indexFilePath, newScenes);
+			await writeScenesArray(this.plugin.app, group.project.indexFilePath, entries);
 			group.rows = [...orderable, ...orphans];
-			await this.refresh();
+			group.scenesArray = entries;
+			this.rows = this.groups.flatMap((g) => g.rows);
+			this.renderFromGroups();
 		} catch (e) {
 			new Notice(`Reorder failed: ${(e as Error).message}`);
 		}

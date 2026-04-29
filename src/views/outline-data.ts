@@ -237,25 +237,28 @@ function collectLocations(fm: Record<string, unknown> | undefined): string[] {
 // Extract intent excerpt + sluglines asynchronously. Used by the view to enrich
 // rows after the initial synchronous build returns. Splitting these out keeps
 // the synchronous build cheap and the file reads predictable.
+//
+// Mutates the row in place rather than returning a new object so reference
+// equality with group.rows is preserved. Replacing the reference (the previous
+// behavior) made drag-reorder fail because this.rows[i] would diverge from
+// group.rows[i], and orderable.indexOf(sourceRow) would return -1.
 
 export async function enrichRowAsync(
 	app: App,
 	row: OutlineRow,
 	maxIntentChars = 200,
 ): Promise<OutlineRow> {
-	const next = { ...row };
-
 	if (row.devNoteFile) {
 		const text = await app.vault.cachedRead(row.devNoteFile);
-		next.intentExcerpt = sliceIntent(text, maxIntentChars);
+		row.intentExcerpt = sliceIntent(text, maxIntentChars);
 	}
 
 	if (row.fountainFile) {
 		const text = await app.vault.cachedRead(row.fountainFile);
-		next.sluglines = parseSluglines(text);
+		row.sluglines = parseSluglines(text);
 	}
 
-	return next;
+	return row;
 }
 
 function sliceIntent(markdown: string, max: number): string {
