@@ -12,9 +12,14 @@ import {
 	activateCharacterMatrixView,
 } from "./views/character-matrix-view";
 import {
+	BeatSheetView,
+	activateBeatSheetView,
+} from "./views/beat-sheet-view";
+import {
 	VIEW_TYPE_DEV_NOTES,
 	VIEW_TYPE_TREATMENT,
 	VIEW_TYPE_CHARACTER_MATRIX,
+	VIEW_TYPE_BEAT_SHEET,
 } from "./views/view-types";
 import { runCreateOutlineCommand, runPromoteOutlineCommand } from "./outline/promote";
 import {
@@ -39,6 +44,11 @@ import {
 } from "./development/delete-entity";
 import { runTagSelectionAsAliasCommand } from "./development/aliases";
 import { runTagSelectionAsGroupCommand } from "./development/groups";
+import {
+	runApplyBeatTemplateCommand,
+	runAssignSceneToBeatCommand,
+	runClearBeatSheetCommand,
+} from "./development/assign-beat";
 import { isPluginEnabled, KNOWN_PLUGIN_IDS, resolveFountainMode } from "./fountain/plugin-mode";
 import { runMigrateProjectCommand } from "./fountain/migrate";
 import { runSyncSluglinesCommand } from "./fountain/sync-sluglines";
@@ -68,6 +78,10 @@ export default class FirstDraftPlugin extends Plugin {
 		this.registerView(
 			VIEW_TYPE_CHARACTER_MATRIX,
 			(leaf) => new CharacterMatrixView(leaf, this),
+		);
+		this.registerView(
+			VIEW_TYPE_BEAT_SHEET,
+			(leaf) => new BeatSheetView(leaf, this),
 		);
 		this.registerEditorSuggest(new CharacterCueSuggest(this));
 		this.addSettingTab(new FirstDraftSettingTab(this.app, this));
@@ -100,6 +114,38 @@ export default class FirstDraftPlugin extends Plugin {
 			name: "Open character matrix",
 			callback: () => {
 				void activateCharacterMatrixView(this);
+			},
+		});
+
+		this.addCommand({
+			id: "open-beat-sheet",
+			name: "Open beat sheet",
+			callback: () => {
+				void activateBeatSheetView(this);
+			},
+		});
+
+		this.addCommand({
+			id: "apply-beat-template",
+			name: "Apply beat template…",
+			callback: () => {
+				void runApplyBeatTemplateCommand(this);
+			},
+		});
+
+		this.addCommand({
+			id: "clear-beat-sheet",
+			name: "Clear beat sheet",
+			callback: () => {
+				void runClearBeatSheetCommand(this);
+			},
+		});
+
+		this.addCommand({
+			id: "assign-scene-to-beat",
+			name: "Assign scene to beat…",
+			callback: () => {
+				void runAssignSceneToBeatCommand(this);
 			},
 		});
 

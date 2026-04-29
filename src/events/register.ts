@@ -3,6 +3,7 @@ import type FirstDraftPlugin from "../main";
 import { getDevNotesView } from "../views/dev-notes-view";
 import { getTreatmentView } from "../views/treatment-view";
 import { getCharacterMatrixView } from "../views/character-matrix-view";
+import { getBeatSheetView } from "../views/beat-sheet-view";
 
 // Centralised event wiring. Listeners are attached via plugin.registerEvent so they
 // detach automatically on unload.
@@ -30,6 +31,7 @@ export function registerEventHandlers(plugin: FirstDraftPlugin): void {
 			// list. Cheap to just rebuild.
 			void getTreatmentView(plugin)?.refresh();
 			void getCharacterMatrixView(plugin)?.refresh();
+			void getBeatSheetView(plugin)?.refresh();
 		}),
 	);
 
@@ -40,6 +42,7 @@ export function registerEventHandlers(plugin: FirstDraftPlugin): void {
 			if (dev && file.path === dev.getCurrentDevNotePath()) void dev.refresh();
 			void getTreatmentView(plugin)?.refresh();
 			void getCharacterMatrixView(plugin)?.refresh();
+			void getBeatSheetView(plugin)?.refresh();
 		}),
 	);
 
@@ -59,6 +62,7 @@ export function registerEventHandlers(plugin: FirstDraftPlugin): void {
 			void getDevNotesView(plugin)?.refresh();
 			void getTreatmentView(plugin)?.refresh();
 			void getCharacterMatrixView(plugin)?.refresh();
+			void getBeatSheetView(plugin)?.refresh();
 		}),
 	);
 
@@ -67,6 +71,7 @@ export function registerEventHandlers(plugin: FirstDraftPlugin): void {
 			void getDevNotesView(plugin)?.refresh();
 			void getTreatmentView(plugin)?.refresh();
 			void getCharacterMatrixView(plugin)?.refresh();
+			void getBeatSheetView(plugin)?.refresh();
 		}),
 	);
 
@@ -76,6 +81,7 @@ export function registerEventHandlers(plugin: FirstDraftPlugin): void {
 			if (dev && file.path === dev.getCurrentDevNotePath()) void dev.refresh();
 			void getTreatmentView(plugin)?.refresh();
 			void getCharacterMatrixView(plugin)?.refresh();
+			void getBeatSheetView(plugin)?.refresh();
 		}),
 	);
 }
