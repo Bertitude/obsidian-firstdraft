@@ -72,6 +72,8 @@ import { runCreateProjectCommand } from "./projects/create-project";
 import { runCreateEpisodeCommand } from "./projects/create-episode";
 import { runInitializeSeriesRootCommand } from "./projects/init-series";
 import { runSetProjectTitleCommand } from "./projects/set-title";
+import { resolveActiveProject } from "./projects/resolver";
+import { openProjectSettingsModal } from "./settings/project-settings-modal";
 import { runMigrateSchemaFromLongformCommand } from "./projects/migrate-schema";
 import { runMigrateSequencesNamingCommand } from "./projects/migrate-sequences";
 import { runCompileManuscriptCommand } from "./firstdraft/compile";
@@ -205,6 +207,24 @@ export default class FirstDraftPlugin extends Plugin {
 			name: "Set project title",
 			callback: () => {
 				void runSetProjectTitleCommand(this);
+			},
+		});
+
+		this.addCommand({
+			id: "open-project-settings",
+			name: "Open project settings",
+			callback: () => {
+				const active = this.app.workspace.getActiveFile();
+				if (!active) {
+					new Notice("Open a file inside a project first.");
+					return;
+				}
+				const project = resolveActiveProject(active, this.scanner);
+				if (!project) {
+					new Notice("Active file isn't inside a recognised project.");
+					return;
+				}
+				openProjectSettingsModal(this, project);
 			},
 		});
 

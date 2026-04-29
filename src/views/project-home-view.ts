@@ -8,6 +8,7 @@ import { activateBeatSheetView } from "./beat-sheet-view";
 import { activateOutlineView } from "./outline-view";
 import { activateCharacterMatrixView } from "./character-matrix-view";
 import { stripId } from "../utils/stable-id";
+import { openProjectSettingsModal } from "../settings/project-settings-modal";
 import { VIEW_TYPE_PROJECT_HOME } from "./view-types";
 
 // Project Home — full-pane dashboard for a project. Single landing page that
@@ -113,11 +114,27 @@ export class ProjectHomeView extends ItemView {
 			});
 		}
 
-		const title = header.createEl("h1", {
+		// Title row: title text + cog icon for Project Settings. Cog uses
+		// mousedown (with click stopPropagation) for the same focus-eating
+		// reason as the dev-notes-panel cog and other right/left sidebar
+		// buttons — Obsidian's leaf focus model swallows the first click.
+		const titleRow = header.createDiv({ cls: "firstdraft-home-title-row" });
+		titleRow.createEl("h1", {
 			text: displayProject(data.project),
 			cls: "firstdraft-home-title",
 		});
-		void title;
+		const cog = titleRow.createEl("button", {
+			cls: "firstdraft-home-cog clickable-icon",
+			attr: { "aria-label": "Project settings" },
+		});
+		setIcon(cog, "settings");
+		const project = data.project;
+		cog.addEventListener("mousedown", (e) => {
+			if (e.button !== 0) return;
+			e.stopPropagation();
+			openProjectSettingsModal(this.plugin, project);
+		});
+		cog.addEventListener("click", (e) => e.stopPropagation());
 		const meta: string[] = [];
 		if (data.isSeries) {
 			const epCount = data.seasons.reduce((n, s) => n + s.episodes.length, 0);

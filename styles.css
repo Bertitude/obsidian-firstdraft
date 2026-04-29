@@ -840,6 +840,17 @@ body.firstdraft-active .workspace-split.mod-left-split .workspace-tab-header-con
 
 .firstdraft-home-title {
 	margin: 0 0 var(--size-4-1) 0;
+	flex: 1;
+}
+
+.firstdraft-home-title-row {
+	display: flex;
+	align-items: center;
+	gap: var(--size-2-2);
+}
+
+.firstdraft-home-cog {
+	flex-shrink: 0;
 }
 
 .firstdraft-home-meta {
