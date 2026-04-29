@@ -297,7 +297,7 @@ export class ProjectHomeView extends ItemView {
 
 		if (data.scenes.length === 0) {
 			section.createEl("p", {
-				text: "No sequences yet. Use the New sequence button or promote a treatment.",
+				text: "No sequences yet. Use the New sequence button or make sequences from a treatment.",
 				cls: "firstdraft-home-empty",
 			});
 			return;

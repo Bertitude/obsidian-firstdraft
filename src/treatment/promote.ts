@@ -9,10 +9,10 @@ import { applyId, generateUniqueId } from "../utils/stable-id";
 import { appendSceneToArray } from "../longform/scenes-array";
 import { fountainScenesArrayEntry } from "../fountain/file-detection";
 
-// "Promote treatment to scenes": parses the active treatment's H2 beats and creates
-// matching dev notes in Development/Scenes/. Auto-snapshots the treatment before
-// any changes; never overwrites existing dev notes; updates the treatment's
-// frontmatter (`status`, `promoted_at`) afterwards.
+// "Make sequences from treatment": parses the active treatment's H2 beats and
+// creates matching dev notes in Development/Sequences/. Auto-snapshots the
+// treatment before any changes; never overwrites existing dev notes; updates
+// the treatment's frontmatter (`status`, `promoted_at`) afterwards.
 
 interface PromoteSummary {
 	created: number;
@@ -167,21 +167,21 @@ class RepromoteConfirmModal extends Modal {
 
 	onOpen(): void {
 		const { contentEl } = this;
-		contentEl.createEl("h3", { text: "Re-promote treatment?" });
+		contentEl.createEl("h3", { text: "Re-make sequences?" });
 
 		const dateText =
 			typeof this.promotedAt === "string" && this.promotedAt.trim() !== ""
-				? `This treatment was promoted on ${this.promotedAt}.`
-				: "This treatment has already been promoted.";
+				? `Sequences were last made from this treatment on ${this.promotedAt}.`
+				: "Sequences have already been made from this treatment.";
 		contentEl.createEl("p", { text: dateText });
 		contentEl.createEl("p", {
-			text: "Re-running will only create scenes for beats that don't already have a dev note. Existing scenes won't be touched.",
+			text: "Re-running will only create sequences for beats that don't already have a dev note. Existing sequences won't be touched.",
 		});
 
 		const buttons = contentEl.createDiv({ cls: "modal-button-container" });
 		const cancel = buttons.createEl("button", { text: "Cancel" });
 		cancel.addEventListener("click", () => this.finish(false));
-		const ok = buttons.createEl("button", { text: "Promote", cls: "mod-cta" });
+		const ok = buttons.createEl("button", { text: "Make", cls: "mod-cta" });
 		ok.addEventListener("click", () => this.finish(true));
 	}
 

@@ -220,7 +220,7 @@ export class OutlineView extends ItemView {
 	private renderEmptyNoScenes(): void {
 		const wrap = this.contentEl.createDiv({ cls: "firstdraft-outline-empty" });
 		wrap.createEl("p", {
-			text: "No sequences yet. Start with a treatment and promote it to sequences.",
+			text: "No sequences yet. Start with a treatment and make sequences from it.",
 		});
 		const btn = wrap.createEl("button", {
 			text: "Create treatment",

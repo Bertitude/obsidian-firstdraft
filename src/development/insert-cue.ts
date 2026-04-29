@@ -138,7 +138,7 @@ class InsertPickerModal extends SuggestModal<PickerEntry> {
 		super(plugin.app);
 		this.setPlaceholder(
 			kind === "character"
-				? "Insert character cue — type to filter"
+				? "Insert character — type to filter"
 				: "Insert location — type to filter",
 		);
 	}

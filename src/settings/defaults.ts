@@ -75,9 +75,9 @@ promoted_at:
 
 # Treatment
 
-<!-- Add one H2 per beat. The H2 title becomes the scene's filename when
-     you run "FirstDraft: Promote treatment to scenes". The prose under each
-     H2 becomes the dev note's "Sequence Overview" section. -->
+<!-- Add one H2 per beat. The H2 title becomes the sequence's filename when
+     you run "FirstDraft: Make sequences from treatment". The prose under
+     each H2 becomes the dev note's "Sequence Overview" section. -->
 
 ## First beat
 What happens here. A few sentences.

@@ -351,7 +351,7 @@ promoted_at:
 >
 > When you're ready to break this into a draftable structure, you have flexible paths:
 >
-> - **Promote treatment to sequences** — each H2 below becomes a paired fountain + dev note, ready to draft.
+> - **Make sequences from treatment** — each H2 below becomes a paired script + dev note, ready to draft.
 > - **Create new sequence** — add sequences individually outside the treatment flow.
 > - **Create character / location from selection** — spin off entity notes as you write.
 >

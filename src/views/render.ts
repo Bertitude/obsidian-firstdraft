@@ -172,9 +172,9 @@ export function renderFountainSection(opts: FountainSectionOpts): void {
 	const wrap = body.createDiv({ cls: "firstdraft-create-prompt" });
 
 	if (fountainFile) {
-		wrap.createEl("p", { text: "Sequence file ready." });
+		wrap.createEl("p", { text: "Script ready." });
 		const link = wrap.createEl("a", {
-			text: "Open sequence file →",
+			text: "Open script →",
 			cls: "firstdraft-card-open",
 			attr: { href: "#" },
 		});
@@ -185,9 +185,9 @@ export function renderFountainSection(opts: FountainSectionOpts): void {
 		return;
 	}
 
-	wrap.createEl("p", { text: "No sequence file yet. Plan here, draft when ready." });
+	wrap.createEl("p", { text: "No sequence script file yet. Plan here, draft when ready." });
 	const btn = wrap.createEl("button", {
-		text: "Create sequence file",
+		text: "Create script",
 		cls: "mod-cta",
 	});
 	btn.addEventListener("mousedown", (e) => {
@@ -227,7 +227,7 @@ async function createSequenceFile(
 		const finalPath = normalizePath(`${fountainPath}/${filename}`);
 
 		if (plugin.app.vault.getAbstractFileByPath(finalPath)) {
-			new Notice("Sequence file already exists.");
+			new Notice("Script already exists.");
 			return;
 		}
 
@@ -248,11 +248,11 @@ async function createSequenceFile(
 
 		new Notice(
 			configChanged
-				? `Created ${DEFAULT_SCENE_FOLDER_NAME}/ folder and added scene to project.`
-				: "Sequence file created and added to project.",
+				? `Created ${DEFAULT_SCENE_FOLDER_NAME}/ folder and added script to project.`
+				: "Script created and added to project.",
 		);
 	} catch (e) {
-		new Notice(`Could not create scene file: ${(e as Error).message}`);
+		new Notice(`Could not create script: ${(e as Error).message}`);
 	}
 }
 

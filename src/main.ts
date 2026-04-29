@@ -359,7 +359,7 @@ export default class FirstDraftPlugin extends Plugin {
 
 		this.addCommand({
 			id: "promote-outline",
-			name: "Promote treatment to sequences",
+			name: "Make sequences from treatment",
 			callback: () => {
 				void runPromoteTreatmentCommand(this);
 			},
@@ -431,7 +431,7 @@ export default class FirstDraftPlugin extends Plugin {
 
 		this.addCommand({
 			id: "insert-character-cue",
-			name: "Insert character cue",
+			name: "Insert character",
 			callback: () => {
 				runInsertCharacterCueCommand(this);
 			},
@@ -439,7 +439,7 @@ export default class FirstDraftPlugin extends Plugin {
 
 		this.addCommand({
 			id: "insert-location-reference",
-			name: "Insert location reference",
+			name: "Insert location",
 			callback: () => {
 				runInsertLocationReferenceCommand(this);
 			},

@@ -330,7 +330,7 @@ promoted_at:
 
 # ${episodeCode} — ${title} — Treatment
 
-> **Welcome to your episode treatment.** Capture this episode's beats here. Each H2 below becomes a sequence when you run "Promote treatment to sequences".
+> **Welcome to your episode treatment.** Capture this episode's beats here. Each H2 below becomes a sequence when you run "Make sequences from treatment".
 >
 > Delete this welcome when you're ready.
 
