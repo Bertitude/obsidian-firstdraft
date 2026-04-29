@@ -14,6 +14,7 @@ import { resolveProjectSettings } from "../settings/resolve";
 import type { ProjectMeta } from "../types";
 import { sanitizeFilename, toTitleCase } from "../utils/sanitize";
 import { linkifyEntity, type DevEntity, type LinkifyResult } from "./linkify";
+import { openCreateCharacterModal } from "./create-character-modal";
 
 // Selection-to-entity creation. Highlight a name in any markdown editor, run
 // the command (or pick from the right-click menu), and FirstDraft scaffolds a
@@ -40,7 +41,7 @@ export function runCreateCharacterFromSelection(
 	plugin: FirstDraftPlugin,
 	editor: Editor,
 ): void {
-	void createEntityFromSelection(plugin, editor, "character");
+	void createCharacterFromSelection(plugin, editor);
 }
 
 export function runCreateLocationFromSelection(
@@ -48,6 +49,73 @@ export function runCreateLocationFromSelection(
 	editor: Editor,
 ): void {
 	void createEntityFromSelection(plugin, editor, "location");
+}
+
+// Palette command "Create character" — opens the modal with no pre-fill.
+// Always lands at series level when active project is a tv-episode with a
+// series root above; otherwise at the active project's own Characters/.
+export async function runCreateCharacterCommand(
+	plugin: FirstDraftPlugin,
+): Promise<void> {
+	const result = await openCreateCharacterModal(plugin, "");
+	if (!result) return;
+	await plugin.app.workspace.getLeaf(false).openFile(result.file);
+	new Notice(`Created character: ${result.displayName}`);
+}
+
+// Selection-create for characters routes through the modal (with name
+// pre-filled from the selection). Skips the legacy parent-detection /
+// version-of-X flow — those branches were location-shaped patterns ("Marcus'
+// House - Kitchen" → sub-area of Marcus' House) that aren't useful for
+// characters. Existing-name conflict bails inside the modal with a notice.
+async function createCharacterFromSelection(
+	plugin: FirstDraftPlugin,
+	editor: Editor,
+): Promise<void> {
+	const raw = editor.getSelection();
+	if (!raw || raw.trim() === "") {
+		new Notice("Select a character name first.");
+		return;
+	}
+	// Capture selection range upfront — see Phase 4b note about awaits losing
+	// the live selection.
+	const selFrom = editor.getCursor("from");
+	const selTo = editor.getCursor("to");
+
+	const file = plugin.app.workspace.getActiveFile();
+	const project = file ? resolveActiveProject(file, plugin.scanner) : null;
+	if (!project) {
+		new Notice("Open a file inside a project first.");
+		return;
+	}
+
+	const cfg = resolveProjectSettings(project, plugin.settings);
+	const sanitized = sanitizeFilename(raw.trim(), cfg.filenameReplacementChar);
+	if (!sanitized) {
+		new Notice("Selection has no valid filename characters.");
+		return;
+	}
+	const defaultName = toTitleCase(sanitized);
+
+	const result = await openCreateCharacterModal(plugin, defaultName);
+	if (!result) return;
+
+	// Replace the captured selection with a link to the canonical file.
+	if (cfg.replaceSelectionWithLink && file) {
+		const linkTarget = relativePathFromEditor(file.path, result.file.path);
+		editor.replaceRange(`[${result.displayName}](${linkTarget})`, selFrom, selTo);
+	}
+
+	await plugin.app.workspace.getLeaf(false).openFile(result.file);
+	new Notice(`Created character: ${result.displayName}`);
+
+	const entity: DevEntity = { name: result.displayName, canonicalFilePath: result.file.path };
+	if (cfg.autoLinkifyOnCreate) {
+		const linkifyResult = await linkifyEntity(plugin, project, entity);
+		notifyLinkifyResult(linkifyResult);
+	} else {
+		offerLinkify(plugin, project, entity);
+	}
 }
 
 async function createEntityFromSelection(

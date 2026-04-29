@@ -1,5 +1,4 @@
 import {
-	App,
 	Editor,
 	EditorPosition,
 	EditorSuggest,
@@ -7,8 +6,6 @@ import {
 	EditorSuggestTriggerInfo,
 	Notice,
 	TFile,
-	TFolder,
-	normalizePath,
 } from "obsidian";
 import type FirstDraftPlugin from "../main";
 import { resolveActiveProject } from "../projects/resolver";
@@ -16,6 +13,7 @@ import { resolveProjectSettings } from "../settings/resolve";
 import { buildExpandedRoster, sequenceDevNotePath } from "../views/lookups";
 import { linkifyEntity, type DevEntity } from "../development/linkify";
 import { sanitizeFilename, toTitleCase } from "../utils/sanitize";
+import { openCreateCharacterModal } from "../development/create-character-modal";
 import { isFountainFile } from "../fountain/file-detection";
 
 // Suggests character names when the cursor is on a character-cue line in a
@@ -181,37 +179,42 @@ export class CharacterCueSuggest extends EditorSuggest<SuggestEntry> {
 			return;
 		}
 		const folderCasing = toTitleCase(sanitized);
-		const charactersFolder = normalizePath(
-			`${project.projectRootPath}/${cfg.developmentFolder}/${cfg.charactersSubfolder}/${folderCasing}`,
-		);
-		const docPath = normalizePath(`${charactersFolder}/${folderCasing}.md`);
+
+		// Route through the unified Create Character modal so inline cue
+		// creation gets the same series-level placement + roles YAML as the
+		// palette and selection-create paths. Modal opens with the cue's
+		// title-cased name pre-filled; user picks the level.
+		const result = await openCreateCharacterModal(this.plugin, folderCasing);
+		if (!result) {
+			// User cancelled the modal — replace the cue text but skip the
+			// character-creation side effects. Cue is still authored in the
+			// fountain even if the user backed out of formalising the entity.
+			ctx.editor.replaceRange(`${name}\n`, ctx.start, ctx.end);
+			ctx.editor.setCursor({ line: ctx.start.line + 1, ch: 0 });
+			return;
+		}
 
 		try {
-			await ensureFolderExists(this.plugin.app, charactersFolder);
-			const isNewFile = !this.plugin.app.vault.getAbstractFileByPath(docPath);
-			if (isNewFile) {
-				await this.plugin.app.vault.create(docPath, cfg.characterNoteTemplate);
-			}
-
 			ctx.editor.replaceRange(`${name}\n`, ctx.start, ctx.end);
 			ctx.editor.setCursor({ line: ctx.start.line + 1, ch: 0 });
 
-			await this.appendCharacterToDevNote(ctx.file, folderCasing);
-			new Notice(`Created character: ${folderCasing}`);
+			await this.appendCharacterToDevNote(ctx.file, result.displayName);
+			new Notice(`Created character: ${result.displayName}`);
 
 			// Honor autoLinkifyOnCreate so newly-created characters get the same
 			// link sweep as the Create-from-selection / Tag-as-alias flows.
-			if (isNewFile) {
-				const entity: DevEntity = { name: folderCasing, canonicalFilePath: docPath };
-				if (cfg.autoLinkifyOnCreate) {
-					const result = await linkifyEntity(this.plugin, project, entity);
-					if (result.totalReplacements > 0) {
-						new Notice(
-							`Linkified ${result.totalReplacements} mention(s) across ${result.filesModified} file(s).`,
-						);
-					} else {
-						new Notice("No mentions to linkify.");
-					}
+			const entity: DevEntity = {
+				name: result.displayName,
+				canonicalFilePath: result.file.path,
+			};
+			if (cfg.autoLinkifyOnCreate) {
+				const linkifyResult = await linkifyEntity(this.plugin, project, entity);
+				if (linkifyResult.totalReplacements > 0) {
+					new Notice(
+						`Linkified ${linkifyResult.totalReplacements} mention(s) across ${linkifyResult.filesModified} file(s).`,
+					);
+				} else {
+					new Notice("No mentions to linkify.");
 				}
 			}
 		} catch (e) {
@@ -240,9 +243,3 @@ export class CharacterCueSuggest extends EditorSuggest<SuggestEntry> {
 	}
 }
 
-async function ensureFolderExists(app: App, path: string): Promise<void> {
-	const existing = app.vault.getAbstractFileByPath(path);
-	if (existing instanceof TFolder) return;
-	if (existing) throw new Error(`Path exists but is not a folder: ${path}`);
-	await app.vault.createFolder(path);
-}

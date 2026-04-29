@@ -43,6 +43,7 @@ import {
 } from "./versioning/snapshot-commands";
 import { CharacterCueSuggest } from "./autocomplete/character-suggest";
 import {
+	runCreateCharacterCommand,
 	runCreateCharacterFromSelection,
 	runCreateLocationFromSelection,
 	runLinkifyAllCommand,
@@ -393,6 +394,14 @@ export default class FirstDraftPlugin extends Plugin {
 			name: "Restore file from snapshot",
 			callback: () => {
 				void runRestoreFromSnapshotCommand(this);
+			},
+		});
+
+		this.addCommand({
+			id: "create-character",
+			name: "Create character",
+			callback: () => {
+				void runCreateCharacterCommand(this);
 			},
 		});
 
