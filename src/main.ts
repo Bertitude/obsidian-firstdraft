@@ -68,6 +68,8 @@ import { runMigrateStableIdsCommand } from "./development/migrate-stable-ids";
 import { runCreateNewSceneCommand } from "./development/create-scene";
 import { toggleProjectLock, clearProjectLockOnUnload } from "./project-lock/lock";
 import { runOpenFirstDraftProjectCommand } from "./projects/open-project";
+import { runCreateProjectCommand } from "./projects/create-project";
+import { runSetProjectTitleCommand } from "./projects/set-title";
 import { runMigrateSchemaFromLongformCommand } from "./projects/migrate-schema";
 import { runMigrateSequencesNamingCommand } from "./projects/migrate-sequences";
 import { runCompileManuscriptCommand } from "./firstdraft/compile";
@@ -185,6 +187,22 @@ export default class FirstDraftPlugin extends Plugin {
 			name: "Open FirstDraft project",
 			callback: () => {
 				runOpenFirstDraftProjectCommand(this);
+			},
+		});
+
+		this.addCommand({
+			id: "create-firstdraft-project",
+			name: "Create FirstDraft project",
+			callback: () => {
+				runCreateProjectCommand(this);
+			},
+		});
+
+		this.addCommand({
+			id: "set-project-title",
+			name: "Set project title",
+			callback: () => {
+				void runSetProjectTitleCommand(this);
 			},
 		});
 
