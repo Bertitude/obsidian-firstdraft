@@ -49,6 +49,8 @@ import {
 	runAssignSceneToBeatCommand,
 	runClearBeatSheetCommand,
 } from "./development/assign-beat";
+import { runSplitSceneCommand } from "./development/split-scene";
+import { runMergeSceneCommand } from "./development/merge-scenes";
 import { isPluginEnabled, KNOWN_PLUGIN_IDS, resolveFountainMode } from "./fountain/plugin-mode";
 import { runMigrateProjectCommand } from "./fountain/migrate";
 import { runSyncSluglinesCommand } from "./fountain/sync-sluglines";
@@ -146,6 +148,22 @@ export default class FirstDraftPlugin extends Plugin {
 			name: "Assign scene to beat…",
 			callback: () => {
 				void runAssignSceneToBeatCommand(this);
+			},
+		});
+
+		this.addCommand({
+			id: "split-scene-at-cursor",
+			name: "Split scene at cursor",
+			editorCallback: (editor) => {
+				void runSplitSceneCommand(this, editor);
+			},
+		});
+
+		this.addCommand({
+			id: "merge-scene-with",
+			name: "Merge scene with…",
+			callback: () => {
+				void runMergeSceneCommand(this);
 			},
 		});
 
