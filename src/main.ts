@@ -25,6 +25,7 @@ import {
 	activateProjectNotesViewSplit,
 } from "./views/project-notes-view";
 import { runCreateProjectNoteCommand } from "./development/create-project-note";
+import { openFirstDraftPalette } from "./views/firstdraft-palette";
 import {
 	VIEW_TYPE_DEV_NOTES,
 	VIEW_TYPE_OUTLINE,
@@ -163,6 +164,30 @@ export default class FirstDraftPlugin extends Plugin {
 			callback: () => {
 				void runCreateProjectNoteCommand(this);
 			},
+		});
+
+		this.addCommand({
+			id: "open-firstdraft-palette",
+			name: "Open FirstDraft palette",
+			callback: () => {
+				openFirstDraftPalette(this);
+			},
+		});
+
+		// Intercept Cmd/Ctrl+P while First Draft Mode is active so the keystroke
+		// opens the FirstDraft-only palette instead of the global one. Default
+		// palette stays available outside FDM for cross-plugin access.
+		this.registerDomEvent(document, "keydown", (e: KeyboardEvent) => {
+			if (!this.settings.global.firstDraftMode.active) return;
+			if (e.key !== "p" && e.key !== "P") return;
+			const isMod = navigator.platform.includes("Mac") ? e.metaKey : e.ctrlKey;
+			if (!isMod) return;
+			// Don't hijack Cmd+Shift+P (some plugins use it for variants) or
+			// Cmd+Alt+P. Only the bare Cmd/Ctrl+P stroke maps to our palette.
+			if (e.shiftKey || e.altKey) return;
+			e.preventDefault();
+			e.stopPropagation();
+			openFirstDraftPalette(this);
 		});
 
 		this.addCommand({
