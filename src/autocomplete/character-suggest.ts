@@ -14,6 +14,7 @@ import type FirstDraftPlugin from "../main";
 import { resolveActiveProject } from "../projects/resolver";
 import { resolveProjectSettings } from "../settings/resolve";
 import { buildExpandedRoster, sceneDevNotePath } from "../views/lookups";
+import { linkifyEntity, type DevEntity } from "../development/linkify";
 import { sanitizeFilename, toTitleCase } from "../utils/sanitize";
 import { isFountainFile } from "../fountain/file-detection";
 
@@ -187,7 +188,8 @@ export class CharacterCueSuggest extends EditorSuggest<SuggestEntry> {
 
 		try {
 			await ensureFolderExists(this.plugin.app, charactersFolder);
-			if (!this.plugin.app.vault.getAbstractFileByPath(docPath)) {
+			const isNewFile = !this.plugin.app.vault.getAbstractFileByPath(docPath);
+			if (isNewFile) {
 				await this.plugin.app.vault.create(docPath, cfg.characterNoteTemplate);
 			}
 
@@ -196,6 +198,22 @@ export class CharacterCueSuggest extends EditorSuggest<SuggestEntry> {
 
 			await this.appendCharacterToDevNote(ctx.file, folderCasing);
 			new Notice(`Created character: ${folderCasing}`);
+
+			// Honor autoLinkifyOnCreate so newly-created characters get the same
+			// link sweep as the Create-from-selection / Tag-as-alias flows.
+			if (isNewFile) {
+				const entity: DevEntity = { name: folderCasing, canonicalFilePath: docPath };
+				if (cfg.autoLinkifyOnCreate) {
+					const result = await linkifyEntity(this.plugin, project, entity);
+					if (result.totalReplacements > 0) {
+						new Notice(
+							`Linkified ${result.totalReplacements} mention(s) across ${result.filesModified} file(s).`,
+						);
+					} else {
+						new Notice("No mentions to linkify.");
+					}
+				}
+			}
 		} catch (e) {
 			new Notice(`Could not create character: ${(e as Error).message}`);
 		}

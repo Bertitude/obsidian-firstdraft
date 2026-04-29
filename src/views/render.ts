@@ -7,6 +7,7 @@ import {
 	type DevNoteRef,
 	findCharacter,
 	findLocation,
+	resolveCharacterByNameOrAlias,
 } from "./lookups";
 import { readScenesArray, writeScenesArray } from "../longform/scenes-array";
 import { fountainFilename, fountainScenesArrayEntry } from "../fountain/file-detection";
@@ -303,11 +304,34 @@ export function renderCharactersSection(opts: CharactersSectionOpts): void {
 	const list = container.createDiv({ cls: "firstdraft-cards" });
 
 	const fields = cfg.characterCardFields;
-	const byName = new Map(roster.map((e) => [e.name.toUpperCase(), e]));
+
+	// Resolve each dev-note name to a canonical roster entry (folding aliases).
+	// Multiple dev-note entries pointing at the same canonical character produce
+	// one card; we render an "unresolved" card if no roster match exists so the
+	// user still sees the name was recorded.
+	const seen = new Map<string, CharacterEntry | null>(); // canonical name → entry
+	const orderedKeys: string[] = [];
+	const unresolvedNames: string[] = [];
 
 	for (const name of characterNames) {
-		const entry = byName.get(name.toUpperCase()) ?? null;
-		renderCharacterCard(list, plugin, name, entry, fields);
+		const canonical = resolveCharacterByNameOrAlias(roster, name);
+		if (!canonical) {
+			unresolvedNames.push(name);
+			continue;
+		}
+		if (!seen.has(canonical.name)) {
+			seen.set(canonical.name, canonical);
+			orderedKeys.push(canonical.name);
+		}
+	}
+
+	for (const key of orderedKeys) {
+		const entry = seen.get(key) ?? null;
+		if (!entry) continue;
+		renderCharacterCard(list, plugin, entry.name, entry, fields);
+	}
+	for (const name of unresolvedNames) {
+		renderCharacterCard(list, plugin, name, null, fields);
 	}
 }
 
@@ -328,6 +352,20 @@ function renderCharacterCard(
 			cls: "firstdraft-card-missing",
 		});
 		return;
+	}
+
+	// Phase 4g — group/alias subtitles before the field list.
+	if (entry.isGroup && entry.groupMembers.length > 0) {
+		body.createEl("p", {
+			text: `Members: ${entry.groupMembers.join(", ")}`,
+			cls: "firstdraft-card-subtitle",
+		});
+	}
+	if (!entry.isGroup && entry.aliases.length > 0) {
+		body.createEl("p", {
+			text: `Also: ${entry.aliases.join(", ")}`,
+			cls: "firstdraft-card-subtitle",
+		});
 	}
 
 	const fm = plugin.app.metadataCache.getFileCache(entry.canonicalFile)?.frontmatter ?? {};

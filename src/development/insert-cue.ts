@@ -5,6 +5,7 @@ import { resolveActiveProject } from "../projects/resolver";
 import { resolveProjectSettings } from "../settings/resolve";
 import { buildExpandedRoster, characterRoster, locationRoster, sceneDevNotePath } from "../views/lookups";
 import { sanitizeFilename, toTitleCase } from "../utils/sanitize";
+import { linkifyEntity, type DevEntity } from "./linkify";
 
 // Plugin-mode-independent picker commands. These work in any editor regardless
 // of which fountain plugin is active — they don't rely on EditorSuggest. The
@@ -198,7 +199,8 @@ class InsertPickerModal extends SuggestModal<PickerEntry> {
 
 		try {
 			await ensureFolderExists(this.plugin.app, folderPath);
-			if (!this.plugin.app.vault.getAbstractFileByPath(docPath)) {
+			const isNewFile = !this.plugin.app.vault.getAbstractFileByPath(docPath);
+			if (isNewFile) {
 				const template =
 					this.kind === "character"
 						? cfg.characterNoteTemplate
@@ -208,6 +210,20 @@ class InsertPickerModal extends SuggestModal<PickerEntry> {
 			this.insertAtCursor(name);
 			await this.syncToDevNote(folderCasing);
 			new Notice(`Created ${this.kind}: ${folderCasing}`);
+
+			if (isNewFile) {
+				const entity: DevEntity = { name: folderCasing, canonicalFilePath: docPath };
+				if (cfg.autoLinkifyOnCreate) {
+					const result = await linkifyEntity(this.plugin, this.project, entity);
+					if (result.totalReplacements > 0) {
+						new Notice(
+							`Linkified ${result.totalReplacements} mention(s) across ${result.filesModified} file(s).`,
+						);
+					} else {
+						new Notice("No mentions to linkify.");
+					}
+				}
+			}
 		} catch (e) {
 			new Notice(`Could not create ${this.kind}: ${(e as Error).message}`);
 		}

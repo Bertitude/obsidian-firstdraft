@@ -1,4 +1,4 @@
-import { App, Notice, TFile, TFolder, normalizePath } from "obsidian";
+import { App, MarkdownView, Notice, TFile, TFolder, normalizePath } from "obsidian";
 import type FirstDraftPlugin from "../main";
 import type { ProjectMeta } from "../types";
 import { resolveProjectSettings } from "../settings/resolve";
@@ -43,6 +43,12 @@ export async function linkifyEntity(
 	entity: DevEntity,
 ): Promise<LinkifyResult> {
 	const candidates = collectCandidateFiles(plugin.app, project, entity.canonicalFilePath);
+
+	// Push any unsaved editor content to disk before scanning. If the user just
+	// typed a mention into an open dev note and then triggered a create flow,
+	// vault.read would otherwise return stale disk content and miss the match.
+	await flushOpenEditors(plugin, candidates);
+
 	const result: LinkifyResult = { filesScanned: 0, filesModified: 0, totalReplacements: 0 };
 
 	for (const file of candidates) {
@@ -60,6 +66,22 @@ export async function linkifyEntity(
 	}
 
 	return result;
+}
+
+// Save any open MarkdownView whose file is in the candidate set. Without this,
+// vault.read sees the on-disk version (stale) when the user has unsaved edits.
+async function flushOpenEditors(
+	plugin: FirstDraftPlugin,
+	candidates: TFile[],
+): Promise<void> {
+	const paths = new Set(candidates.map((f) => f.path));
+	const leaves = plugin.app.workspace.getLeavesOfType("markdown");
+	for (const leaf of leaves) {
+		const view = leaf.view;
+		if (!(view instanceof MarkdownView)) continue;
+		if (!view.file || !paths.has(view.file.path)) continue;
+		await view.save();
+	}
 }
 
 export async function linkifyAllEntities(
@@ -150,6 +172,20 @@ function collectFromEntityFolder(app: App, path: string, out: DevEntity[]): void
 		) as TFile | undefined;
 		if (!canonical) continue;
 		out.push({ name: child.name, canonicalFilePath: canonical.path });
+
+		// Phase 4g — emit a virtual entity per alias declared in frontmatter,
+		// all pointing to the same canonical file. Mentions of the alias text
+		// linkify to the canonical character's note.
+		const fm = app.metadataCache.getFileCache(canonical)?.frontmatter as
+			| Record<string, unknown>
+			| undefined;
+		const aliases = Array.isArray(fm?.aliases) ? (fm?.aliases as unknown[]) : [];
+		for (const alias of aliases) {
+			if (typeof alias !== "string") continue;
+			const trimmed = alias.trim();
+			if (trimmed === "") continue;
+			out.push({ name: trimmed, canonicalFilePath: canonical.path });
+		}
 	}
 }
 

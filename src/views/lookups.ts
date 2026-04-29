@@ -24,6 +24,11 @@ export interface CharacterEntry {
 	folderName: string; // original folder casing
 	folder: TFolder;
 	canonicalFile: TFile | null;
+	// Phase 4g — alias and group metadata. Populated from the canonical file's
+	// frontmatter at roster build time. Empty arrays / false when absent.
+	aliases: string[]; // alias names as authored (preserves casing)
+	isGroup: boolean; // true if frontmatter `type: group`
+	groupMembers: string[]; // names of member characters (group's `members:` array)
 }
 
 export interface LocationEntry {
@@ -131,11 +136,17 @@ export function characterRoster(
 				const name = file.basename.toUpperCase();
 				if (seen.has(name)) continue;
 				seen.add(name);
+				const fm = app.metadataCache.getFileCache(file)?.frontmatter as
+					| Record<string, unknown>
+					| undefined;
 				out.push({
 					name,
 					folderName: folder.name,
 					folder,
 					canonicalFile: file,
+					aliases: collectStringArray(fm?.aliases),
+					isGroup: typeof fm?.type === "string" && fm.type.toLowerCase() === "group",
+					groupMembers: collectStringArray(fm?.members),
 				});
 			}
 		}
@@ -216,7 +227,35 @@ export function findLocation(
 	return null;
 }
 
+// Phase 4g — Resolve a name (canonical OR alias, any casing) to the canonical
+// character entry. Returns null if no match.
+export function resolveCharacterByNameOrAlias(
+	roster: CharacterEntry[],
+	name: string,
+): CharacterEntry | null {
+	const target = name.trim().toUpperCase();
+	if (target === "") return null;
+	for (const entry of roster) {
+		if (entry.name === target) return entry;
+	}
+	for (const entry of roster) {
+		for (const alias of entry.aliases) {
+			if (alias.trim().toUpperCase() === target) return entry;
+		}
+	}
+	return null;
+}
+
 // ── internals ────────────────────────────────────────────────────────────
+
+function collectStringArray(v: unknown): string[] {
+	if (!Array.isArray(v)) return [];
+	const out: string[] = [];
+	for (const item of v) {
+		if (typeof item === "string" && item.trim() !== "") out.push(item.trim());
+	}
+	return out;
+}
 
 function devSubfolder(
 	app: App,
@@ -244,6 +283,10 @@ function lookupFile(vaultLike: unknown, path: string): TFile | null {
 export interface AutocompleteRosterEntry {
 	name: string; // uppercase form, used for matching and cue insertion
 	folderCasing: string | null; // folder basename if exists, else null
+	// Phase 4g — set when this entry is an alias (virtual roster entry that
+	// resolves back to a canonical character). The folder name of the canonical
+	// character. null for canonical entries.
+	canonicalFolder?: string | null;
 }
 
 const SCENE_HEADING_RE_FOR_CUES = /^(INT|EXT|INT\.\/EXT|I\/E)[.\s]/i;
@@ -296,6 +339,17 @@ export async function buildExpandedRoster(
 
 	for (const entry of characterRoster(app, project, cfg)) {
 		map.set(entry.name, { name: entry.name, folderCasing: entry.folderName });
+		// Phase 4g — emit a virtual roster entry per alias, pointing back to
+		// the canonical character via canonicalFolder.
+		for (const alias of entry.aliases) {
+			const aliasKey = alias.trim().toUpperCase();
+			if (aliasKey === "" || map.has(aliasKey)) continue;
+			map.set(aliasKey, {
+				name: aliasKey,
+				folderCasing: alias.trim(),
+				canonicalFolder: entry.folderName,
+			});
+		}
 	}
 
 	if (devNoteFile) {

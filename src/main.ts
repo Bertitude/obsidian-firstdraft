@@ -29,9 +29,13 @@ import {
 	runDeleteCharacterCommand,
 	runDeleteLocationCommand,
 } from "./development/delete-entity";
+import { runTagSelectionAsAliasCommand } from "./development/aliases";
+import { runTagSelectionAsGroupCommand } from "./development/groups";
 import { isPluginEnabled, KNOWN_PLUGIN_IDS, resolveFountainMode } from "./fountain/plugin-mode";
 import { runMigrateProjectCommand } from "./fountain/migrate";
 import { runSyncSluglinesCommand } from "./fountain/sync-sluglines";
+import { runSyncCharactersCommand } from "./fountain/sync-characters";
+import { runSyncCharactersFromProseCommand } from "./fountain/sync-characters-prose";
 import { installRenameSync } from "./rename-sync/handler";
 import { runSyncScreenplayScenesCommand } from "./longform/sync-scenes";
 import { toggleFirstDraftMode, exitFirstDraftModeSync } from "./firstdraft-mode/toggle";
@@ -184,6 +188,22 @@ export default class FirstDraftPlugin extends Plugin {
 		});
 
 		this.addCommand({
+			id: "tag-selection-as-alias",
+			name: "Tag selection as alias of…",
+			editorCallback: (editor) => {
+				runTagSelectionAsAliasCommand(this, editor);
+			},
+		});
+
+		this.addCommand({
+			id: "tag-selection-as-group",
+			name: "Tag selection as group…",
+			editorCallback: (editor) => {
+				runTagSelectionAsGroupCommand(this, editor);
+			},
+		});
+
+		this.addCommand({
 			id: "sync-screenplay-scenes",
 			name: "Sync screenplay scenes to project",
 			callback: () => {
@@ -215,6 +235,22 @@ export default class FirstDraftPlugin extends Plugin {
 			},
 		});
 
+		this.addCommand({
+			id: "sync-characters-from-fountain",
+			name: "Sync characters from fountain to dev note",
+			callback: () => {
+				void runSyncCharactersCommand(this);
+			},
+		});
+
+		this.addCommand({
+			id: "sync-characters-from-prose",
+			name: "Sync characters from dev note prose",
+			callback: () => {
+				void runSyncCharactersFromProseCommand(this);
+			},
+		});
+
 		this.registerEvent(
 			this.app.workspace.on("editor-menu", (menu, editor) => {
 				if (!editor.getSelection().trim()) return;
@@ -229,6 +265,18 @@ export default class FirstDraftPlugin extends Plugin {
 						.setTitle("Create location from selection")
 						.setIcon("map-pin")
 						.onClick(() => runCreateLocationFromSelection(this, editor)),
+				);
+				menu.addItem((item) =>
+					item
+						.setTitle("Tag selection as alias of…")
+						.setIcon("tag")
+						.onClick(() => runTagSelectionAsAliasCommand(this, editor)),
+				);
+				menu.addItem((item) =>
+					item
+						.setTitle("Tag selection as group…")
+						.setIcon("users")
+						.onClick(() => runTagSelectionAsGroupCommand(this, editor)),
 				);
 			}),
 		);
