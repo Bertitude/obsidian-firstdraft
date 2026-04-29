@@ -79,27 +79,40 @@ export class ProjectScanner {
 		const block = readProjectBlock(fm);
 		if (!block) return null;
 
-		// Read sequenceFolder (new) with fallback to sceneFolder (legacy from
-		// the Longform-shape era). Same key inside whichever project block.
-		const folderRaw = block.sequenceFolder ?? block.sceneFolder;
-		if (typeof folderRaw !== "string" || folderRaw.trim() === "") return null;
-		const sequenceFolder = folderRaw;
-
 		const parent = file.parent;
 		if (!parent) return null;
 
 		const projectRootPath = parent.path;
-		const sequenceFolderPath = normalizePath(`${projectRootPath}/${sequenceFolder}`);
 
-		const series = typeof fm.series === "string" && fm.series.trim() !== "" ? fm.series : undefined;
-		const projectType: ProjectType = series ? "tv-episode" : "feature";
+		// Project kind: explicit `firstdraft.kind` field wins. For backward
+		// compat, if kind isn't set: presence of `series:` => tv-episode,
+		// absence => feature. Series projects are NEW and only detected via
+		// the explicit `kind: series` marker.
+		const kindRaw = typeof block.kind === "string" ? block.kind.trim().toLowerCase() : "";
+		const seriesField =
+			typeof fm.series === "string" && fm.series.trim() !== "" ? fm.series : undefined;
+
+		let projectType: ProjectType;
+		if (kindRaw === "series") projectType = "series";
+		else if (kindRaw === "episode" || seriesField) projectType = "tv-episode";
+		else projectType = "feature";
+
+		// Series projects don't require sequenceFolder — they have no
+		// sequences directly (those live in episodes). Feature/episode
+		// projects still require it.
+		let sequenceFolderPath = "";
+		if (projectType !== "series") {
+			const folderRaw = block.sequenceFolder ?? block.sceneFolder;
+			if (typeof folderRaw !== "string" || folderRaw.trim() === "") return null;
+			sequenceFolderPath = normalizePath(`${projectRootPath}/${folderRaw}`);
+		}
 
 		const seriesDevelopmentPath =
 			projectType === "tv-episode" ? this.findSeriesDevelopment(parent) : null;
 
 		return {
 			projectType,
-			series,
+			series: seriesField,
 			season: stringField(fm.season),
 			episode: stringField(fm.episode),
 			title: stringField(fm.title),

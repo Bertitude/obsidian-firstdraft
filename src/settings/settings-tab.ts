@@ -264,6 +264,36 @@ export class FirstDraftSettingTab extends PluginSettingTab {
 						await this.save();
 					}),
 			);
+
+		new Setting(containerEl)
+			.setName("Seasons folder name")
+			.setDesc(
+				"Folder name used to group episodes inside a series project. UK convention is \"Series\"; US is \"Seasons\".",
+			)
+			.addText((t) =>
+				t
+					.setPlaceholder(DEFAULT_SETTINGS.global.seasonsFolder)
+					.setValue(g.seasonsFolder)
+					.onChange(async (v) => {
+						g.seasonsFolder = v.trim() || DEFAULT_SETTINGS.global.seasonsFolder;
+						await this.save();
+					}),
+			);
+
+		new Setting(containerEl)
+			.setName("Episode naming template")
+			.setDesc(
+				"Template for new episode folder names. Tokens: {episode} (full code, e.g. S01E01), {title}, {season} (parsed from {episode}), {productionCode}, {date}.",
+			)
+			.addText((t) =>
+				t
+					.setPlaceholder(DEFAULT_SETTINGS.global.episodeNameTemplate)
+					.setValue(g.episodeNameTemplate)
+					.onChange(async (v) => {
+						g.episodeNameTemplate = v.trim() || DEFAULT_SETTINGS.global.episodeNameTemplate;
+						await this.save();
+					}),
+			);
 	}
 
 	private renderTemplates(): void {

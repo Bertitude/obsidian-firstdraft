@@ -75,21 +75,13 @@ class CreateProjectModal extends Modal {
 		new Setting(contentEl)
 			.setName("Project type")
 			.setDesc(
-				"Feature for a single screenplay; Series for a TV/episodic project. Series scaffolding is coming with the series-as-project refactor.",
+				"Feature for a single screenplay; Series for a TV/episodic project. Series produces a show-level shell — add episodes via 'Create episode' once it's open.",
 			)
 			.addDropdown((d) => {
 				d.addOption("feature", "Feature");
-				d.addOption("series", "Series (coming soon)");
+				d.addOption("series", "Series");
 				d.setValue(this.kind);
 				d.onChange((value) => {
-					if (value === "series") {
-						new Notice(
-							"Series creation is coming with the series-as-project refactor. Sticking with Feature for now.",
-							5000,
-						);
-						d.setValue("feature");
-						return;
-					}
 					this.kind = value as ProjectKind;
 					// Keep the parent folder in sync with the type's default
 					// unless the user has typed their own value.
@@ -142,13 +134,6 @@ class CreateProjectModal extends Modal {
 			new Notice("Title is required.");
 			return;
 		}
-		// Defensive: even though the dropdown bounces Series back to Feature,
-		// guard the create path so a future entry point can't accidentally
-		// scaffold a half-implemented series project.
-		if (this.kind !== "feature") {
-			new Notice("Series scaffolding isn't implemented yet — coming with the series-as-project refactor.");
-			return;
-		}
 		const folderName = sanitizeFilename(title, cfg.filenameReplacementChar);
 		if (!folderName) {
 			new Notice("Title has no valid filename characters.");
@@ -165,18 +150,32 @@ class CreateProjectModal extends Modal {
 		}
 
 		try {
-			const treatmentFile = await scaffoldProject(
-				this.plugin.app,
-				projectPath,
-				title,
-				cfg,
-			);
+			let openTarget: TFile;
+			if (this.kind === "series") {
+				openTarget = await scaffoldSeriesProject(
+					this.plugin.app,
+					projectPath,
+					title,
+					cfg,
+				);
+			} else {
+				openTarget = await scaffoldProject(
+					this.plugin.app,
+					projectPath,
+					title,
+					cfg,
+				);
+			}
 			this.close();
-			// Open the welcome treatment so the user lands in something inviting,
+			// Open the welcome target so the user lands in something inviting,
 			// then activate Project Home so navigation surfaces are ready.
-			await this.plugin.app.workspace.getLeaf(false).openFile(treatmentFile);
+			await this.plugin.app.workspace.getLeaf(false).openFile(openTarget);
 			void activateProjectHomeView(this.plugin);
-			new Notice(`Created project "${title}".`);
+			new Notice(
+				this.kind === "series"
+					? `Created series "${title}". Add your first episode with "Create episode".`
+					: `Created project "${title}".`,
+			);
 		} catch (e) {
 			new Notice(`Create failed: ${(e as Error).message}`);
 		}
@@ -194,6 +193,44 @@ function computeDefaultParent(cfg: GlobalConfig, kind: ProjectKind): string {
 		kind === "feature" ? cfg.defaultFeatureSubfolder : cfg.defaultSeriesSubfolder;
 	if (sub.trim() !== "") segments.push(sub.trim());
 	return segments.join("/");
+}
+
+// Scaffolds a series-level project. Lighter than a feature/episode scaffold:
+// no Sequences/ folder (sequences live in episodes), no Treatment.md (the
+// series-level "show bible" treatment is a separate future feature). Just
+// the Index.md with `kind: series` + a series-level Development tree for
+// recurring characters/locations/references and a Notes folder.
+async function scaffoldSeriesProject(
+	app: App,
+	projectPath: string,
+	title: string,
+	cfg: GlobalConfig,
+): Promise<TFile> {
+	await ensureFolder(app, projectPath);
+	await ensureFolder(app, `${projectPath}/${cfg.developmentFolder}`);
+	await ensureFolder(
+		app,
+		`${projectPath}/${cfg.developmentFolder}/${cfg.charactersSubfolder}`,
+	);
+	await ensureFolder(
+		app,
+		`${projectPath}/${cfg.developmentFolder}/${cfg.locationsSubfolder}`,
+	);
+	await ensureFolder(
+		app,
+		`${projectPath}/${cfg.developmentFolder}/${cfg.referencesSubfolder}`,
+	);
+	await ensureFolder(
+		app,
+		`${projectPath}/${cfg.developmentFolder}/${cfg.notesSubfolder}`,
+	);
+	// Pre-create the seasons folder so the user sees the structure even before
+	// they add their first episode.
+	await ensureFolder(app, `${projectPath}/${cfg.seasonsFolder}`);
+
+	const indexPath = normalizePath(`${projectPath}/Index.md`);
+	const index = await app.vault.create(indexPath, seriesIndexBody(title, cfg));
+	return index;
 }
 
 async function scaffoldProject(
@@ -256,6 +293,29 @@ firstdraft:
 
 # ${title}
 
+`;
+}
+
+function seriesIndexBody(title: string, cfg: GlobalConfig): string {
+	return `---
+title: ${title}
+firstdraft:
+  kind: series
+---
+
+# ${title}
+
+> **Welcome to your FirstDraft series.** This Index is the show-level
+> root for "${title}". Episodes live as sub-projects under
+> \`${cfg.seasonsFolder}/\` — open this series in Project Home and use
+> **Create episode** to scaffold each one.
+>
+> Use the series-level \`${cfg.developmentFolder}/\` tree for recurring
+> material that spans the show: regular characters, recurring locations,
+> world-building references, and series-wide notes. Each episode keeps
+> its own development tree for episode-specific work.
+>
+> Delete this welcome when you're ready.
 `;
 }
 

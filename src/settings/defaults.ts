@@ -95,6 +95,13 @@ export const DEFAULT_SETTINGS: FirstDraftSettings = {
 		locationsSubfolder: "Locations",
 		referencesSubfolder: "References",
 		notesSubfolder: "Notes",
+		seasonsFolder: "Seasons",
+		// Episode naming template — used by the "Create episode" command to
+		// compose episode folder names from user-supplied tokens. Available
+		// tokens: {episode} (full code, e.g. S01E01), {title}, {season}
+		// (parsed from {episode}, e.g. 01), {productionCode}, {date}.
+		// Default produces "S01E01 - Pilot".
+		episodeNameTemplate: "{episode} - {title}",
 		defaultProjectParent: "",
 		defaultFeatureSubfolder: "",
 		defaultSeriesSubfolder: "",

@@ -10,9 +10,14 @@ import { activateProjectHomeView } from "../views/project-home-view";
 // sidebar so navigation lands ready-to-go.
 
 export function runOpenFirstDraftProjectCommand(plugin: FirstDraftPlugin): void {
-	const projects = [...plugin.scanner.projects.values()];
+	// Top-level picker shows series + features only. Individual episodes are
+	// reached through their series project's Project Home (Episodes section).
+	// This keeps the picker uncluttered for shows with many episodes.
+	const projects = [...plugin.scanner.projects.values()].filter(
+		(p) => p.projectType !== "tv-episode",
+	);
 	if (projects.length === 0) {
-		new Notice("No FirstDraft projects detected. Add `longform:` frontmatter to a project's Index.md.");
+		new Notice("No FirstDraft projects detected. Use 'Create FirstDraft project' or add `firstdraft:` frontmatter to a project's Index.md.");
 		return;
 	}
 	new ProjectPickerModal(plugin, projects).open();
@@ -41,7 +46,12 @@ class ProjectPickerModal extends SuggestModal<ProjectMeta> {
 
 	renderSuggestion(value: ProjectMeta, el: HTMLElement): void {
 		el.createDiv({ text: displayProject(value) });
-		const kind = value.projectType === "tv-episode" ? "TV episode" : "Feature";
+		const kind =
+			value.projectType === "series"
+				? "Series"
+				: value.projectType === "tv-episode"
+					? "TV episode"
+					: "Feature";
 		el.createEl("small", {
 			text: `${kind} · ${value.projectRootPath}`,
 			cls: "firstdraft-suggestion-meta",
@@ -82,10 +92,10 @@ function displayProject(p: ProjectMeta): string {
 			? `${series} ${ep}${t ? " — " + t : ""}`.trim()
 			: t || lastSegment(p.projectRootPath);
 	}
-	// Feature: prefer frontmatter title, fall back to the project's folder name
-	// (NOT the full path — that's where the picker was showing the entire
-	// "Project Development/Film/Fraidy Fraidy" string for projects without a
-	// title set in frontmatter).
+	// Feature and series: prefer frontmatter title, fall back to the
+	// project's folder name (NOT the full path — that's where the picker
+	// was showing the entire "Project Development/Film/Fraidy Fraidy"
+	// string for projects without a title set in frontmatter).
 	return p.title ?? lastSegment(p.projectRootPath);
 }
 

@@ -77,11 +77,21 @@ class ProjectSettingsModal extends Modal {
 		this.folderRow("Locations subfolder", "locationsSubfolder", g.locationsSubfolder);
 		this.folderRow("References subfolder", "referencesSubfolder", g.referencesSubfolder);
 		this.folderRow("Notes subfolder", "notesSubfolder", g.notesSubfolder);
+		this.folderRow("Seasons folder (series projects)", "seasonsFolder", g.seasonsFolder);
+		this.folderRow("Episode naming template", "episodeNameTemplate", g.episodeNameTemplate);
 	}
 
 	private folderRow(
 		label: string,
-		field: "developmentFolder" | "charactersSubfolder" | "sequencesSubfolder" | "locationsSubfolder" | "referencesSubfolder" | "notesSubfolder",
+		field:
+			| "developmentFolder"
+			| "charactersSubfolder"
+			| "sequencesSubfolder"
+			| "locationsSubfolder"
+			| "referencesSubfolder"
+			| "notesSubfolder"
+			| "seasonsFolder"
+			| "episodeNameTemplate",
 		globalValue: string,
 	): void {
 		const setting = new Setting(this.contentEl).setName(label);

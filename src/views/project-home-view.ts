@@ -59,9 +59,26 @@ export class ProjectHomeView extends ItemView {
 		}
 
 		const cfg = resolveProjectSettings(this.project, this.plugin.settings);
-		this.data = buildProjectHome(this.plugin.app, this.project, cfg);
+		this.data = buildProjectHome(
+			this.plugin.app,
+			this.project,
+			cfg,
+			this.plugin.scanner,
+		);
 
 		this.renderHeader(this.data);
+
+		if (this.data.isSeries) {
+			// Series view: episodes section instead of scenes; quick actions
+			// adapted (no scene-level commands). Characters/locations still
+			// surface for series-level recurring entities.
+			this.renderSeriesQuickActions(this.data);
+			this.renderEpisodesSection(this.data);
+			this.renderCharactersSection(this.data);
+			this.renderLocationsSection(this.data);
+			return;
+		}
+
 		this.renderQuickActions(this.data);
 		this.renderScenesSection(this.data);
 		this.renderCharactersSection(this.data);
@@ -72,14 +89,46 @@ export class ProjectHomeView extends ItemView {
 
 	private renderHeader(data: ProjectHomeData): void {
 		const header = this.contentEl.createDiv({ cls: "firstdraft-home-header" });
+
+		// "← Back to series" for tv-episode projects whose scanner knows
+		// about a parent series root. Lives above the title so it reads as
+		// breadcrumb navigation.
+		if (data.parentSeries) {
+			const parent = data.parentSeries;
+			const back = header.createEl("a", {
+				cls: "firstdraft-home-breadcrumb",
+				text: `← ${parent.title ?? lastSegment(parent.projectRootPath)}`,
+				attr: { href: "#" },
+			});
+			back.addEventListener("click", (e) => {
+				e.preventDefault();
+				const indexFile = this.plugin.app.vault.getAbstractFileByPath(
+					parent.indexFilePath,
+				);
+				if (indexFile && (indexFile as TFile).extension === "md") {
+					void this.plugin.app.workspace
+						.getLeaf(false)
+						.openFile(indexFile as TFile);
+				}
+			});
+		}
+
 		const title = header.createEl("h1", {
 			text: displayProject(data.project),
 			cls: "firstdraft-home-title",
 		});
 		void title;
 		const meta: string[] = [];
-		meta.push(data.isTv ? "TV episode" : "Feature");
-		meta.push(`${data.scenes.length} scene${data.scenes.length === 1 ? "" : "s"}`);
+		if (data.isSeries) {
+			const epCount = data.seasons.reduce((n, s) => n + s.episodes.length, 0);
+			meta.push("Series");
+			meta.push(`${epCount} episode${epCount === 1 ? "" : "s"}`);
+		} else {
+			meta.push(data.isTv ? "TV episode" : "Feature");
+			meta.push(
+				`${data.scenes.length} scene${data.scenes.length === 1 ? "" : "s"}`,
+			);
+		}
 		meta.push(
 			`${data.characters.length} character${data.characters.length === 1 ? "" : "s"}`,
 		);
@@ -93,6 +142,60 @@ export class ProjectHomeView extends ItemView {
 	}
 
 	// ── quick actions ───────────────────────────────────────────────────────
+
+	private renderSeriesQuickActions(data: ProjectHomeData): void {
+		void data;
+		const wrap = this.contentEl.createDiv({ cls: "firstdraft-home-actions" });
+		this.actionButton(wrap, "plus-square", "Create episode", () => {
+			void this.runCommand("create-episode");
+		});
+	}
+
+	private renderEpisodesSection(data: ProjectHomeData): void {
+		const section = this.contentEl.createDiv({ cls: "firstdraft-home-section" });
+		section.createEl("h2", {
+			text: "Episodes",
+			cls: "firstdraft-home-section-title",
+		});
+
+		if (data.seasons.length === 0) {
+			section.createEl("p", {
+				text: "No episodes yet. Run \"Create episode\" above to add the first one.",
+				cls: "firstdraft-home-empty",
+			});
+			return;
+		}
+
+		for (const season of data.seasons) {
+			const seasonEl = section.createDiv({ cls: "firstdraft-home-season" });
+			seasonEl.createEl("h3", {
+				text: season.seasonKey,
+				cls: "firstdraft-home-season-title",
+			});
+			const list = seasonEl.createDiv({ cls: "firstdraft-home-list" });
+			for (const ep of season.episodes) {
+				const item = list.createDiv({ cls: "firstdraft-home-list-item is-clickable" });
+				const numCell = item.createDiv({ cls: "firstdraft-home-list-num" });
+				numCell.setText(ep.episodeCode || "—");
+
+				const main = item.createDiv({ cls: "firstdraft-home-list-main" });
+				const title = main.createDiv({ cls: "firstdraft-home-list-title" });
+				title.setText(ep.title);
+
+				item.addEventListener("mousedown", (e) => {
+					if (e.button !== 0) return;
+					const f = this.plugin.app.vault.getAbstractFileByPath(
+						ep.indexFilePath,
+					);
+					if (f && (f as TFile).extension === "md") {
+						void this.plugin.app.workspace
+							.getLeaf(false)
+							.openFile(f as TFile);
+					}
+				});
+			}
+		}
+	}
 
 	private renderQuickActions(data: ProjectHomeData): void {
 		const wrap = this.contentEl.createDiv({ cls: "firstdraft-home-actions" });

@@ -16,6 +16,8 @@ export interface GlobalConfig {
 	locationsSubfolder: string;
 	referencesSubfolder: string;
 	notesSubfolder: string;
+	seasonsFolder: string;
+	episodeNameTemplate: string;
 	defaultProjectParent: string;
 	defaultFeatureSubfolder: string;
 	defaultSeriesSubfolder: string;
@@ -42,6 +44,8 @@ export interface ProjectConfig {
 	locationsSubfolder?: string;
 	referencesSubfolder?: string;
 	notesSubfolder?: string;
+	seasonsFolder?: string;
+	episodeNameTemplate?: string;
 	noteTag?: string;
 	characterCardFields?: string[];
 	sceneNoteTemplate?: string;
@@ -60,7 +64,15 @@ export interface FirstDraftModeConfig {
 
 // ─── Runtime project metadata ──────────────────────────────────────────────
 
-export type ProjectType = "feature" | "tv-episode";
+// Three project kinds:
+//   - "feature":    standalone screenplay; has its own Sequences/ folder.
+//   - "tv-episode": single episode; has its own Sequences/ folder; nests
+//                   under a series project.
+//   - "series":     show-level container; has no Sequences/ folder of its
+//                   own; episodes are auto-discovered as sub-projects under
+//                   the series root. Identified by `firstdraft.kind: series`
+//                   in frontmatter.
+export type ProjectType = "feature" | "tv-episode" | "series";
 
 export interface ProjectMeta {
 	projectType: ProjectType;
@@ -72,6 +84,8 @@ export interface ProjectMeta {
 	status?: string;
 	indexFilePath: string;
 	projectRootPath: string;
+	// Empty string for series projects (they have no sequences directly —
+	// sequences live in episodes).
 	sequenceFolderPath: string;
 	seriesDevelopmentPath: string | null;
 }

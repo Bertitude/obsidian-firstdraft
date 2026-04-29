@@ -69,6 +69,8 @@ import { runCreateNewSceneCommand } from "./development/create-scene";
 import { toggleProjectLock, clearProjectLockOnUnload } from "./project-lock/lock";
 import { runOpenFirstDraftProjectCommand } from "./projects/open-project";
 import { runCreateProjectCommand } from "./projects/create-project";
+import { runCreateEpisodeCommand } from "./projects/create-episode";
+import { runInitializeSeriesRootCommand } from "./projects/init-series";
 import { runSetProjectTitleCommand } from "./projects/set-title";
 import { runMigrateSchemaFromLongformCommand } from "./projects/migrate-schema";
 import { runMigrateSequencesNamingCommand } from "./projects/migrate-sequences";
@@ -203,6 +205,22 @@ export default class FirstDraftPlugin extends Plugin {
 			name: "Set project title",
 			callback: () => {
 				void runSetProjectTitleCommand(this);
+			},
+		});
+
+		this.addCommand({
+			id: "create-episode",
+			name: "Create episode",
+			callback: () => {
+				runCreateEpisodeCommand(this);
+			},
+		});
+
+		this.addCommand({
+			id: "initialize-series-root",
+			name: "Initialize series root",
+			callback: () => {
+				runInitializeSeriesRootCommand(this);
 			},
 		});
 

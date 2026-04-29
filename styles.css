@@ -847,6 +847,32 @@ body.firstdraft-active .workspace-split.mod-left-split .workspace-tab-header-con
 	font-size: var(--font-ui-smaller);
 }
 
+/* Breadcrumb link "← Series Title" shown above the title on episode pages
+   that have a parent series project. Subtle, anchor-styled. */
+.firstdraft-home-breadcrumb {
+	display: inline-block;
+	margin-bottom: var(--size-2-2);
+	font-size: var(--font-ui-smaller);
+	color: var(--text-muted);
+	text-decoration: none;
+}
+.firstdraft-home-breadcrumb:hover {
+	color: var(--text-accent);
+	text-decoration: underline;
+}
+
+/* Season group inside the Episodes section on a series Project Home. */
+.firstdraft-home-season {
+	margin-top: var(--size-4-2);
+}
+.firstdraft-home-season-title {
+	font-size: var(--font-ui-small);
+	text-transform: uppercase;
+	letter-spacing: 0.04em;
+	color: var(--text-muted);
+	margin: 0 0 var(--size-2-2) 0;
+}
+
 .firstdraft-home-actions {
 	display: flex;
 	flex-wrap: wrap;
