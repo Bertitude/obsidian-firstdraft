@@ -2,6 +2,7 @@ import { TFile } from "obsidian";
 import type FirstDraftPlugin from "../main";
 import { getDevNotesView } from "../views/dev-notes-view";
 import { getTreatmentView } from "../views/treatment-view";
+import { getCharacterMatrixView } from "../views/character-matrix-view";
 
 // Centralised event wiring. Listeners are attached via plugin.registerEvent so they
 // detach automatically on unload.
@@ -28,6 +29,7 @@ export function registerEventHandlers(plugin: FirstDraftPlugin): void {
 			// project's scenes folder, or to the project's Index.md, can affect the
 			// list. Cheap to just rebuild.
 			void getTreatmentView(plugin)?.refresh();
+			void getCharacterMatrixView(plugin)?.refresh();
 		}),
 	);
 
@@ -37,6 +39,7 @@ export function registerEventHandlers(plugin: FirstDraftPlugin): void {
 			const dev = getDevNotesView(plugin);
 			if (dev && file.path === dev.getCurrentDevNotePath()) void dev.refresh();
 			void getTreatmentView(plugin)?.refresh();
+			void getCharacterMatrixView(plugin)?.refresh();
 		}),
 	);
 
@@ -55,6 +58,7 @@ export function registerEventHandlers(plugin: FirstDraftPlugin): void {
 			}
 			void getDevNotesView(plugin)?.refresh();
 			void getTreatmentView(plugin)?.refresh();
+			void getCharacterMatrixView(plugin)?.refresh();
 		}),
 	);
 
@@ -62,6 +66,7 @@ export function registerEventHandlers(plugin: FirstDraftPlugin): void {
 		app.workspace.on("active-leaf-change", () => {
 			void getDevNotesView(plugin)?.refresh();
 			void getTreatmentView(plugin)?.refresh();
+			void getCharacterMatrixView(plugin)?.refresh();
 		}),
 	);
 
@@ -70,6 +75,7 @@ export function registerEventHandlers(plugin: FirstDraftPlugin): void {
 			const dev = getDevNotesView(plugin);
 			if (dev && file.path === dev.getCurrentDevNotePath()) void dev.refresh();
 			void getTreatmentView(plugin)?.refresh();
+			void getCharacterMatrixView(plugin)?.refresh();
 		}),
 	);
 }

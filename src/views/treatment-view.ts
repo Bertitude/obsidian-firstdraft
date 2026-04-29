@@ -2,6 +2,7 @@ import { ItemView, Notice, WorkspaceLeaf, setIcon } from "obsidian";
 import type FirstDraftPlugin from "../main";
 import type { ProjectMeta } from "../types";
 import { resolveActiveProject } from "../projects/resolver";
+import { findSiblingEpisodes } from "../projects/episodes";
 import { resolveProjectSettings } from "../settings/resolve";
 import { writeScenesArray } from "../longform/scenes-array";
 import { buildTreatmentData, enrichRowAsync, type TreatmentRow } from "./treatment-data";
@@ -369,26 +370,6 @@ function displayProject(p: ProjectMeta): string {
 function basenameOf(path: string): string {
 	const seg = path.split("/").pop() ?? path;
 	return seg.replace(/\.md$/, "");
-}
-
-// Find all episodes in the same series + same season as the given project.
-// Returned in episode-code order (S01E01, S01E02, …) for stable rendering.
-function findSiblingEpisodes(plugin: FirstDraftPlugin, project: ProjectMeta): ProjectMeta[] {
-	if (project.projectType !== "tv-episode" || !project.series || !project.season) {
-		return [project];
-	}
-	const matches: ProjectMeta[] = [];
-	for (const meta of plugin.scanner.projects.values()) {
-		if (
-			meta.projectType === "tv-episode" &&
-			meta.series === project.series &&
-			meta.season === project.season
-		) {
-			matches.push(meta);
-		}
-	}
-	matches.sort((a, b) => (a.episode ?? "").localeCompare(b.episode ?? ""));
-	return matches.length > 0 ? matches : [project];
 }
 
 // Imports the create-outline command lazily to keep the view module's import

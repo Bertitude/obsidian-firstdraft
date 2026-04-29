@@ -483,3 +483,177 @@ body.firstdraft-hide-statusbar .status-bar {
 body.firstdraft-hide-left-sidebar .workspace-split.mod-left-split {
 	display: none !important;
 }
+
+/* Character matrix (Phase 3b) */
+.firstdraft-matrix {
+	padding: var(--size-4-3);
+}
+
+.firstdraft-matrix-header {
+	margin-bottom: var(--size-4-3);
+}
+
+.firstdraft-matrix-header-top {
+	display: flex;
+	align-items: center;
+	gap: var(--size-4-3);
+	flex-wrap: wrap;
+}
+
+.firstdraft-matrix-header-top h2 {
+	margin: 0;
+	flex: 1 1 auto;
+}
+
+.firstdraft-matrix-controls {
+	display: flex;
+	gap: var(--size-4-2);
+	align-items: center;
+}
+
+.firstdraft-matrix-toggle {
+	display: inline-flex;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: var(--radius-s);
+	overflow: hidden;
+}
+
+.firstdraft-matrix-toggle-btn {
+	background: transparent;
+	border: none;
+	padding: var(--size-4-1) var(--size-4-2);
+	font-size: var(--font-ui-smaller);
+	cursor: pointer;
+	color: var(--text-muted);
+}
+
+.firstdraft-matrix-toggle-btn.is-active {
+	background: var(--interactive-accent);
+	color: var(--text-on-accent);
+}
+
+.firstdraft-matrix-subtitle {
+	color: var(--text-muted);
+	font-size: var(--font-ui-smaller);
+	margin-top: var(--size-4-1);
+}
+
+/* Character × scenes list (two-column rows) */
+.firstdraft-matrix-list-wrap {
+	border: 1px solid var(--background-modifier-border);
+	border-radius: var(--radius-s);
+	overflow: hidden;
+}
+
+.firstdraft-matrix-row {
+	display: grid;
+	grid-template-columns: minmax(180px, 240px) 1fr;
+	gap: var(--size-4-3);
+	padding: var(--size-4-2) var(--size-4-3);
+	border-bottom: 1px solid var(--background-modifier-border);
+	align-items: start;
+}
+
+.firstdraft-matrix-row:last-child {
+	border-bottom: none;
+}
+
+.firstdraft-matrix-row-name {
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+	padding: var(--size-4-1) var(--size-4-2);
+	border-radius: var(--radius-s);
+}
+
+.firstdraft-matrix-row-name.is-group .firstdraft-matrix-row-title {
+	color: var(--interactive-accent);
+}
+
+.firstdraft-matrix-row-title {
+	font-weight: 600;
+}
+
+.firstdraft-matrix-row-meta,
+.firstdraft-matrix-row-count {
+	color: var(--text-muted);
+	font-size: var(--font-ui-smaller);
+}
+
+.firstdraft-matrix-row-scenes {
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+}
+
+.firstdraft-matrix-row-scene {
+	display: grid;
+	grid-template-columns: 1fr auto;
+	gap: var(--size-4-3);
+	padding: 2px var(--size-4-2);
+	border-radius: var(--radius-s);
+	align-items: baseline;
+}
+
+.firstdraft-matrix-row-scene-name {
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.firstdraft-matrix-row-scene-count {
+	color: var(--text-muted);
+	font-variant-numeric: tabular-nums;
+	font-size: var(--font-ui-smaller);
+	min-width: 2.5ch;
+	text-align: right;
+}
+
+.firstdraft-matrix-row-scene-count.is-empty {
+	color: var(--text-faint);
+}
+
+.firstdraft-matrix-header-row {
+	background: var(--background-secondary);
+	font-weight: 600;
+	color: var(--text-muted);
+	font-size: var(--font-ui-smaller);
+	text-transform: uppercase;
+	letter-spacing: 0.05em;
+	padding: var(--size-4-1) var(--size-4-3);
+}
+
+.firstdraft-matrix-col-header {
+	padding: 0 var(--size-4-2);
+}
+
+.firstdraft-matrix-row-episode {
+	color: var(--text-muted);
+	font-size: var(--font-ui-smaller);
+	margin-top: var(--size-4-2);
+	font-weight: 600;
+}
+
+.firstdraft-matrix-row-episode:first-child {
+	margin-top: 0;
+}
+
+.firstdraft-matrix-row-empty {
+	color: var(--text-faint);
+	font-style: italic;
+	padding: 2px var(--size-4-2);
+}
+
+.firstdraft-matrix-list-wrap .is-clickable {
+	cursor: pointer;
+}
+
+.firstdraft-matrix-list-wrap .is-clickable:hover {
+	background: var(--background-modifier-hover);
+}
+
+.firstdraft-matrix-empty {
+	padding: var(--size-4-4);
+	color: var(--text-muted);
+	text-align: center;
+}

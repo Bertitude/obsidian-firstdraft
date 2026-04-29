@@ -7,7 +7,15 @@ import { ProjectScanner } from "./projects/scanner";
 import { registerEventHandlers } from "./events/register";
 import { DevNotesView, activateDevNotesView } from "./views/dev-notes-view";
 import { TreatmentView, activateTreatmentView } from "./views/treatment-view";
-import { VIEW_TYPE_DEV_NOTES, VIEW_TYPE_TREATMENT } from "./views/view-types";
+import {
+	CharacterMatrixView,
+	activateCharacterMatrixView,
+} from "./views/character-matrix-view";
+import {
+	VIEW_TYPE_DEV_NOTES,
+	VIEW_TYPE_TREATMENT,
+	VIEW_TYPE_CHARACTER_MATRIX,
+} from "./views/view-types";
 import { runCreateOutlineCommand, runPromoteOutlineCommand } from "./outline/promote";
 import {
 	runSnapshotFileCommand,
@@ -57,6 +65,10 @@ export default class FirstDraftPlugin extends Plugin {
 
 		this.registerView(VIEW_TYPE_DEV_NOTES, (leaf) => new DevNotesView(leaf, this));
 		this.registerView(VIEW_TYPE_TREATMENT, (leaf) => new TreatmentView(leaf, this));
+		this.registerView(
+			VIEW_TYPE_CHARACTER_MATRIX,
+			(leaf) => new CharacterMatrixView(leaf, this),
+		);
 		this.registerEditorSuggest(new CharacterCueSuggest(this));
 		this.addSettingTab(new FirstDraftSettingTab(this.app, this));
 		registerEventHandlers(this);
@@ -80,6 +92,14 @@ export default class FirstDraftPlugin extends Plugin {
 			name: "Open treatment view",
 			callback: () => {
 				void activateTreatmentView(this);
+			},
+		});
+
+		this.addCommand({
+			id: "open-character-matrix",
+			name: "Open character matrix",
+			callback: () => {
+				void activateCharacterMatrixView(this);
 			},
 		});
 
