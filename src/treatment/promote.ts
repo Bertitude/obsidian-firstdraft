@@ -6,6 +6,8 @@ import { resolveProjectSettings } from "../settings/resolve";
 import { snapshotFile, todayLabel } from "../versioning/snapshot";
 import { parseTreatmentBeats, titleToFilename } from "./parser";
 import { applyId, generateUniqueId } from "../utils/stable-id";
+import { appendSceneToArray } from "../longform/scenes-array";
+import { fountainScenesArrayEntry } from "../fountain/file-detection";
 
 // "Promote treatment to scenes": parses the active treatment's H2 beats and creates
 // matching dev notes in Development/Scenes/. Auto-snapshots the treatment before
@@ -96,6 +98,12 @@ async function promoteTreatment(
 		await plugin.app.fileManager.processFrontMatter(created, (fm: Record<string, unknown>) => {
 			fm.id = id;
 		});
+		// Add to sequences: immediately so the scene is in the project as soon
+		// as it's promoted — even before the user creates the paired fountain.
+		// Idempotent; rename-sync's auto-inject on fountain create is a no-op
+		// if the entry already exists.
+		const arrayEntry = fountainScenesArrayEntry(finalName, cfg.fountainFileFormat);
+		await appendSceneToArray(plugin.app, project.indexFilePath, arrayEntry);
 		summary.created += 1;
 		summary.createdPaths.push(path);
 	}

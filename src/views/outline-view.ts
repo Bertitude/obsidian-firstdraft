@@ -4,7 +4,12 @@ import type { ProjectMeta } from "../types";
 import { resolveActiveProject } from "../projects/resolver";
 import { findSiblingEpisodes } from "../projects/episodes";
 import { resolveProjectSettings } from "../settings/resolve";
-import { writeScenesArray } from "../longform/scenes-array";
+import {
+	appendSceneToArray,
+	removeSceneFromArray,
+	writeScenesArray,
+} from "../longform/scenes-array";
+import { fountainScenesArrayEntry } from "../fountain/file-detection";
 import { stripId } from "../utils/stable-id";
 import { buildOutlineData, enrichRowAsync, type OutlineRow } from "./outline-data";
 import { VIEW_TYPE_OUTLINE } from "./view-types";
@@ -196,7 +201,10 @@ export class OutlineView extends ItemView {
 	private renderRow(parent: HTMLElement, row: OutlineRow, index: number): void {
 		const el = parent.createDiv({
 			cls: "firstdraft-outline-row" + (row.orphan ? " is-orphan" : "") + (row.missing ? " is-missing" : ""),
-			attr: { draggable: "true", "data-index": String(index) },
+			// Orphans aren't in the project's sequence order, so dragging them
+			// is meaningless until they're added. Only orderable rows are
+			// draggable — the "Add to project" pill is the path in.
+			attr: { draggable: row.orphan ? "false" : "true", "data-index": String(index) },
 		});
 
 		const handle = el.createDiv({ cls: "firstdraft-outline-handle", attr: { "aria-label": "Drag to reorder" } });
@@ -208,8 +216,18 @@ export class OutlineView extends ItemView {
 		title.setText(stripId(row.sequenceName));
 
 		if (row.orphan) {
-			const tag = title.createSpan({ cls: "firstdraft-outline-tag", text: "not in script order" });
-			void tag;
+			// Clickable "Add to project" affordance — the static label was
+			// previously the source of confusion ("orphan rows can't be
+			// reordered"). Now the same pill IS the path to make it orderable.
+			const addBtn = title.createEl("button", {
+				cls: "firstdraft-outline-tag is-action",
+				text: "Not in project · Add",
+				attr: { "aria-label": "Add this sequence to the project" },
+			});
+			addBtn.addEventListener("click", (e) => {
+				e.stopPropagation();
+				void this.handleAddToProject(row);
+			});
 		} else if (row.missing) {
 			const tag = title.createSpan({ cls: "firstdraft-outline-tag is-warning", text: "no files" });
 			void tag;
@@ -275,6 +293,21 @@ export class OutlineView extends ItemView {
 				void this.plugin.app.workspace.getLeaf(false).openFile(devNote);
 			});
 		}
+		// "Remove from project" — the symmetric opt-out for non-orphan rows.
+		// Files stay on disk; the sequence drops out of script order and
+		// won't compile. Reversible via the row's "Add to project" pill once
+		// it falls into orphan land. Skipped for orphans (already out).
+		if (!row.orphan) {
+			const btn = parent.createEl("button", {
+				cls: "clickable-icon firstdraft-outline-action",
+				attr: { "aria-label": "Remove from project (keeps files on disk)" },
+			});
+			setIcon(btn, "eye-off");
+			btn.addEventListener("click", (e) => {
+				e.stopPropagation();
+				void this.handleRemoveFromProject(row);
+			});
+		}
 	}
 
 	private openPrimary(row: OutlineRow): void {
@@ -318,10 +351,10 @@ export class OutlineView extends ItemView {
 		const sourceRow = this.rows[sourceIdx];
 		const targetRow = this.rows[targetIdx];
 		if (!sourceRow || !targetRow) return;
-		if (sourceRow.orphan || targetRow.orphan) {
-			new Notice("Orphan rows can't be reordered until they're added to the project.");
-			return;
-		}
+		// Defensive: orphan rows are draggable=false now, so dragstart can't
+		// fire on them. If a stale event somehow arrives (e.g. mid-refresh),
+		// just bail instead of writing nonsense to scenes:.
+		if (sourceRow.orphan || targetRow.orphan) return;
 		if (sourceRow.indexFilePath !== targetRow.indexFilePath) {
 			new Notice("Cross-episode reordering isn't supported yet.");
 			return;
@@ -348,6 +381,55 @@ export class OutlineView extends ItemView {
 			await this.refresh();
 		} catch (e) {
 			new Notice(`Reorder failed: ${(e as Error).message}`);
+		}
+	}
+
+	// Add an orphan row to the project's sequences: array. Uses the project's
+	// configured fountain format so the entry shape matches what the auto-inject
+	// handler would produce on fountain creation. The new entry lands at the
+	// bottom of the orderable list; the user can drag-reorder from there.
+	private async handleAddToProject(row: OutlineRow): Promise<void> {
+		const group = this.groups.find(
+			(g) => g.project.indexFilePath === row.indexFilePath,
+		);
+		if (!group) return;
+		const cfg = resolveProjectSettings(group.project, this.plugin.settings);
+		const entry = fountainScenesArrayEntry(row.sequenceName, cfg.fountainFileFormat);
+		try {
+			await appendSceneToArray(
+				this.plugin.app,
+				group.project.indexFilePath,
+				entry,
+			);
+			new Notice(`Added "${stripId(row.sequenceName)}" to the project.`);
+			await this.refresh();
+		} catch (e) {
+			new Notice(`Add failed: ${(e as Error).message}`);
+		}
+	}
+
+	// Symmetric opt-out: drop the sequence from the project's array without
+	// touching files on disk. The row falls into orphan-land at the bottom of
+	// the view; reversible via the "Add to project" pill that appears there.
+	// No confirm modal — the action is non-destructive and reversible in two
+	// clicks.
+	private async handleRemoveFromProject(row: OutlineRow): Promise<void> {
+		const group = this.groups.find(
+			(g) => g.project.indexFilePath === row.indexFilePath,
+		);
+		if (!group) return;
+		const cfg = resolveProjectSettings(group.project, this.plugin.settings);
+		const entry = fountainScenesArrayEntry(row.sequenceName, cfg.fountainFileFormat);
+		try {
+			await removeSceneFromArray(
+				this.plugin.app,
+				group.project.indexFilePath,
+				entry,
+			);
+			new Notice(`Removed "${stripId(row.sequenceName)}" from the project.`);
+			await this.refresh();
+		} catch (e) {
+			new Notice(`Remove failed: ${(e as Error).message}`);
 		}
 	}
 }

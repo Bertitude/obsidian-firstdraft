@@ -6,15 +6,18 @@ import { resolveProjectSettings } from "../settings/resolve";
 import { sanitizeFilename } from "../utils/sanitize";
 import { applyId, generateId } from "../utils/stable-id";
 import { promptForLabel } from "../versioning/prompt";
+import { appendSceneToArray } from "../longform/scenes-array";
+import { fountainScenesArrayEntry } from "../fountain/file-detection";
 
 // Create a fresh dev note for a new scene. Dev-note-first workflow: this
 // creates only the dev note; the paired fountain comes later via the
 // "Create scene file" button in the dev notes panel.
 //
 // Auto-generates a stable ID; dev note filename and `id:` frontmatter both
-// carry it. The scene is NOT added to Longform `scenes:` here — that array
-// tracks fountains, and the auto-inject handler will add the entry when the
-// user creates the fountain side.
+// carry it. The scene is added to the project's sequences: array immediately
+// so it's part of the project from the moment it's created — not just when
+// the fountain side is later authored. Rename-sync's auto-inject on fountain
+// create stays idempotent (no-op if entry already exists).
 
 export async function runCreateNewSceneCommand(
 	plugin: FirstDraftPlugin,
@@ -55,6 +58,8 @@ export async function runCreateNewSceneCommand(
 			fm.id = id;
 		},
 	);
+	const arrayEntry = fountainScenesArrayEntry(sequenceName, cfg.fountainFileFormat);
+	await appendSceneToArray(plugin.app, project.indexFilePath, arrayEntry);
 	await plugin.app.workspace.getLeaf(false).openFile(created);
 	new Notice(`Created scene "${userTypedName}".`);
 }

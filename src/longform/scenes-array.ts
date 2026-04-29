@@ -42,3 +42,36 @@ export async function writeScenesArray(
 		fm[key] = block;
 	});
 }
+
+// Append an entry to the project's sequences array if it isn't already
+// present. Idempotent — safe to call from creation paths that may overlap
+// with the rename-sync auto-inject (e.g. dev-note-first creation followed
+// later by fountain creation).
+export async function appendSceneToArray(
+	app: App,
+	indexPath: string,
+	entry: string,
+): Promise<void> {
+	const existing = readScenesArray(app, indexPath);
+	if (existing.includes(entry)) return;
+	await writeScenesArray(app, indexPath, [...existing, entry]);
+}
+
+// Remove an entry from the project's sequences array. Tolerates entries
+// stored under either fountain-format shape (plain basename or basename
+// with `.fountain` suffix) so the caller doesn't have to guess which
+// format the project is using. No-op if no match is found.
+export async function removeSceneFromArray(
+	app: App,
+	indexPath: string,
+	entry: string,
+): Promise<void> {
+	const existing = readScenesArray(app, indexPath);
+	const stripped = entry.endsWith(".fountain") ? entry.slice(0, -".fountain".length) : entry;
+	const next = existing.filter((e) => {
+		const eStripped = e.endsWith(".fountain") ? e.slice(0, -".fountain".length) : e;
+		return eStripped !== stripped;
+	});
+	if (next.length === existing.length) return;
+	await writeScenesArray(app, indexPath, next);
+}

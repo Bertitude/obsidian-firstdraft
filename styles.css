@@ -357,6 +357,27 @@
 	color: var(--text-error);
 }
 
+/* Clickable variant of the "Not in project" pill — same visual size as the
+   static tag, but rendered as a button with hover affordance and pointer
+   cursor so it reads as actionable. */
+.firstdraft-outline-tag.is-action {
+	border: none;
+	cursor: pointer;
+	font-family: inherit;
+	transition: background 0.1s ease, color 0.1s ease;
+}
+
+.firstdraft-outline-tag.is-action:hover {
+	background: var(--interactive-accent);
+	color: var(--text-on-accent);
+}
+
+/* Orphan rows can't be reordered, so hide the grip handle to avoid
+   suggesting they're draggable. */
+.firstdraft-outline-row.is-orphan .firstdraft-outline-handle {
+	visibility: hidden;
+}
+
 .firstdraft-outline-meta {
 	display: flex;
 	flex-wrap: wrap;

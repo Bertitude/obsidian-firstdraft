@@ -169,7 +169,7 @@ export class ProjectHomeView extends ItemView {
 			title.setText(stripId(entry.row.sequenceName));
 
 			const meta: string[] = [];
-			if (entry.row.orphan) meta.push("orphan");
+			if (entry.row.orphan) meta.push("not in project");
 			if (entry.row.missing) meta.push("no files");
 			if (entry.row.characters.length > 0)
 				meta.push(`${entry.row.characters.length} char`);
