@@ -9,6 +9,7 @@ import {
 	type BeatSheetData,
 } from "./beat-sheet-data";
 import { VIEW_TYPE_BEAT_SHEET } from "./view-types";
+import { stripId } from "../utils/stable-id";
 
 // Phase 3c — Beat sheet view. Two-column rows: beat name on the left, vertical
 // list of scenes assigned to that beat on the right. Drag a scene from one
@@ -151,7 +152,7 @@ export class BeatSheetView extends ItemView {
 				const item = scenesCell.createEl("div", {
 					cls: "firstdraft-beats-row-scene",
 				});
-				item.setText(scene.sceneName);
+				item.setText(stripId(scene.sceneName));
 				if (scene.devNoteFile) {
 					item.dataset.devNotePath = scene.devNoteFile.path;
 					item.draggable = true;

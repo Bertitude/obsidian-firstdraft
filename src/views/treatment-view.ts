@@ -5,6 +5,7 @@ import { resolveActiveProject } from "../projects/resolver";
 import { findSiblingEpisodes } from "../projects/episodes";
 import { resolveProjectSettings } from "../settings/resolve";
 import { writeScenesArray } from "../longform/scenes-array";
+import { stripId } from "../utils/stable-id";
 import { buildTreatmentData, enrichRowAsync, type TreatmentRow } from "./treatment-data";
 import { VIEW_TYPE_TREATMENT } from "./view-types";
 
@@ -204,7 +205,7 @@ export class TreatmentView extends ItemView {
 		const main = el.createDiv({ cls: "firstdraft-treatment-main" });
 
 		const title = main.createDiv({ cls: "firstdraft-treatment-title" });
-		title.setText(row.sceneName);
+		title.setText(stripId(row.sceneName));
 
 		if (row.orphan) {
 			const tag = title.createSpan({ cls: "firstdraft-treatment-tag", text: "not in script order" });

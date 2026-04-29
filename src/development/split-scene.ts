@@ -14,6 +14,7 @@ import { readScenesArray, writeScenesArray } from "../longform/scenes-array";
 import { sanitizeFilename } from "../utils/sanitize";
 import { promptForLabel } from "../versioning/prompt";
 import { snapshotFile, todayLabel } from "../versioning/snapshot";
+import { applyId, generateId, stripId } from "../utils/stable-id";
 import { findSluglineAtOrAbove, normalizeSlugline } from "../cursor-scroll/slugline";
 
 // Phase: Split scene at cursor.
@@ -79,8 +80,13 @@ async function splitFromFountain(
 	}
 
 	const oldSceneName = stemOf(fountainFile);
-	const newSceneName = await promptForNewSceneName(plugin, project, cfg, oldSceneName);
-	if (!newSceneName) return;
+	const userTypedName = await promptForNewSceneName(plugin, project, cfg, oldSceneName);
+	if (!userTypedName) return;
+
+	// Auto-attach a stable ID. The user types just a working title; we append
+	// `-a3b9` so the new scene fits the same conventions as migrated projects.
+	const id = generateId();
+	const newSceneName = applyId(userTypedName, id);
 
 	const beforeText = lines.slice(0, slugline.line).join("\n").replace(/\s+$/, "") + "\n";
 	const afterText = lines.slice(slugline.line).join("\n");
@@ -98,8 +104,8 @@ async function splitFromFountain(
 	);
 	const newFountainFile = await plugin.app.vault.create(newFountainPath, afterText);
 
-	// Create paired dev note with auto-detected frontmatter.
-	await createPairedDevNote(plugin, project, cfg, newSceneName, afterText);
+	// Create paired dev note with auto-detected frontmatter (and the ID).
+	await createPairedDevNote(plugin, project, cfg, newSceneName, afterText, id);
 
 	// Insert into Longform scenes: array right after the original.
 	await insertSceneAfter(
@@ -134,8 +140,12 @@ async function splitFromDevNote(
 	}
 
 	const oldSceneName = devNoteFile.basename;
-	const newSceneName = await promptForNewSceneName(plugin, project, cfg, oldSceneName);
-	if (!newSceneName) return;
+	const userTypedName = await promptForNewSceneName(plugin, project, cfg, oldSceneName);
+	if (!userTypedName) return;
+
+	// Auto-attach a stable ID for the new scene.
+	const id = generateId();
+	const newSceneName = applyId(userTypedName, id);
 
 	// Look up the paired fountain — it may or may not exist.
 	const pairedFountain = findPairedFountain(plugin, project, cfg, oldSceneName);
@@ -202,6 +212,12 @@ async function splitFromDevNote(
 	);
 	const newDevPath = devNotePathFor(project, cfg, newSceneName);
 	const newDevFile = await plugin.app.vault.create(newDevPath, newDevContent);
+	await plugin.app.fileManager.processFrontMatter(
+		newDevFile,
+		(fm: Record<string, unknown>) => {
+			fm.id = id;
+		},
+	);
 
 	const tail = fountainSplit
 		? `Split into "${oldSceneName}" + "${newSceneName}" (fountain followed).`
@@ -219,7 +235,9 @@ async function promptForNewSceneName(
 	cfg: ReturnType<typeof resolveProjectSettings>,
 	originalSceneName: string,
 ): Promise<string | null> {
-	let candidate = `${originalSceneName} 2`;
+	// Default to the original name's display form (without ID) plus " 2".
+	// We'll attach a fresh ID to whatever the user enters.
+	let candidate = `${stripId(originalSceneName)} 2`;
 	let description: string | undefined;
 
 	while (true) {
@@ -328,11 +346,18 @@ async function createPairedDevNote(
 	cfg: ReturnType<typeof resolveProjectSettings>,
 	sceneName: string,
 	fountainContent: string,
+	id: string,
 ): Promise<void> {
 	const path = devNotePathFor(project, cfg, sceneName);
 	const content = buildSplitDevNoteContent(cfg.sceneNoteTemplate, fountainContent, "");
 	await ensureFolderExists(plugin, parentPath(path));
-	await plugin.app.vault.create(path, content);
+	const created = await plugin.app.vault.create(path, content);
+	await plugin.app.fileManager.processFrontMatter(
+		created,
+		(fm: Record<string, unknown>) => {
+			fm.id = id;
+		},
+	);
 }
 
 async function ensureFolderExists(

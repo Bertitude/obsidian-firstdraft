@@ -51,6 +51,7 @@ import {
 } from "./development/assign-beat";
 import { runSplitSceneCommand } from "./development/split-scene";
 import { runMergeSceneCommand } from "./development/merge-scenes";
+import { runMigrateStableIdsCommand } from "./development/migrate-stable-ids";
 import { isPluginEnabled, KNOWN_PLUGIN_IDS, resolveFountainMode } from "./fountain/plugin-mode";
 import { runMigrateProjectCommand } from "./fountain/migrate";
 import { runSyncSluglinesCommand } from "./fountain/sync-sluglines";
@@ -164,6 +165,14 @@ export default class FirstDraftPlugin extends Plugin {
 			name: "Merge scene with…",
 			callback: () => {
 				void runMergeSceneCommand(this);
+			},
+		});
+
+		this.addCommand({
+			id: "migrate-stable-ids",
+			name: "Migrate project to stable IDs",
+			callback: () => {
+				void runMigrateStableIdsCommand(this);
 			},
 		});
 

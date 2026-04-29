@@ -5,6 +5,7 @@ import { resolveActiveProject } from "../projects/resolver";
 import { resolveProjectSettings } from "../settings/resolve";
 import { snapshotFile, todayLabel } from "../versioning/snapshot";
 import { parseOutlineBeats, titleToFilename } from "./parser";
+import { applyId, generateUniqueId } from "../utils/stable-id";
 
 // "Promote outline to scenes": parses the active outline's H2 beats and creates
 // matching dev notes in Development/Scenes/. Auto-snapshots the outline before
@@ -71,19 +72,30 @@ async function promoteOutline(
 
 	const summary: PromoteSummary = { created: 0, skipped: 0, createdPaths: [] };
 
+	// Auto-generate stable IDs for each new scene. Existing scenes (already in
+	// the folder) keep their existing IDs / lack thereof; we only assign IDs to
+	// freshly-created files.
+	const usedIds = new Set<string>();
+
 	for (const beat of beats) {
 		const filename = titleToFilename(beat.title);
 		if (!filename) {
 			summary.skipped += 1;
 			continue;
 		}
-		const path = normalizePath(`${scenesFolder}/${filename}.md`);
+		const id = generateUniqueId(usedIds);
+		usedIds.add(id);
+		const finalName = applyId(filename, id);
+		const path = normalizePath(`${scenesFolder}/${finalName}.md`);
 		if (plugin.app.vault.getAbstractFileByPath(path)) {
 			summary.skipped += 1;
 			continue;
 		}
 		const body = injectIntent(cfg.sceneNoteTemplate, beat.body);
-		await plugin.app.vault.create(path, body);
+		const created = await plugin.app.vault.create(path, body);
+		await plugin.app.fileManager.processFrontMatter(created, (fm: Record<string, unknown>) => {
+			fm.id = id;
+		});
 		summary.created += 1;
 		summary.createdPaths.push(path);
 	}

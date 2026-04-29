@@ -11,6 +11,7 @@ import {
 	type MatrixData,
 } from "./character-matrix-data";
 import { VIEW_TYPE_CHARACTER_MATRIX } from "./view-types";
+import { stripId } from "../utils/stable-id";
 
 // Phase 3b — Character matrix. Full-pane view; rows = characters in project
 // roster, columns = scenes in script order. Each cell shows a presence dot
@@ -264,7 +265,7 @@ export class CharacterMatrixView extends ItemView {
 					cls: "firstdraft-matrix-row-scene",
 				});
 				item.createSpan({
-					text: scene.sceneName,
+					text: stripId(scene.sceneName),
 					cls: "firstdraft-matrix-row-scene-name",
 				});
 				const count = cueRow[idx] ?? 0;

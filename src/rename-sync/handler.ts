@@ -11,6 +11,7 @@ import {
 } from "../fountain/file-detection";
 import { readScenesArray, writeScenesArray } from "../longform/scenes-array";
 import { resolveProjectSettings } from "../settings/resolve";
+import { applyId, extractId } from "../utils/stable-id";
 
 // Paths that we ourselves just initiated a rename to. Events for these are
 // skipped to prevent ping-pong loops (we rename dev note → that fires another
@@ -84,8 +85,22 @@ async function syncFountainRename(
 	newFile: TFile,
 ): Promise<void> {
 	const oldSceneName = fountainSceneNameFromPath(oldPath);
-	const newSceneName = fountainSceneName(newFile);
+	let newSceneName = fountainSceneName(newFile);
 	if (oldSceneName === newSceneName) return;
+
+	// Stable ID preservation: if the old name had a `-a3b9` suffix and the
+	// user-typed new name doesn't, silently re-rename to keep the ID. This
+	// makes IDs invisible to the user during normal renames.
+	const oldId = extractId(oldSceneName);
+	const newId = extractId(newSceneName);
+	if (oldId && !newId) {
+		const restoredName = applyId(newSceneName, oldId);
+		const ext = newFile.extension === "fountain" ? "fountain" : "fountain.md";
+		const folder = newFile.parent?.path ?? "";
+		const restoredPath = normalizePath(`${folder}/${restoredName}.${ext}`);
+		await safeRename(plugin, newFile, restoredPath);
+		newSceneName = restoredName;
+	}
 
 	const devFolder = devScenesFolderFor(plugin, project);
 	const oldDevPath = normalizePath(`${devFolder}/${oldSceneName}.md`);
@@ -130,8 +145,20 @@ async function syncDevNoteRename(
 	newFile: TFile,
 ): Promise<void> {
 	const oldSceneName = baseFromMd(oldPath);
-	const newSceneName = newFile.basename;
+	let newSceneName = newFile.basename;
 	if (oldSceneName === newSceneName) return;
+
+	// Stable ID preservation (mirrors the fountain side): re-attach the old
+	// ID if the user dropped it on rename.
+	const oldId = extractId(oldSceneName);
+	const newId = extractId(newSceneName);
+	if (oldId && !newId) {
+		const restoredName = applyId(newSceneName, oldId);
+		const folder = newFile.parent?.path ?? "";
+		const restoredPath = normalizePath(`${folder}/${restoredName}.md`);
+		await safeRename(plugin, newFile, restoredPath);
+		newSceneName = restoredName;
+	}
 
 	// Look for the paired fountain in either format.
 	const oldFountain = findFountain(plugin, project, oldSceneName);

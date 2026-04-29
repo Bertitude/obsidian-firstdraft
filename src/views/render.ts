@@ -11,6 +11,7 @@ import {
 } from "./lookups";
 import { readScenesArray, writeScenesArray } from "../longform/scenes-array";
 import { fountainFilename, fountainScenesArrayEntry } from "../fountain/file-detection";
+import { extractId, stripId } from "../utils/stable-id";
 
 // All DOM construction for the dev-notes panel. Pure helpers — they take a container
 // and append; lifecycle (clearing) is the View's responsibility.
@@ -95,7 +96,7 @@ interface SceneSectionOpts extends SectionOpts {
 export async function renderSceneSection(opts: SceneSectionOpts): Promise<void> {
 	const { container, view, plugin, scene, noteRef, getTemplate } = opts;
 
-	container.createEl("h3", { text: scene.basename, cls: "firstdraft-scene-title" });
+	container.createEl("h3", { text: stripId(scene.basename), cls: "firstdraft-scene-title" });
 	container.createEl("hr", { cls: "firstdraft-divider" });
 
 	const body = container.createDiv({ cls: "firstdraft-scene-body" });
@@ -131,6 +132,19 @@ async function createSceneNote(
 	try {
 		await ensureFolderExists(plugin, parentPath(path));
 		const created = await plugin.app.vault.create(path, template);
+		// If the path inherits a stable ID from the paired fountain (e.g.
+		// "Big Damn Heroes-a3b9.md"), mirror it into the dev note's
+		// frontmatter so both sides agree.
+		const stem = created.basename;
+		const id = extractId(stem);
+		if (id) {
+			await plugin.app.fileManager.processFrontMatter(
+				created,
+				(fm: Record<string, unknown>) => {
+					fm.id = id;
+				},
+			);
+		}
 		await plugin.app.workspace.getLeaf(false).openFile(created);
 		new Notice("Scene note created.");
 	} catch (e) {
@@ -150,7 +164,7 @@ interface FountainSectionOpts extends SectionOpts {
 export function renderFountainSection(opts: FountainSectionOpts): void {
 	const { container, plugin, devNote, fountainFile, project } = opts;
 
-	container.createEl("h3", { text: devNote.basename, cls: "firstdraft-scene-title" });
+	container.createEl("h3", { text: stripId(devNote.basename), cls: "firstdraft-scene-title" });
 	container.createEl("hr", { cls: "firstdraft-divider" });
 
 	const body = container.createDiv({ cls: "firstdraft-scene-body" });
