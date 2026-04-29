@@ -122,6 +122,23 @@ export class ProjectNotesView extends ItemView {
 			e.stopPropagation();
 			void runCreateProjectNoteCommand(this.plugin);
 		});
+
+		// Manual refresh — auto-refresh runs on vault create/delete/rename and
+		// metadataCache.changed, but tag adds via direct file edits in another
+		// app or filesystem-level changes Obsidian missed can leave the panel
+		// stale. The button is the explicit "I just changed something, look
+		// again" path.
+		const refreshBtn = actions.createEl("button", {
+			cls: "clickable-icon firstdraft-pnotes-refresh",
+			attr: { "aria-label": "Refresh project notes" },
+		});
+		setIcon(refreshBtn, "refresh-cw");
+		refreshBtn.addEventListener("mousedown", (e) => {
+			if (e.button !== 0) return;
+			e.stopPropagation();
+			void this.refresh();
+		});
+		refreshBtn.addEventListener("click", (e) => e.stopPropagation());
 	}
 
 	// ── References section ──────────────────────────────────────────────────

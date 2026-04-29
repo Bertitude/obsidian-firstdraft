@@ -2,14 +2,17 @@ import type { ProjectMeta, FirstDraftSettings } from "../types";
 
 // Derives a project's "note tag" — the tag users add to notes anywhere in
 // the vault to surface them in the project notes panel. Default form is a
-// kebab-case slug of the project title; per-project override lives in
-// `settings.projects[indexFilePath].noteTag`.
+// kebab-case slug of the project title, falling back to the project's
+// folder name (NOT the index file's basename — that would resolve to
+// "index" for any project whose frontmatter lacks a `title:` field). Per-
+// project override lives in `settings.projects[indexFilePath].noteTag`.
 //
 // Returned WITHOUT the leading `#` — callers add it where needed (UI display
 // vs. metadataCache lookup may want different forms).
 
 export function deriveNoteTag(project: ProjectMeta): string {
-	const source = project.title ?? basenameOf(project.indexFilePath);
+	const title = project.title?.trim();
+	const source = title && title !== "" ? title : lastSegmentOf(project.projectRootPath);
 	return slugify(source);
 }
 
@@ -23,14 +26,31 @@ export function resolveNoteTag(
 }
 
 // True if `tag` (with or without leading `#`) is the project's note tag, or
-// any sub-tag under it (e.g. `fraidy-fraidy/antonia` matches `fraidy-fraidy`).
-// Hierarchy-aware match keeps the user-facing UX flat while letting users
-// adopt subtag organisation freely without code changes.
+// any sub-tag under it. Match is fuzzy: case-insensitive and ignores any
+// non-alphanumeric separators on the head segment, so all of these match
+// the canonical project tag `#fraidy-fraidy`:
+//
+//   #fraidy-fraidy        — canonical
+//   #FraidyFraidy         — pascal-case, no separator
+//   #fraidy_fraidy        — underscore separator
+//   #FRAIDY-FRAIDY        — caps
+//   #fraidy-fraidy/antonia — subtag (hierarchy-aware)
+//   #fraidyFraidy/research — subtag with non-canonical head
+//
+// Subtags are detected by `/`; everything before the first slash is the
+// head segment that must match the project tag. Anything after `/` is
+// treated as user-defined organisation and accepted as long as the head
+// matches.
 export function tagMatchesProject(tag: string, projectTag: string): boolean {
 	const t = tag.replace(/^#/, "");
 	const p = projectTag.replace(/^#/, "");
 	if (!p) return false;
-	return t === p || t.startsWith(`${p}/`);
+	const head = t.split("/")[0] ?? "";
+	return normalizeForMatch(head) === normalizeForMatch(p);
+}
+
+function normalizeForMatch(s: string): string {
+	return s.toLowerCase().replace(/[^a-z0-9]/g, "");
 }
 
 // Kebab-case slugifier. Lowercases, replaces non-alphanumerics with hyphens,
@@ -42,7 +62,6 @@ function slugify(s: string): string {
 		.replace(/^-+|-+$/g, "");
 }
 
-function basenameOf(path: string): string {
-	const seg = path.split("/").pop() ?? path;
-	return seg.replace(/\.md$/, "");
+function lastSegmentOf(path: string): string {
+	return path.split("/").pop() ?? path;
 }

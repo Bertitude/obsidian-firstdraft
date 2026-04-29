@@ -110,22 +110,18 @@ function collectNotes(
 		}
 	}
 
-	// Source 2: vault-wide tag search. For each file, check tags via
-	// metadataCache.getFileCache. Skips files inside the project root (those
-	// are picked up by Source 1 if they belong, and tagging your own dev
-	// notes doesn't add information). Skips files in the References folder
-	// (those have their own section).
+	// Source 2: vault-wide tag search. Files INSIDE the project root that
+	// also match the tag are accepted (they're project-scoped jottings the
+	// user explicitly tagged); files in the References folder are excluded
+	// (those have their own section). The tag is the explicit signal — if
+	// the user marked a file project-related, surface it even if it lives
+	// inside the project.
 	const referencesPrefix = normalizePath(
 		`${project.projectRootPath}/${cfg.developmentFolder}/${cfg.referencesSubfolder}/`,
 	);
 
 	for (const file of app.vault.getMarkdownFiles()) {
 		if (seen.has(file.path)) continue;
-		// Files inside the project root are handled by Source 1 (Notes folder
-		// walk); avoid double-counting (and avoid pulling in dev notes that
-		// happen to be tagged with the project tag, which would be noise).
-		if (file.path.startsWith(project.projectRootPath + "/")) continue;
-		// References get their own section.
 		if (file.path.startsWith(referencesPrefix)) continue;
 
 		const cache = app.metadataCache.getFileCache(file);

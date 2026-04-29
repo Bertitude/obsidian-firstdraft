@@ -981,10 +981,17 @@ body.firstdraft-active .workspace-split.mod-left-split .workspace-tab-header-con
 
 .firstdraft-pnotes-actions {
 	margin-top: var(--size-2-2);
+	display: flex;
+	gap: var(--size-2-2);
+	align-items: center;
 }
 
 .firstdraft-pnotes-add {
-	width: 100%;
+	flex: 1;
+}
+
+.firstdraft-pnotes-refresh {
+	flex-shrink: 0;
 }
 
 .firstdraft-pnotes-section {
