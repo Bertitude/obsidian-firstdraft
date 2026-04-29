@@ -6,7 +6,7 @@ import { FirstDraftSettingTab } from "./settings/settings-tab";
 import { ProjectScanner } from "./projects/scanner";
 import { registerEventHandlers } from "./events/register";
 import { DevNotesView, activateDevNotesView } from "./views/dev-notes-view";
-import { TreatmentView, activateTreatmentView } from "./views/treatment-view";
+import { OutlineView, activateOutlineView } from "./views/outline-view";
 import {
 	CharacterMatrixView,
 	activateCharacterMatrixView,
@@ -16,12 +16,17 @@ import {
 	activateBeatSheetView,
 } from "./views/beat-sheet-view";
 import {
+	ProjectHomeView,
+	activateProjectHomeView,
+} from "./views/project-home-view";
+import {
 	VIEW_TYPE_DEV_NOTES,
-	VIEW_TYPE_TREATMENT,
+	VIEW_TYPE_OUTLINE,
 	VIEW_TYPE_CHARACTER_MATRIX,
 	VIEW_TYPE_BEAT_SHEET,
+	VIEW_TYPE_PROJECT_HOME,
 } from "./views/view-types";
-import { runCreateOutlineCommand, runPromoteOutlineCommand } from "./outline/promote";
+import { runCreateTreatmentCommand, runPromoteTreatmentCommand } from "./treatment/promote";
 import {
 	runSnapshotFileCommand,
 	runSnapshotProjectCommand,
@@ -53,13 +58,18 @@ import { runSplitSceneCommand } from "./development/split-scene";
 import { runMergeSceneCommand } from "./development/merge-scenes";
 import { runMigrateStableIdsCommand } from "./development/migrate-stable-ids";
 import { runCreateNewSceneCommand } from "./development/create-scene";
+import { toggleProjectLock, clearProjectLockOnUnload } from "./project-lock/lock";
+import { runOpenFirstDraftProjectCommand } from "./projects/open-project";
+import { runMigrateSchemaFromLongformCommand } from "./projects/migrate-schema";
+import { runMigrateSequencesNamingCommand } from "./projects/migrate-sequences";
+import { runCompileManuscriptCommand } from "./firstdraft/compile";
 import { isPluginEnabled, KNOWN_PLUGIN_IDS, resolveFountainMode } from "./fountain/plugin-mode";
 import { runMigrateProjectCommand } from "./fountain/migrate";
 import { runSyncSluglinesCommand } from "./fountain/sync-sluglines";
 import { runSyncCharactersCommand } from "./fountain/sync-characters";
 import { runSyncCharactersFromProseCommand } from "./fountain/sync-characters-prose";
 import { installRenameSync } from "./rename-sync/handler";
-import { runSyncScreenplayScenesCommand } from "./longform/sync-scenes";
+import { runSyncScreenplaySequencesCommand } from "./longform/sync-scenes";
 import { toggleFirstDraftMode, exitFirstDraftModeSync } from "./firstdraft-mode/toggle";
 import { installCursorScrollHandler } from "./cursor-scroll/handler";
 import { Notice } from "obsidian";
@@ -78,7 +88,7 @@ export default class FirstDraftPlugin extends Plugin {
 		);
 
 		this.registerView(VIEW_TYPE_DEV_NOTES, (leaf) => new DevNotesView(leaf, this));
-		this.registerView(VIEW_TYPE_TREATMENT, (leaf) => new TreatmentView(leaf, this));
+		this.registerView(VIEW_TYPE_OUTLINE, (leaf) => new OutlineView(leaf, this));
 		this.registerView(
 			VIEW_TYPE_CHARACTER_MATRIX,
 			(leaf) => new CharacterMatrixView(leaf, this),
@@ -86,6 +96,10 @@ export default class FirstDraftPlugin extends Plugin {
 		this.registerView(
 			VIEW_TYPE_BEAT_SHEET,
 			(leaf) => new BeatSheetView(leaf, this),
+		);
+		this.registerView(
+			VIEW_TYPE_PROJECT_HOME,
+			(leaf) => new ProjectHomeView(leaf, this),
 		);
 		this.registerEditorSuggest(new CharacterCueSuggest(this));
 		this.addSettingTab(new FirstDraftSettingTab(this.app, this));
@@ -95,6 +109,9 @@ export default class FirstDraftPlugin extends Plugin {
 
 		this.addRibbonIcon("notebook-pen", "Open dev notes panel", () => {
 			void activateDevNotesView(this);
+		});
+		this.addRibbonIcon("home", "Open project home", () => {
+			void activateProjectHomeView(this);
 		});
 
 		this.addCommand({
@@ -106,10 +123,50 @@ export default class FirstDraftPlugin extends Plugin {
 		});
 
 		this.addCommand({
-			id: "open-treatment-view",
-			name: "Open treatment view",
+			id: "open-project-home",
+			name: "Open project home",
 			callback: () => {
-				void activateTreatmentView(this);
+				void activateProjectHomeView(this);
+			},
+		});
+
+		this.addCommand({
+			id: "open-firstdraft-project",
+			name: "Open FirstDraft project",
+			callback: () => {
+				runOpenFirstDraftProjectCommand(this);
+			},
+		});
+
+		this.addCommand({
+			id: "migrate-schema-from-longform",
+			name: "Migrate project schema from Longform to FirstDraft",
+			callback: () => {
+				void runMigrateSchemaFromLongformCommand(this);
+			},
+		});
+
+		this.addCommand({
+			id: "migrate-sequences-naming",
+			name: "Migrate project to sequences naming",
+			callback: () => {
+				void runMigrateSequencesNamingCommand(this);
+			},
+		});
+
+		this.addCommand({
+			id: "compile-manuscript",
+			name: "Compile manuscript",
+			callback: () => {
+				void runCompileManuscriptCommand(this);
+			},
+		});
+
+		this.addCommand({
+			id: "open-treatment-view",
+			name: "Open outline view",
+			callback: () => {
+				void activateOutlineView(this);
 			},
 		});
 
@@ -147,7 +204,7 @@ export default class FirstDraftPlugin extends Plugin {
 
 		this.addCommand({
 			id: "assign-scene-to-beat",
-			name: "Assign scene to beat…",
+			name: "Assign sequence to beat…",
 			callback: () => {
 				void runAssignSceneToBeatCommand(this);
 			},
@@ -155,7 +212,7 @@ export default class FirstDraftPlugin extends Plugin {
 
 		this.addCommand({
 			id: "split-scene-at-cursor",
-			name: "Split scene at cursor",
+			name: "Split sequence at cursor",
 			editorCallback: (editor) => {
 				void runSplitSceneCommand(this, editor);
 			},
@@ -163,7 +220,7 @@ export default class FirstDraftPlugin extends Plugin {
 
 		this.addCommand({
 			id: "merge-scene-with",
-			name: "Merge scene with…",
+			name: "Merge sequence with…",
 			callback: () => {
 				void runMergeSceneCommand(this);
 			},
@@ -171,7 +228,7 @@ export default class FirstDraftPlugin extends Plugin {
 
 		this.addCommand({
 			id: "migrate-stable-ids",
-			name: "Migrate project to stable IDs",
+			name: "Migrate sequences to stable IDs",
 			callback: () => {
 				void runMigrateStableIdsCommand(this);
 			},
@@ -179,15 +236,15 @@ export default class FirstDraftPlugin extends Plugin {
 
 		this.addCommand({
 			id: "create-outline",
-			name: "Create outline",
+			name: "Create treatment",
 			callback: () => {
-				void runCreateOutlineCommand(this);
+				void runCreateTreatmentCommand(this);
 			},
 		});
 
 		this.addCommand({
 			id: "create-new-scene",
-			name: "Create new scene",
+			name: "Create new sequence",
 			callback: () => {
 				void runCreateNewSceneCommand(this);
 			},
@@ -195,9 +252,9 @@ export default class FirstDraftPlugin extends Plugin {
 
 		this.addCommand({
 			id: "promote-outline",
-			name: "Promote outline to scenes",
+			name: "Promote treatment to sequences",
 			callback: () => {
-				void runPromoteOutlineCommand(this);
+				void runPromoteTreatmentCommand(this);
 			},
 		});
 
@@ -307,9 +364,9 @@ export default class FirstDraftPlugin extends Plugin {
 
 		this.addCommand({
 			id: "sync-screenplay-scenes",
-			name: "Sync screenplay scenes to project",
+			name: "Sync screenplay sequences to project",
 			callback: () => {
-				void runSyncScreenplayScenesCommand(this);
+				void runSyncScreenplaySequencesCommand(this);
 			},
 		});
 
@@ -330,6 +387,14 @@ export default class FirstDraftPlugin extends Plugin {
 		});
 
 		this.addCommand({
+			id: "toggle-project-lock",
+			name: "Lock to active project",
+			callback: () => {
+				toggleProjectLock(this);
+			},
+		});
+
+		this.addCommand({
 			id: "sync-sluglines-to-fountain",
 			name: "Sync sluglines from dev note to fountain",
 			callback: () => {
@@ -339,7 +404,7 @@ export default class FirstDraftPlugin extends Plugin {
 
 		this.addCommand({
 			id: "sync-characters-from-fountain",
-			name: "Sync characters from fountain to dev note",
+			name: "Sync characters from sequence to dev note",
 			callback: () => {
 				void runSyncCharactersCommand(this);
 			},
@@ -390,9 +455,11 @@ export default class FirstDraftPlugin extends Plugin {
 	}
 
 	onunload(): void {
-		// Strip First Draft Mode body classes so they don't leak when the plugin is
-		// disabled. Listeners, commands, and views clean up automatically.
+		// Strip First Draft Mode body classes + project-lock styles so they
+		// don't leak when the plugin is disabled. Listeners, commands, and
+		// views clean up automatically.
 		exitFirstDraftModeSync(this);
+		clearProjectLockOnUnload();
 	}
 
 	async loadSettings(): Promise<void> {

@@ -2,6 +2,7 @@ import { Notice } from "obsidian";
 import type FirstDraftPlugin from "../main";
 import type { FirstDraftModeConfig } from "../types";
 import { isPluginEnabled } from "../fountain/plugin-mode";
+import { activateProjectHomeView } from "../views/project-home-view";
 
 const TYPEWRITER_PLUGIN_ID = "obsidian-typewriter-mode";
 const TYPEWRITER_TOGGLE_COMMAND = "obsidian-typewriter-mode:toggle-typewriter-scroll";
@@ -9,7 +10,6 @@ const TYPEWRITER_TOGGLE_COMMAND = "obsidian-typewriter-mode:toggle-typewriter-sc
 const CLASS_ACTIVE = "firstdraft-active";
 const CLASS_HIDE_RIBBON = "firstdraft-hide-ribbon";
 const CLASS_HIDE_STATUSBAR = "firstdraft-hide-statusbar";
-const CLASS_HIDE_LEFT_SIDEBAR = "firstdraft-hide-left-sidebar";
 
 interface CommandsApi {
 	executeCommandById?: (id: string) => boolean;
@@ -25,7 +25,9 @@ export function applyBodyClasses(active: boolean, settings: FirstDraftModeConfig
 	body.toggle(CLASS_ACTIVE, active);
 	body.toggle(CLASS_HIDE_RIBBON, active && settings.hideRibbon);
 	body.toggle(CLASS_HIDE_STATUSBAR, active && settings.hideStatusBar);
-	body.toggle(CLASS_HIDE_LEFT_SIDEBAR, active && settings.hideLeftSidebar);
+	// Left sidebar is no longer hidden in FDM — it hosts Project Home as the
+	// sole navigation surface (tab strip hidden via CSS). The legacy
+	// `hideLeftSidebar` setting is ignored.
 }
 
 export async function toggleFirstDraftMode(plugin: FirstDraftPlugin): Promise<void> {
@@ -43,9 +45,14 @@ async function enterFirstDraftMode(plugin: FirstDraftPlugin): Promise<void> {
 
 	cfg.savedLayout = workspace.getLayout?.() ?? null;
 
-	if (cfg.hideLeftSidebar) {
-		plugin.app.workspace.leftSplit.collapse();
-	}
+	// Open Project Home in the left sidebar so it's the active tab. The CSS
+	// rule on `body.firstdraft-active` hides the sidebar tab strip, so Project
+	// Home is the only visible navigation surface while FDM is on.
+	await activateProjectHomeView(plugin);
+
+	// Make sure the sidebar is expanded — FDM is now sidebar-with-Project-Home
+	// by design. The legacy hideLeftSidebar setting is ignored.
+	plugin.app.workspace.leftSplit.expand();
 
 	cfg.active = true;
 	applyBodyClasses(true, cfg);
