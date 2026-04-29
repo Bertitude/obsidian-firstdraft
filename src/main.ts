@@ -52,6 +52,7 @@ import {
 import { runSplitSceneCommand } from "./development/split-scene";
 import { runMergeSceneCommand } from "./development/merge-scenes";
 import { runMigrateStableIdsCommand } from "./development/migrate-stable-ids";
+import { runCreateNewSceneCommand } from "./development/create-scene";
 import { isPluginEnabled, KNOWN_PLUGIN_IDS, resolveFountainMode } from "./fountain/plugin-mode";
 import { runMigrateProjectCommand } from "./fountain/migrate";
 import { runSyncSluglinesCommand } from "./fountain/sync-sluglines";
@@ -181,6 +182,14 @@ export default class FirstDraftPlugin extends Plugin {
 			name: "Create outline",
 			callback: () => {
 				void runCreateOutlineCommand(this);
+			},
+		});
+
+		this.addCommand({
+			id: "create-new-scene",
+			name: "Create new scene",
+			callback: () => {
+				void runCreateNewSceneCommand(this);
 			},
 		});
 
