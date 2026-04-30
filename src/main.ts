@@ -60,6 +60,7 @@ import {
 	runDeleteLocationCommand,
 } from "./development/delete-entity";
 import { runTagSelectionAsAliasCommand } from "./development/aliases";
+import { runAuditAliasesCommand } from "./development/audit-aliases";
 import { runTagSelectionAsGroupCommand } from "./development/groups";
 import {
 	runApplyBeatTemplateCommand,
@@ -525,6 +526,14 @@ export default class FirstDraftPlugin extends Plugin {
 			name: "Tag selection as alias of…",
 			editorCallback: (editor) => {
 				runTagSelectionAsAliasCommand(this, editor);
+			},
+		});
+
+		this.addCommand({
+			id: "audit-alias-collisions",
+			name: "Audit alias collisions",
+			callback: () => {
+				runAuditAliasesCommand(this);
 			},
 		});
 

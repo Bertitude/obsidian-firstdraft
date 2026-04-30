@@ -1231,3 +1231,35 @@ body.firstdraft-active .workspace-split.mod-left-split .workspace-tab-header-con
 	-webkit-box-orient: vertical;
 	overflow: hidden;
 }
+
+/* Alias collision confirm modal (inline tag-time check) and audit
+   results modal (on-demand command). Both use a tight list layout. */
+.firstdraft-alias-collision-list,
+.firstdraft-alias-audit-list {
+	margin: var(--size-2-2) 0;
+	padding-left: var(--size-4-4);
+}
+.firstdraft-alias-collision-list li,
+.firstdraft-alias-audit-item {
+	margin-bottom: var(--size-2-2);
+}
+.firstdraft-alias-collision-help,
+.firstdraft-alias-audit-help {
+	font-size: var(--font-ui-smaller);
+	color: var(--text-muted);
+}
+.firstdraft-alias-audit-key {
+	font-weight: var(--font-semibold);
+	margin-bottom: var(--size-2-1);
+}
+.firstdraft-alias-audit-claimants {
+	margin: 0;
+	padding-left: var(--size-4-3);
+}
+.firstdraft-alias-audit-link {
+	color: var(--text-accent);
+	text-decoration: none;
+}
+.firstdraft-alias-audit-link:hover {
+	text-decoration: underline;
+}

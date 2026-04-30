@@ -1,10 +1,11 @@
-import { Editor, Notice, SuggestModal, TFile } from "obsidian";
+import { App, Editor, Modal, Notice, Setting, SuggestModal, TFile } from "obsidian";
 import type FirstDraftPlugin from "../main";
 import type { ProjectMeta } from "../types";
 import { resolveActiveProject } from "../projects/resolver";
 import { resolveProjectSettings } from "../settings/resolve";
 import { characterRoster, sequencePairFromActive, type CharacterEntry } from "../views/lookups";
 import { linkifyEntity, type DevEntity, type LinkifyResult } from "./linkify";
+import { predictAliasCollision, type AliasCollision } from "./alias-collisions";
 
 // Phase 4g — Tag a selection as an alias of an existing character. Appends the
 // selected text to that character's `aliases:` frontmatter array. Future cue
@@ -78,7 +79,100 @@ class AliasTargetPickerModal extends SuggestModal<CharacterEntry> {
 	}
 
 	onChooseSuggestion(value: CharacterEntry): void {
+		const collision = predictAliasCollision(
+			this.candidates,
+			value,
+			this.aliasText,
+		);
+		if (collision) {
+			new AliasCollisionConfirmModal(
+				this.plugin.app,
+				this.aliasText,
+				value,
+				collision,
+				() => {
+					void appendAlias(
+						this.plugin,
+						this.project,
+						value,
+						this.aliasText,
+						this.autoAddTo,
+					);
+				},
+			).open();
+			return;
+		}
 		void appendAlias(this.plugin, this.project, value, this.aliasText, this.autoAddTo);
+	}
+}
+
+// Shown when the user picks a target whose new alias would clash with
+// another character's canonical name or alias. Cancel is the default;
+// "Add anyway" lets the user proceed knowingly (e.g. mid-rename).
+class AliasCollisionConfirmModal extends Modal {
+	constructor(
+		app: App,
+		private readonly aliasText: string,
+		private readonly target: CharacterEntry,
+		private readonly collision: AliasCollision,
+		private readonly onConfirm: () => void,
+	) {
+		super(app);
+	}
+
+	onOpen(): void {
+		const { contentEl } = this;
+		contentEl.createEl("h2", { text: "Alias collision" });
+
+		const others = this.collision.claimants.filter(
+			(c) => c.entry.folder.path !== this.target.folder.path,
+		);
+
+		const intro = contentEl.createEl("p");
+		intro.appendText(`Adding `);
+		intro.createEl("strong", { text: `"${this.aliasText}"` });
+		intro.appendText(` as an alias of `);
+		intro.createEl("strong", { text: this.target.folderName });
+		intro.appendText(` would conflict with the following:`);
+
+		const list = contentEl.createEl("ul", {
+			cls: "firstdraft-alias-collision-list",
+		});
+		for (const c of others) {
+			const item = list.createEl("li");
+			item.createEl("strong", { text: c.entry.folderName });
+			item.appendText(
+				c.source === "canonical"
+					? " (canonical name)"
+					: ` (alias "${c.asWritten}")`,
+			);
+		}
+
+		contentEl.createEl("p", {
+			text: "Cue resolution and linkify will not know which character to attach this name to. Rename the alias to disambiguate, or proceed if you have a follow-up rename planned.",
+			cls: "firstdraft-alias-collision-help",
+		});
+
+		new Setting(contentEl)
+			.addButton((b) => {
+				b.setButtonText("Cancel")
+					.setCta()
+					.onClick(() => this.close());
+				setTimeout(() => b.buttonEl.focus(), 0);
+			})
+			.addButton((b) =>
+				b
+					.setButtonText("Add anyway")
+					.setWarning()
+					.onClick(() => {
+						this.close();
+						this.onConfirm();
+					}),
+			);
+	}
+
+	onClose(): void {
+		this.contentEl.empty();
 	}
 }
 
