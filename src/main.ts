@@ -88,6 +88,7 @@ import { runCompileManuscriptCommand } from "./firstdraft/compile";
 import { isPluginEnabled, KNOWN_PLUGIN_IDS, resolveFountainMode } from "./fountain/plugin-mode";
 import { runMigrateProjectCommand } from "./fountain/migrate";
 import { runSyncSluglinesCommand } from "./fountain/sync-sluglines";
+import { runSyncSluglinesToDevNoteCommand } from "./fountain/sync-sluglines-to-devnote";
 import { runSyncCharactersCommand } from "./fountain/sync-characters";
 import { runSyncCharactersFromProseCommand } from "./fountain/sync-characters-prose";
 import { installRenameSync } from "./rename-sync/handler";
@@ -570,6 +571,14 @@ export default class FirstDraftPlugin extends Plugin {
 			name: "Sync sluglines from dev note to fountain",
 			callback: () => {
 				void runSyncSluglinesCommand(this);
+			},
+		});
+
+		this.addCommand({
+			id: "sync-sluglines-to-devnote",
+			name: "Sync sluglines from fountain to dev note",
+			callback: () => {
+				void runSyncSluglinesToDevNoteCommand(this);
 			},
 		});
 
