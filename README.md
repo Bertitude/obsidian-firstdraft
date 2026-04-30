@@ -7,6 +7,8 @@ A screenwriting companion for Obsidian. Pairs each fountain script file with a d
 <!-- credits / "what this is for" framing.                              -->
 <!-- ================================================================== -->
 
+## Ramblings of a Madman
+
 Hi Everyone, Kaiel aka Bertitude here. 
 
 I started using Obsidian about 5 or so years ago because I found myself jumping from notes app to notes app and really was struggling to find one place where I could jot down the craziness that pops into my brain at 1am. I just wanted a clean place without too much fluff and most importantly I wanted something that could work offline and without some kind of subscription. Obsidian proved to be that for me. 
