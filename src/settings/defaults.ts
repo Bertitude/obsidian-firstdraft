@@ -102,6 +102,11 @@ export const DEFAULT_SETTINGS: FirstDraftSettings = {
 		// (parsed from {episode}, e.g. 01), {productionCode}, {date}.
 		// Default produces "S01E01 - Pilot".
 		episodeNameTemplate: "{episode} - {title}",
+		// Delimiter inserted between PRIMARY and SUB-LOCATION in slug-line
+		// autocomplete output. The standard screenplay convention is a
+		// comma + space ("INT. SMITH HOUSE, BEDROOM - DAY") which leaves
+		// " - " free for the time-of-day delimiter. Per-project overridable.
+		sluglineSubLocationDelimiter: ", ",
 		defaultProjectParent: "",
 		defaultFeatureSubfolder: "",
 		defaultSeriesSubfolder: "",

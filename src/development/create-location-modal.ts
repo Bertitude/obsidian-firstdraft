@@ -27,6 +27,10 @@ export type LocationLevel = "primary" | "recurring" | "one-off";
 export interface CreateLocationResult {
 	file: TFile;
 	displayName: string;
+	// Parent location as set in the modal (or pre-existing on the file).
+	// null when the location is standalone. Slugline autocomplete uses this
+	// to render the canonical "PARENT, SUB" form on insertion.
+	parentLocation: string | null;
 }
 
 export async function openCreateLocationModal(
@@ -210,7 +214,11 @@ class CreateLocationModal extends Modal {
 			);
 
 			this.finished = true;
-			this.resolve({ file: created, displayName: finalName });
+			this.resolve({
+				file: created,
+				displayName: finalName,
+				parentLocation: parent !== "" ? parent : null,
+			});
 			this.close();
 		} catch (e) {
 			new Notice(`Could not create location: ${(e as Error).message}`);

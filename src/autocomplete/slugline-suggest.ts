@@ -167,18 +167,29 @@ export class SluglineSuggest extends EditorSuggest<SuggestEntry> {
 			return;
 		}
 
-		// Replace the trigger range with the picked text. For locations we
-		// append a " - " so the user moves directly into the time-of-day
-		// stage (the next character types triggers the time suggester). For
-		// time-of-day, just insert the picked value (no trailing space — the
-		// slug ends here).
-		const insert =
-			value.stage === "location" ? `${value.text} - ` : value.text;
-		ctx.editor.replaceRange(insert, ctx.start, ctx.end);
-		// Keep the cursor at the end of the inserted text so subsequent
-		// typing flows naturally into the next stage.
-		const newCh = ctx.start.ch + insert.length;
-		ctx.editor.setCursor({ line: ctx.start.line, ch: newCh });
+		// Location stage: append " - " after the picked value so the user
+		// flows straight into the time-of-day stage (cursor parked after the
+		// trailing space so the next keystroke triggers the time suggester).
+		//
+		// Time stage: append a newline. The slug is now complete; the
+		// newline (a) matches Fountain convention of a break before action
+		// prose, and (b) gets the cursor OFF the slug line so onTrigger
+		// returns null and the dropdown doesn't immediately re-open showing
+		// the value we just picked.
+		if (value.stage === "location") {
+			const insert = `${value.text} - `;
+			ctx.editor.replaceRange(insert, ctx.start, ctx.end);
+			ctx.editor.setCursor({
+				line: ctx.start.line,
+				ch: ctx.start.ch + insert.length,
+			});
+			return;
+		}
+
+		// Time stage.
+		ctx.editor.replaceRange(`${value.text}\n`, ctx.start, ctx.end);
+		ctx.editor.setCursor({ line: ctx.start.line + 1, ch: 0 });
+		this.close();
 	}
 
 	// ── helpers ─────────────────────────────────────────────────────────
@@ -208,13 +219,17 @@ export class SluglineSuggest extends EditorSuggest<SuggestEntry> {
 
 		const entries: SuggestEntry[] = [];
 		for (const loc of roster) {
-			if (query !== "" && !loc.name.includes(query)) continue;
+			const sluglineName = composeSluglineLocation(
+				loc.name,
+				loc.parentLocation,
+				cfg.sluglineSubLocationDelimiter,
+			);
+			if (query !== "" && !sluglineName.includes(query)) continue;
 			entries.push({
 				stage: "location",
 				kind: "existing",
-				text: loc.name,
-				display: loc.name,
-				subtext: loc.parentLocation ? `inside ${loc.parentLocation}` : undefined,
+				text: sluglineName,
+				display: sluglineName,
 			});
 		}
 
@@ -248,10 +263,15 @@ export class SluglineSuggest extends EditorSuggest<SuggestEntry> {
 		}));
 
 		// Honour custom typed values that aren't presets — let the user's
-		// query be a one-off (e.g. "PRE-DAWN").
+		// query be a one-off (e.g. "PRE-DAWN"). PUSH (not unshift) so the
+		// custom entry sits at the bottom of the list. Otherwise typing a
+		// single letter like "D" would put "D (custom)" at the top, and
+		// hitting Enter would insert a one-character partial time — the
+		// user almost certainly meant DAY/DAWN/DUSK from the preset list
+		// above.
 		const trimmed = query.trim();
 		if (trimmed.length > 0 && !TIME_OF_DAY_PRESETS.includes(trimmed)) {
-			entries.unshift({
+			entries.push({
 				stage: "time",
 				kind: "time",
 				text: trimmed,
@@ -263,15 +283,28 @@ export class SluglineSuggest extends EditorSuggest<SuggestEntry> {
 	}
 
 	// Create a new location via the standard Create Location modal. On
-	// success, replace the trigger range with the created location's name +
-	// " - " so the user flows into the time-of-day stage.
+	// success, replace the trigger range with the canonical slug-line form
+	// of the location ("PARENT, SUB" when a parent_location was set during
+	// creation; otherwise just "NAME") + " - " so the user flows into the
+	// time-of-day stage.
 	private async handleCreateLocation(
 		typed: string,
 		ctx: EditorSuggestContext,
 	): Promise<void> {
 		const result = await openCreateLocationModal(this.plugin, typed);
 		if (!result) return;
-		const insert = `${result.displayName.toUpperCase()} - `;
+		const project = resolveActiveProject(ctx.file, this.plugin.scanner);
+		const cfg = project
+			? resolveProjectSettings(project, this.plugin.settings)
+			: null;
+		const delimiter =
+			cfg?.sluglineSubLocationDelimiter ?? ", ";
+		const sluglineName = composeSluglineLocation(
+			result.displayName.toUpperCase(),
+			result.parentLocation,
+			delimiter,
+		);
+		const insert = `${sluglineName} - `;
 		ctx.editor.replaceRange(insert, ctx.start, ctx.end);
 		const newCh = ctx.start.ch + insert.length;
 		ctx.editor.setCursor({ line: ctx.start.line, ch: newCh });
@@ -302,3 +335,33 @@ export class SluglineSuggest extends EditorSuggest<SuggestEntry> {
 // Placeholder so the import surface stays explicit if a future caller wants
 // to inject custom contexts. Currently unused.
 void Notice;
+
+// Format a location for slug-line insertion using the configured PRIMARY-
+// to-SUB delimiter (default ", " — the standard screenplay convention).
+//
+// Two ways a location can carry parent metadata:
+//   1. Explicit `parent_location` frontmatter — common with the new modal-
+//      based creation flow. `name` is just the sub ("BEDROOM"), `parent` is
+//      the parent name as authored (e.g. "Smith House"). Compose as
+//      "SMITH HOUSE<delimiter>BEDROOM".
+//   2. Legacy folder-nested form — the location roster builds names like
+//      "SMITH HOUSE - BEDROOM" when a sub-area .md file lives inside a
+//      parent folder. Convert the " - " separator to the configured
+//      delimiter so the canonical " - " delimiter remains for time of day.
+//
+// Standalone primary locations pass through unchanged.
+export function composeSluglineLocation(
+	name: string,
+	parent: string | null,
+	delimiter: string,
+): string {
+	if (parent && parent.trim() !== "") {
+		return `${parent.trim().toUpperCase()}${delimiter}${name}`;
+	}
+	const sep = " - ";
+	const idx = name.indexOf(sep);
+	if (idx >= 0) {
+		return `${name.slice(0, idx)}${delimiter}${name.slice(idx + sep.length)}`;
+	}
+	return name;
+}

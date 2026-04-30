@@ -294,6 +294,26 @@ export class FirstDraftSettingTab extends PluginSettingTab {
 						await this.save();
 					}),
 			);
+
+		new Setting(containerEl)
+			.setName("Slug-line sub-location delimiter")
+			.setDesc(
+				'Inserted between PRIMARY and SUB-LOCATION in slug-line autocomplete (e.g. "SMITH HOUSE, BEDROOM"). Default ", " — change to " - ", " — ", or whatever your script convention uses. Whitespace is preserved as-is.',
+			)
+			.addText((t) =>
+				t
+					.setPlaceholder(DEFAULT_SETTINGS.global.sluglineSubLocationDelimiter)
+					.setValue(g.sluglineSubLocationDelimiter)
+					.onChange(async (v) => {
+						// Empty string falls back to the default. Don't trim
+						// since the delimiter is meaningful whitespace.
+						g.sluglineSubLocationDelimiter =
+							v.length > 0
+								? v
+								: DEFAULT_SETTINGS.global.sluglineSubLocationDelimiter;
+						await this.save();
+					}),
+			);
 	}
 
 	private renderTemplates(): void {

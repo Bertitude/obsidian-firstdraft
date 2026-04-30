@@ -18,6 +18,7 @@ export interface GlobalConfig {
 	notesSubfolder: string;
 	seasonsFolder: string;
 	episodeNameTemplate: string;
+	sluglineSubLocationDelimiter: string;
 	defaultProjectParent: string;
 	defaultFeatureSubfolder: string;
 	defaultSeriesSubfolder: string;
@@ -46,6 +47,7 @@ export interface ProjectConfig {
 	notesSubfolder?: string;
 	seasonsFolder?: string;
 	episodeNameTemplate?: string;
+	sluglineSubLocationDelimiter?: string;
 	noteTag?: string;
 	characterCardFields?: string[];
 	sceneNoteTemplate?: string;
