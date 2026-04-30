@@ -206,7 +206,12 @@ export class ProjectNotesView extends ItemView {
 		const excerptEl = el.createDiv({ cls: "firstdraft-pnotes-entry-excerpt" });
 		excerptEl.setText(entry.excerpt);
 
-		el.addEventListener("click", () => this.openEntry(entry));
+		// mousedown (not click) — right sidebar swallows the first click as
+		// a focus-shift when the panel isn't already focused.
+		el.addEventListener("mousedown", (e) => {
+			if (e.button !== 0) return;
+			void this.openEntry(entry);
+		});
 	}
 
 	private async openEntry(entry: NoteEntry): Promise<void> {

@@ -178,10 +178,14 @@ export function renderFountainSection(opts: FountainSectionOpts): void {
 			cls: "firstdraft-card-open",
 			attr: { href: "#" },
 		});
-		link.addEventListener("click", (e) => {
+		// mousedown (not click) — left/right sidebar leaves swallow the first
+		// click as a focus-shift when the panel isn't already focused.
+		link.addEventListener("mousedown", (e) => {
+			if (e.button !== 0) return;
 			e.preventDefault();
 			void plugin.app.workspace.getLeaf(false).openFile(fountainFile);
 		});
+		link.addEventListener("click", (e) => e.preventDefault());
 		return;
 	}
 
@@ -506,8 +510,12 @@ function renderOpenLink(
 		cls: "firstdraft-card-open",
 		attr: { href: "#" },
 	});
-	link.addEventListener("click", (e) => {
+	// mousedown (not click) — sidebar leaves swallow the first click as a
+	// focus-shift when the panel isn't already focused.
+	link.addEventListener("mousedown", (e) => {
+		if (e.button !== 0) return;
 		e.preventDefault();
 		void plugin.app.workspace.getLeaf(false).openFile(file);
 	});
+	link.addEventListener("click", (e) => e.preventDefault());
 }

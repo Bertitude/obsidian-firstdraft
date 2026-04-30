@@ -121,7 +121,10 @@ export class ProjectHomeView extends ItemView {
 					text: i === 0 ? `← ${displayProjectPrimaryTitle(ancestor)}` : displayProjectPrimaryTitle(ancestor),
 					attr: { href: "#" },
 				});
-				link.addEventListener("click", (e) => {
+				// mousedown (not click) — left sidebar swallows the first click
+				// as a focus-shift when the panel isn't already focused.
+				link.addEventListener("mousedown", (e) => {
+					if (e.button !== 0) return;
 					e.preventDefault();
 					const indexFile = this.plugin.app.vault.getAbstractFileByPath(
 						ancestor.indexFilePath,
@@ -132,6 +135,7 @@ export class ProjectHomeView extends ItemView {
 							.openFile(indexFile as TFile);
 					}
 				});
+				link.addEventListener("click", (e) => e.preventDefault());
 				if (i < breadcrumbAncestors.length - 1) {
 					crumb.createSpan({
 						text: " · ",
