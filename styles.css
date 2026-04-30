@@ -1327,3 +1327,15 @@ body.firstdraft-active .workspace-split.mod-left-split .workspace-tab-header-con
 	font-size: var(--font-ui-smaller);
 	font-weight: normal;
 }
+
+/* Project lock — hide everything in the file explorer except the locked
+ * project tree (made visible by a constructable stylesheet adopted at
+ * runtime in src/project-lock/lock.ts). The vault root folder stays
+ * visible so the explorer doesn't collapse entirely. */
+body.firstdraft-project-locked .workspace-leaf-content[data-type="file-explorer"] .nav-folder,
+body.firstdraft-project-locked .workspace-leaf-content[data-type="file-explorer"] .nav-file {
+	display: none;
+}
+body.firstdraft-project-locked .workspace-leaf-content[data-type="file-explorer"] > .nav-folder.mod-root {
+	display: revert;
+}

@@ -120,7 +120,7 @@ async function runMerge(
 	const pickedIdx = indexOf(pickedSceneName);
 	if (activeIdx === -1 || pickedIdx === -1) {
 		new Notice(
-			"Both scenes need to be listed in the project's scenes: array. Run \"Sync screenplay scenes to project\" first.",
+			"Both scenes need to be listed in the project's scenes array — run sync screenplay scenes to project first.",
 		);
 		return;
 	}
@@ -259,12 +259,14 @@ export function mergeFrontmatter(
 		const earlierValue = merged[key];
 
 		if (Array.isArray(earlierValue) && Array.isArray(laterValue)) {
-			const out: unknown[] = [...earlierValue];
+			const earlierArr = earlierValue as unknown[];
+			const laterArr = laterValue as unknown[];
+			const out: unknown[] = [...earlierArr];
 			const seen = new Set<string>();
-			for (const v of earlierValue) {
+			for (const v of earlierArr) {
 				if (typeof v === "string") seen.add(v.toUpperCase());
 			}
-			for (const v of laterValue) {
+			for (const v of laterArr) {
 				if (typeof v === "string") {
 					if (seen.has(v.toUpperCase())) continue;
 					seen.add(v.toUpperCase());
@@ -274,7 +276,7 @@ export function mergeFrontmatter(
 			merged[key] = out;
 		} else if (Array.isArray(earlierValue) && !Array.isArray(laterValue)) {
 			// later is a scalar; treat as a single-element addition to the array.
-			const arr = [...earlierValue];
+			const arr = [...(earlierValue as unknown[])];
 			if (typeof laterValue === "string") {
 				const exists = arr.some(
 					(v) => typeof v === "string" && v.toUpperCase() === laterValue.toUpperCase(),

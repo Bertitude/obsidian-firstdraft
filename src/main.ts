@@ -199,7 +199,7 @@ export default class FirstDraftPlugin extends Plugin {
 		// own hotkey in Settings → Hotkeys.
 		this.addCommand({
 			id: "open-firstdraft-palette",
-			name: "Open FirstDraft palette",
+			name: "Open palette",
 			callback: () => {
 				openFirstDraftPalette(this);
 			},
@@ -207,7 +207,7 @@ export default class FirstDraftPlugin extends Plugin {
 
 		this.addCommand({
 			id: "open-firstdraft-project",
-			name: "Open FirstDraft project",
+			name: "Open project",
 			callback: () => {
 				runOpenFirstDraftProjectCommand(this);
 			},
@@ -215,7 +215,7 @@ export default class FirstDraftPlugin extends Plugin {
 
 		this.addCommand({
 			id: "create-firstdraft-project",
-			name: "Create FirstDraft project",
+			name: "Create project",
 			callback: () => {
 				runCreateProjectCommand(this);
 			},
@@ -297,7 +297,7 @@ export default class FirstDraftPlugin extends Plugin {
 
 		this.addCommand({
 			id: "migrate-schema-from-longform",
-			name: "Migrate project schema from Longform to FirstDraft",
+			name: "Migrate project schema from longform",
 			callback: () => {
 				void runMigrateSchemaFromLongformCommand(this);
 			},
@@ -401,7 +401,7 @@ export default class FirstDraftPlugin extends Plugin {
 
 		this.addCommand({
 			id: "migrate-stable-ids",
-			name: "Migrate sequences to stable IDs",
+			name: "Migrate sequences to stable ids",
 			callback: () => {
 				void runMigrateStableIdsCommand(this);
 			},
@@ -589,7 +589,7 @@ export default class FirstDraftPlugin extends Plugin {
 
 		this.addCommand({
 			id: "toggle-first-draft-mode",
-			name: "Toggle First Draft Mode",
+			name: "Toggle first draft mode",
 			callback: () => {
 				void toggleFirstDraftMode(this);
 			},

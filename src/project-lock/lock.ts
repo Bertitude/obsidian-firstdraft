@@ -7,17 +7,19 @@ import { resolveActiveProject } from "../projects/resolver";
 // to it) is visible in Obsidian's file explorer. Other surfaces (quick
 // switcher, search, links) are unaffected — this is a navigation hint only.
 //
-// Implementation: dynamic <style> tag generated from the locked path, plus a
-// body class. CSS uses :has() to hide whole .nav-folder and .nav-file
-// containers whose titles don't match the project tree. Removed on toggle off.
+// Implementation: a constructable CSSStyleSheet adopted on the document
+// generates path-specific show selectors, plus a body class. Static
+// hide/vault-root rules live in styles.css. CSS uses :has() to hide whole
+// .nav-folder and .nav-file containers whose titles don't match the project
+// tree. Removed on toggle off.
 //
 // Session-only — never persisted. Toggling off clears state. Independent of
 // First Draft Mode (separate command).
 
-const STYLE_ID = "firstdraft-project-lock-style";
 const BODY_CLASS = "firstdraft-project-locked";
 
 let lockedRoot: string | null = null;
+let lockSheet: CSSStyleSheet | null = null;
 
 export function toggleProjectLock(plugin: FirstDraftPlugin): void {
 	if (lockedRoot !== null) {
@@ -49,32 +51,36 @@ export function clearProjectLockOnUnload(): void {
 function applyLock(rootPath: string): void {
 	lockedRoot = rootPath;
 	document.body.classList.add(BODY_CLASS);
-
-	const style = ensureStyleEl();
-	style.textContent = generateCss(rootPath);
+	adoptLockSheet(generateCss(rootPath));
 }
 
 function clearLock(): void {
 	lockedRoot = null;
 	document.body.classList.remove(BODY_CLASS);
-	const style = document.getElementById(STYLE_ID);
-	if (style) style.remove();
+	releaseLockSheet();
 }
 
-function ensureStyleEl(): HTMLStyleElement {
-	let el = document.getElementById(STYLE_ID) as HTMLStyleElement | null;
-	if (el) return el;
-	el = document.createElement("style");
-	el.id = STYLE_ID;
-	document.head.appendChild(el);
-	return el;
+// Adopt a constructable CSSStyleSheet on the document so the dynamic
+// per-path selectors take effect without creating a <style> element.
+function adoptLockSheet(css: string): void {
+	if (!lockSheet) {
+		lockSheet = new CSSStyleSheet();
+		document.adoptedStyleSheets = [...document.adoptedStyleSheets, lockSheet];
+	}
+	lockSheet.replaceSync(css);
 }
 
-// Build CSS that hides every .nav-folder / .nav-file in the file explorer
-// EXCEPT those that are:
-//   - the locked project root folder
-//   - inside the locked project root
-//   - an ancestor folder of the locked root (so the path is navigable)
+function releaseLockSheet(): void {
+	if (!lockSheet) return;
+	document.adoptedStyleSheets = document.adoptedStyleSheets.filter(
+		(s) => s !== lockSheet,
+	);
+	lockSheet = null;
+}
+
+// Build CSS that shows the locked project root folder, anything inside it,
+// and the ancestor folders that lead to it. The static hide rule plus
+// vault-root rule live in styles.css.
 function generateCss(rootPath: string): string {
 	const ancestors: string[] = [];
 	let cur = rootPath;
@@ -97,29 +103,11 @@ function generateCss(rootPath: string): string {
 		`.nav-file:has(> .nav-file-title[data-path^="${escape(rootPath)}/"])`,
 	];
 
-	const hideRule = `
-body.${BODY_CLASS} .workspace-leaf-content[data-type="file-explorer"] .nav-folder,
-body.${BODY_CLASS} .workspace-leaf-content[data-type="file-explorer"] .nav-file {
-	display: none;
-}
-`;
-
-	const showRule = `
+	return `
 body.${BODY_CLASS} .workspace-leaf-content[data-type="file-explorer"] :is(${folderShowSelectors.join(
 		",\n",
 	)}, ${fileShowSelectors.join(",\n")}) {
 	display: revert;
 }
 `;
-
-	// The root .nav-folder of the file explorer (vault root) needs to stay
-	// visible since it contains everything. Targeting by checking that the
-	// folder's first child title has empty data-path (vault root has data-path="").
-	const vaultRootRule = `
-body.${BODY_CLASS} .workspace-leaf-content[data-type="file-explorer"] > .nav-folder.mod-root {
-	display: revert;
-}
-`;
-
-	return hideRule + showRule + vaultRootRule;
 }

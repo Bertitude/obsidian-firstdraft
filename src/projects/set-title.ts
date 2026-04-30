@@ -60,7 +60,7 @@ class SetTitleModal extends Modal {
 			.setDesc("Primary name for this project. Used in the picker, panel headers, and the default note tag.")
 			.addText((t) =>
 				t
-					.setPlaceholder("e.g. Babylon")
+					.setPlaceholder("Project title")
 					.setValue(this.titleValue)
 					.onChange((v) => {
 						this.titleValue = v;
@@ -69,7 +69,7 @@ class SetTitleModal extends Modal {
 
 		new Setting(contentEl)
 			.setName("Subtitle")
-			.setDesc('Optional. Shown alongside the title as "Title: Subtitle". Leave blank to clear.')
+			.setDesc('Optional. Shown alongside the title as "title: subtitle". Leave blank to clear.')
 			.addText((t) =>
 				t
 					.setPlaceholder("(none)")

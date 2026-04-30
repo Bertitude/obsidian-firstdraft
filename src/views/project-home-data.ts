@@ -1,4 +1,4 @@
-import { type App, type TFile, normalizePath } from "obsidian";
+import { type App, TFile, normalizePath } from "obsidian";
 import type { GlobalConfig, ProjectMeta } from "../types";
 import type { ProjectScanner } from "../projects/scanner";
 import {
@@ -212,7 +212,7 @@ function findSeasonOutline(
 		`${project.projectRootPath}/${cfg.developmentFolder}/Season Outline.md`,
 	);
 	const f = app.vault.getAbstractFileByPath(path);
-	return f && (f as TFile).extension === "md" ? (f as TFile) : null;
+	return f instanceof TFile && f.extension === "md" ? f : null;
 }
 
 // Look up the series's outline doc — `<series>/<dev>/Series Outline.md`.
@@ -225,7 +225,7 @@ function findSeriesOutline(
 		`${project.projectRootPath}/${cfg.developmentFolder}/Series Outline.md`,
 	);
 	const f = app.vault.getAbstractFileByPath(path);
-	return f && (f as TFile).extension === "md" ? (f as TFile) : null;
+	return f instanceof TFile && f.extension === "md" ? f : null;
 }
 
 function deriveSeasonKey(meta: ProjectMeta): string {
@@ -271,8 +271,8 @@ function lastSegment(path: string): string {
 function readDeclaredBeats(app: App, project: ProjectMeta): string[] {
 	const file = app.vault.getAbstractFileByPath(project.indexFilePath);
 	const cache =
-		file && (file as TFile).extension === "md"
-			? app.metadataCache.getFileCache(file as TFile)
+		file instanceof TFile && file.extension === "md"
+			? app.metadataCache.getFileCache(file)
 			: null;
 	const fm = cache?.frontmatter as Record<string, unknown> | undefined;
 	const raw = fm?.beats;
@@ -298,7 +298,7 @@ function findTreatment(
 			`${project.projectRootPath}/${cfg.developmentFolder}/${filename}`,
 		);
 		const f = app.vault.getAbstractFileByPath(path);
-		if (f && (f as TFile).extension === "md") return f as TFile;
+		if (f instanceof TFile && f.extension === "md") return f;
 	}
 	return null;
 }

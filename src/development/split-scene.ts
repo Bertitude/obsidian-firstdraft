@@ -15,7 +15,7 @@ import { sanitizeFilename } from "../utils/sanitize";
 import { promptForLabel } from "../versioning/prompt";
 import { snapshotFile, todayLabel } from "../versioning/snapshot";
 import { applyId, generateId, stripId } from "../utils/stable-id";
-import { findSluglineAtOrAbove, normalizeSlugline } from "../cursor-scroll/slugline";
+import { normalizeSlugline } from "../cursor-scroll/slugline";
 
 // Phase: Split scene at cursor.
 //
@@ -135,7 +135,7 @@ async function splitFromDevNote(
 	// Find slugline-style H2 at/below cursor — split begins there.
 	const h2 = findSluglineH2AtOrBelow(lines, cursorLine);
 	if (h2 === null) {
-		new Notice("No slugline-style H2 at or below cursor — can't split here.");
+		new Notice("No slugline-style heading at or below cursor — can't split here.");
 		return;
 	}
 

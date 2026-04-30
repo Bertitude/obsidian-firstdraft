@@ -30,7 +30,7 @@ export async function runMakeSeasonsFromSeriesOutlineCommand(
 ): Promise<void> {
 	const active = plugin.app.workspace.getActiveFile();
 	if (!active) {
-		new Notice("Open a series Index or Series Outline first.");
+		new Notice("Open a series index or series outline first.");
 		return;
 	}
 	const activeProject = resolveActiveProject(active, plugin.scanner);
@@ -53,7 +53,7 @@ export async function runMakeSeasonsFromSeriesOutlineCommand(
 	const markdown = await plugin.app.vault.read(outlineFile);
 	const beats = parseBeats(markdown);
 	if (beats.length === 0) {
-		new Notice("No H2 beats found in the Series Outline.");
+		new Notice("No headings found in the series outline.");
 		return;
 	}
 

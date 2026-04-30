@@ -51,7 +51,7 @@ export async function runMigrateStableIdsCommand(
 	}
 
 	if (candidates.length === 0) {
-		new Notice("All scenes in this project already have stable IDs.");
+		new Notice("All scenes in this project already have stable ids.");
 		return;
 	}
 

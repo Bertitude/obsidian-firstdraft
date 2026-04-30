@@ -24,9 +24,9 @@ class WelcomeModal extends Modal {
 		const { contentEl } = this;
 		contentEl.addClass("firstdraft-welcome");
 
-		contentEl.createEl("h2", { text: "Welcome to FirstDraft" });
+		contentEl.createEl("h2", { text: "Welcome" });
 		contentEl.createEl("p", {
-			text: "A screenwriting companion for Obsidian. Pairs each fountain script file with a development note, autocompletes character cues and slug-lines, and gives you an outlining ladder from Series Outline down to scene fountain files.",
+			text: "A screenwriting companion for Obsidian. Pairs each fountain script file with a development note, autocompletes character cues and slug-lines, and gives you an outlining ladder from series outline down to scene fountain files.",
 			cls: "firstdraft-welcome-tagline",
 		});
 
@@ -35,7 +35,7 @@ class WelcomeModal extends Modal {
 			cls: "firstdraft-welcome-list",
 		});
 		const fountainItem = compList.createEl("li");
-		fountainItem.createEl("strong", { text: "Fountain Editor" });
+		fountainItem.createEl("strong", { text: "Fountain editor" });
 		fountainItem.appendText(" (chuangcaleb) — renders ");
 		fountainItem.createEl("code", { text: ".fountain.md" });
 		fountainItem.appendText(
@@ -52,13 +52,13 @@ class WelcomeModal extends Modal {
 			cls: "firstdraft-welcome-list",
 		});
 		featList.createEl("li", {
-			text: "Run \"Create FirstDraft project\" → pick Feature → enter title.",
+			text: "Run \"create project\" → pick feature → enter title.",
 		});
 		featList.createEl("li", {
-			text: "Open Treatment.md — write one H2 per sequence (with as much prose under each as you want).",
+			text: "Open the treatment — write one heading per sequence (with as much prose under each as you want).",
 		});
 		featList.createEl("li", {
-			text: "Run \"Make sequences from treatment\" — fountain files + paired dev notes are scaffolded for each H2. Open one and start drafting.",
+			text: "Run \"make sequences from treatment\" — fountain files + paired dev notes are scaffolded for each heading. Open one and start drafting.",
 		});
 
 		this.section("Series flow (3 steps)");
@@ -66,26 +66,26 @@ class WelcomeModal extends Modal {
 			cls: "firstdraft-welcome-list",
 		});
 		seriesList.createEl("li", {
-			text: "Run \"Create FirstDraft project\" → pick Series → enter title.",
+			text: "Run \"create project\" → pick series → enter title.",
 		});
 		seriesList.createEl("li", {
-			text: "Open Series Outline.md → write H2 per season → run \"Make seasons from outline\". Each season gets its own Index + Season Outline.",
+			text: "Open the series outline → write one heading per season → run \"make seasons from outline\". Each season gets its own index + season outline.",
 		});
 		seriesList.createEl("li", {
-			text: "Inside a season, open Season Outline.md → H2 per episode → \"Make episodes from outline\". Episodes use the same Treatment → Make sequences flow as features.",
+			text: "Inside a season, open the season outline → one heading per episode → \"make episodes from outline\". Episodes use the same treatment → make sequences flow as features.",
 		});
 
 		this.section("Find more");
 		const more = contentEl.createEl("p", { cls: "firstdraft-welcome-more" });
 		more.appendText("The full README covers commands, settings, and edge cases: ");
 		const link = more.createEl("a", {
-			text: "FirstDraft on GitHub",
+			text: "View on GitHub",
 			attr: { href: README_URL, target: "_blank", rel: "noopener" },
 		});
 		link.addClass("firstdraft-welcome-link");
 		more.appendText(".");
 		contentEl.createEl("p", {
-			text: 'You can re-open this guide any time via the command palette: "Show welcome".',
+			text: 'You can re-open this guide any time via the command palette: "show welcome".',
 			cls: "firstdraft-welcome-help",
 		});
 

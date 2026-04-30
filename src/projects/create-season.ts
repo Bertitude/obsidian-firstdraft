@@ -26,13 +26,13 @@ import { yamlString } from "../utils/yaml";
 export function runCreateSeasonCommand(plugin: FirstDraftPlugin): void {
 	const active = plugin.app.workspace.getActiveFile();
 	if (!active) {
-		new Notice("Open a series file first (the series Index, or any file inside the series).");
+		new Notice("Open a series file first (the series index, or any file inside the series).");
 		return;
 	}
 	const project = resolveActiveProject(active, plugin.scanner);
 	const series = resolveSeriesFromContext(plugin, project);
 	if (!series) {
-		new Notice("Active file isn't inside a series project. Run from a series Index or any file inside it.");
+		new Notice("Active file isn't inside a series project. Run from a series index or any file inside it.");
 		return;
 	}
 	new CreateSeasonModal(plugin, series).open();
@@ -95,7 +95,7 @@ class CreateSeasonModal extends Modal {
 
 		new Setting(contentEl)
 			.setName("Title")
-			.setDesc('Optional — useful for franchise seasons (e.g. "Book II"). Defaults to "Season N".')
+			.setDesc("Optional — useful for franchise seasons (e.g. `book ii`). Defaults to `season N`.")
 			.addText((t) =>
 				t.setPlaceholder("(optional)").onChange((v) => {
 					this.title = v;

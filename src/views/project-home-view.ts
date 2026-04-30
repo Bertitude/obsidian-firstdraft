@@ -129,10 +129,10 @@ export class ProjectHomeView extends ItemView {
 					const indexFile = this.plugin.app.vault.getAbstractFileByPath(
 						ancestor.indexFilePath,
 					);
-					if (indexFile && (indexFile as TFile).extension === "md") {
+					if (indexFile instanceof TFile && indexFile.extension === "md") {
 						void this.plugin.app.workspace
 							.getLeaf(false)
-							.openFile(indexFile as TFile);
+							.openFile(indexFile);
 					}
 				});
 				link.addEventListener("click", (e) => e.preventDefault());
@@ -273,7 +273,7 @@ export class ProjectHomeView extends ItemView {
 
 		if (data.seasons.length === 0) {
 			section.createEl("p", {
-				text: 'No seasons yet. Run "Create season" above to add the first one.',
+				text: 'No seasons yet. Run "create season" above to add the first one.',
 				cls: "firstdraft-home-empty",
 			});
 			return;
@@ -315,10 +315,10 @@ export class ProjectHomeView extends ItemView {
 					const f = this.plugin.app.vault.getAbstractFileByPath(
 						seasonProj.indexFilePath,
 					);
-					if (f && (f as TFile).extension === "md") {
+					if (f instanceof TFile && f.extension === "md") {
 						void this.plugin.app.workspace
 							.getLeaf(false)
-							.openFile(f as TFile);
+							.openFile(f);
 					}
 				});
 				openLink.addEventListener("click", (e) => e.preventDefault());
@@ -363,7 +363,7 @@ export class ProjectHomeView extends ItemView {
 		});
 		if (data.seasonEpisodes.length === 0) {
 			section.createEl("p", {
-				text: 'No episodes yet. Use "Create episode" above to add the first one.',
+				text: 'No episodes yet. Use "create episode" above to add the first one.',
 				cls: "firstdraft-home-empty",
 			});
 			return;
@@ -383,8 +383,8 @@ export class ProjectHomeView extends ItemView {
 		item.addEventListener("mousedown", (e) => {
 			if (e.button !== 0) return;
 			const f = this.plugin.app.vault.getAbstractFileByPath(ep.indexFilePath);
-			if (f && (f as TFile).extension === "md") {
-				void this.plugin.app.workspace.getLeaf(false).openFile(f as TFile);
+			if (f instanceof TFile && f.extension === "md") {
+				void this.plugin.app.workspace.getLeaf(false).openFile(f);
 			}
 		});
 	}
@@ -465,7 +465,7 @@ export class ProjectHomeView extends ItemView {
 				outlinePath,
 				seriesOutlineTemplate(title),
 			);
-			new Notice("Series Outline created. Edit the H2s, then run Make seasons from outline.");
+			new Notice("Series outline created. Edit the headings, then run make seasons from outline.");
 			await this.plugin.app.workspace.getLeaf(false).openFile(created);
 			await this.refresh();
 		} catch (e) {
@@ -513,7 +513,7 @@ export class ProjectHomeView extends ItemView {
 
 		if (data.scenes.length === 0) {
 			section.createEl("p", {
-				text: "No sequences yet. Use the New sequence button or make sequences from a treatment.",
+				text: "No sequences yet. Use the new sequence button or make sequences from a treatment.",
 				cls: "firstdraft-home-empty",
 			});
 			return;
@@ -560,7 +560,7 @@ export class ProjectHomeView extends ItemView {
 
 		if (data.characters.length === 0) {
 			section.createEl("p", {
-				text: "No characters yet. Use Create character or tag dialogue cues.",
+				text: "No characters yet. Use create character or tag dialogue cues.",
 				cls: "firstdraft-home-empty",
 			});
 			return;

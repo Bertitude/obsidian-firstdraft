@@ -47,7 +47,7 @@ export class FirstDraftSettingTab extends PluginSettingTab {
 		new Setting(containerEl)
 			.setName("Default project parent folder")
 			.setDesc(
-				'Where new projects land by default. Type to search existing folders or enter a new path. Empty = vault root. e.g. "Project Development".',
+				"Where new projects land by default. type to search existing folders or enter a new path. empty = vault root. e.g. `project development`.",
 			)
 			.addText((t) => {
 				t.setPlaceholder("(vault root)")
@@ -62,7 +62,7 @@ export class FirstDraftSettingTab extends PluginSettingTab {
 		new Setting(containerEl)
 			.setName("Feature subfolder")
 			.setDesc(
-				'Optional subfolder under the project parent for feature projects. e.g. "Film". Empty = no extra nesting.',
+				"Optional subfolder under the project parent for feature projects. e.g. `film`. empty = no extra nesting.",
 			)
 			.addText((t) =>
 				t
@@ -77,7 +77,7 @@ export class FirstDraftSettingTab extends PluginSettingTab {
 		new Setting(containerEl)
 			.setName("Series subfolder")
 			.setDesc(
-				'Optional subfolder under the project parent for series projects. e.g. "Series". Empty = no extra nesting.',
+				"Optional subfolder under the project parent for series projects. e.g. `series`. empty = no extra nesting.",
 			)
 			.addText((t) =>
 				t
@@ -269,7 +269,7 @@ export class FirstDraftSettingTab extends PluginSettingTab {
 		new Setting(containerEl)
 			.setName("Seasons folder name")
 			.setDesc(
-				"Folder name used to group episodes inside a series project. UK convention is \"Series\"; US is \"Seasons\".",
+				"Folder name used to group episodes inside a series project. uk convention is `series`; us is `seasons`.",
 			)
 			.addText((t) =>
 				t
@@ -299,7 +299,7 @@ export class FirstDraftSettingTab extends PluginSettingTab {
 		new Setting(containerEl)
 			.setName("Slug-line sub-location delimiter")
 			.setDesc(
-				'Inserted between PRIMARY and SUB-LOCATION in slug-line autocomplete (e.g. "SMITH HOUSE, BEDROOM"). Spacing is included automatically — pick the punctuation that matches your script convention.',
+				"Inserted between PRIMARY and SUB-LOCATION in slug-line autocomplete (e.g. `SMITH HOUSE, BEDROOM`). Spacing is included automatically — pick the punctuation that matches your script convention.",
 			)
 			.addDropdown((d) => {
 				for (const preset of SLUGLINE_DELIMITER_PRESETS) {

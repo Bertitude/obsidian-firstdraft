@@ -106,7 +106,7 @@ function computePresence(
 	rows: CharacterEntry[],
 	treatmentRows: OutlineRow[],
 ): boolean[][] {
-	const out: boolean[][] = rows.map(() => new Array(treatmentRows.length).fill(false));
+	const out: boolean[][] = rows.map(() => new Array<boolean>(treatmentRows.length).fill(false));
 	for (let s = 0; s < treatmentRows.length; s++) {
 		const scene = treatmentRows[s];
 		if (!scene) continue;
@@ -131,7 +131,7 @@ async function computeCueCounts(
 	rows: CharacterEntry[],
 	treatmentRows: OutlineRow[],
 ): Promise<number[][]> {
-	const out: number[][] = rows.map(() => new Array(treatmentRows.length).fill(0));
+	const out: number[][] = rows.map(() => new Array<number>(treatmentRows.length).fill(0));
 	for (let s = 0; s < treatmentRows.length; s++) {
 		const scene = treatmentRows[s];
 		if (!scene || !scene.fountainFile) continue;

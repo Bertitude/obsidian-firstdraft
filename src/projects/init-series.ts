@@ -60,7 +60,7 @@ class InitializeSeriesRootModal extends Modal {
 		const { contentEl } = this;
 		contentEl.createEl("h2", { text: "Initialize series root" });
 		contentEl.createEl("p", {
-			text: "Adds a series-kind Index.md at the chosen folder so existing episodes inside it hang off a series root. Doesn't touch existing episodes.",
+			text: "Adds a series-kind index at the chosen folder so existing episodes inside it hang off a series root. Doesn't touch existing episodes.",
 			cls: "firstdraft-modal-help",
 		});
 
@@ -92,7 +92,7 @@ class InitializeSeriesRootModal extends Modal {
 
 		new Setting(contentEl)
 			.setName("Subtitle")
-			.setDesc('Optional. Shown alongside the title as "Title: Subtitle" (e.g. Power: Book II).')
+			.setDesc("Optional. Shown alongside the title — e.g. `power: book ii`.")
 			.addText((t) =>
 				t.setPlaceholder("(none)").onChange((v) => {
 					this.subtitle = v.trim();

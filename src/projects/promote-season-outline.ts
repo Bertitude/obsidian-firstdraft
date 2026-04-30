@@ -33,12 +33,12 @@ export async function runMakeEpisodesFromSeasonOutlineCommand(
 ): Promise<void> {
 	const active = plugin.app.workspace.getActiveFile();
 	if (!active) {
-		new Notice("Open a season's Season Outline (or Index) first.");
+		new Notice("Open a season's season outline (or index) first.");
 		return;
 	}
 	const project = resolveActiveProject(active, plugin.scanner);
 	if (!project || project.projectType !== "season") {
-		new Notice("Active file isn't inside a season project. Run from a season Index or its Season Outline.");
+		new Notice("Active file isn't inside a season project. Run from a season index or its season outline.");
 		return;
 	}
 	const cfg = resolveProjectSettings(project, plugin.settings);
@@ -61,7 +61,7 @@ export async function runMakeEpisodesFromSeasonOutlineCommand(
 	const markdown = await plugin.app.vault.read(outlineFile);
 	const beats = parseBeats(markdown);
 	if (beats.length === 0) {
-		new Notice("No H2 beats found in the Season Outline.");
+		new Notice("No headings found in the season outline.");
 		return;
 	}
 

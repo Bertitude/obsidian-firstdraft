@@ -35,7 +35,7 @@ export function openFirstDraftPalette(plugin: FirstDraftPlugin): void {
 class FirstDraftPalette extends SuggestModal<ObsidianCommand> {
 	constructor(private readonly plugin: FirstDraftPlugin) {
 		super(plugin.app);
-		this.setPlaceholder("FirstDraft command…");
+		this.setPlaceholder("Command…");
 	}
 
 	getSuggestions(query: string): ObsidianCommand[] {

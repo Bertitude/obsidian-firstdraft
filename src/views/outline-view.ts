@@ -262,7 +262,7 @@ export class OutlineView extends ItemView {
 			// gesture.
 			const addBtn = title.createEl("button", {
 				cls: "firstdraft-outline-tag is-action",
-				text: "Not in project · Add",
+				text: "Not in project · add",
 				attr: { "aria-label": "Add this sequence to the project" },
 			});
 			addBtn.addEventListener("mousedown", (e) => {

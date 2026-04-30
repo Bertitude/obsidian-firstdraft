@@ -49,7 +49,7 @@ export async function runSyncSluglinesCommand(plugin: FirstDraftPlugin): Promise
 	const devNoteText = await plugin.app.vault.read(pair.devNoteFile);
 	const noteSluglines = extractSluglineH2s(devNoteText);
 	if (noteSluglines.length === 0) {
-		new Notice("No slugline H2s found in dev note (e.g. ## INT. CAR - DAY).");
+		new Notice("No slugline headings found in dev note (e.g. `## INT. CAR - DAY`).");
 		return;
 	}
 

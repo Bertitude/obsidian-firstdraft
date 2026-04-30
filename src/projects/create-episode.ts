@@ -54,7 +54,7 @@ export function runCreateEpisodeCommand(plugin: FirstDraftPlugin): void {
 
 	const series = findContainingSeries(plugin, active);
 	if (!series) {
-		new Notice("Active file isn't inside a series or season. Run from a series Index, season Index, or any file inside one.");
+		new Notice("Active file isn't inside a series or season. Run from a series index, season index, or any file inside one.");
 		return;
 	}
 	new CreateEpisodeModal(plugin, series, null).open();
@@ -168,7 +168,7 @@ class CreateEpisodeModal extends Modal {
 			.setName("Title")
 			.setDesc("Episode title.")
 			.addText((t) =>
-				t.setPlaceholder("e.g. Pilot").onChange((v) => {
+				t.setPlaceholder("Episode title").onChange((v) => {
 					this.title = v;
 				}),
 			);
@@ -180,7 +180,7 @@ class CreateEpisodeModal extends Modal {
 				.setName("Production code")
 				.setDesc("Optional. Inserted into the folder name via the {productionCode} token.")
 				.addText((t) =>
-					t.setPlaceholder("e.g. 101").onChange((v) => {
+					t.setPlaceholder("Production code").onChange((v) => {
 						this.productionCode = v.trim();
 					}),
 				);
@@ -218,7 +218,7 @@ class CreateEpisodeModal extends Modal {
 		if (this.hasSeasonContext) {
 			const seasonFromCtx = this.seasonNumberFromContext();
 			if (!seasonFromCtx) {
-				new Notice("Couldn't infer season number from context. Try the series-level Create episode flow.");
+				new Notice("Couldn't infer season number from context. Try the series-level create episode flow.");
 				return;
 			}
 			const epNum = normalizeNumeric(this.episodeNumber);

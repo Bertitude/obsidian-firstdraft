@@ -64,12 +64,12 @@ export async function runMigrateSchemaFromLongformCommand(
 	switch (outcome) {
 		case "migrated":
 			new Notice(
-				`Migrated "${project.title ?? project.projectRootPath}" to FirstDraft schema. You can uninstall Longform if you'd like.`,
+				`Migrated "${project.title ?? project.projectRootPath}" to FirstDraft schema. You can uninstall longform if you'd like.`,
 				6000,
 			);
 			break;
 		case "already-firstdraft":
-			new Notice("Already on FirstDraft schema.");
+			new Notice("Already on the firstdraft schema.");
 			break;
 		case "no-longform":
 			new Notice("No `longform:` block found to migrate.");

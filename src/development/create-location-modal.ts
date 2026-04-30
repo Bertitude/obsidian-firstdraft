@@ -75,7 +75,7 @@ class CreateLocationModal extends Modal {
 			.setName("Name")
 			.setDesc("Location name. Used as the folder + canonical file name.")
 			.addText((t) => {
-				t.setPlaceholder("e.g. Smith House")
+				t.setPlaceholder("Location name")
 					.setValue(this.nameValue)
 					.onChange((v) => {
 						this.nameValue = v;
@@ -107,7 +107,7 @@ class CreateLocationModal extends Modal {
 		const parentSetting = new Setting(contentEl)
 			.setName("Parent location")
 			.setDesc(
-				'Optional. If this is a sub-area of an existing location (e.g. BEDROOM inside SMITH HOUSE), pick its parent. Leave empty for standalone locations.',
+				"Optional. If this is a sub-area of an existing location (e.g. `BEDROOM` inside `SMITH HOUSE`), pick its parent. Leave empty for standalone locations.",
 			);
 		parentSetting.addText((t) => {
 			const roster = locationRoster(

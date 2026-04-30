@@ -35,7 +35,7 @@ export async function runAssignSceneToBeatCommand(
 	const beats = readDeclaredBeats(plugin, project);
 	if (beats.length === 0) {
 		new Notice(
-			"No beats declared. Run “Apply beat template” first, or add a beats: array to Index.md.",
+			"No beats declared — run apply beat template first, or add a beats: array to the project index.",
 		);
 		return;
 	}
@@ -281,7 +281,7 @@ async function clearAllSceneBeatAssignments(
 		const beat = fm?.beat;
 		if (typeof beat !== "string" || beat.trim() === "") continue;
 		try {
-			await plugin.app.fileManager.processFrontMatter(child, (next) => {
+			await plugin.app.fileManager.processFrontMatter(child, (next: Record<string, unknown>) => {
 				delete next.beat;
 			});
 			cleared += 1;

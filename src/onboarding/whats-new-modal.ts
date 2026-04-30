@@ -26,7 +26,7 @@ class WhatsNewModal extends Modal {
 		const { contentEl } = this;
 		contentEl.addClass("firstdraft-whatsnew");
 
-		contentEl.createEl("h2", { text: "What's new in FirstDraft" });
+		contentEl.createEl("h2", { text: "What's new" });
 
 		if (this.releases.length === 0) {
 			contentEl.createEl("p", {

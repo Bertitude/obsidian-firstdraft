@@ -95,7 +95,7 @@ class CreateCharacterModal extends Modal {
 			.setName("Name")
 			.setDesc("Character name. Used as the folder + canonical file name.")
 			.addText((t) => {
-				t.setPlaceholder("e.g. Antonia")
+				t.setPlaceholder("Character name")
 					.setValue(this.nameValue)
 					.onChange((v) => {
 						this.nameValue = v;

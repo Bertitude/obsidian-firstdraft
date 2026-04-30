@@ -61,7 +61,7 @@ class InitializeSeasonRootModal extends Modal {
 		const { contentEl } = this;
 		contentEl.createEl("h2", { text: "Initialize season root" });
 		contentEl.createEl("p", {
-			text: "Adds a season-kind Index.md at the chosen folder so existing episodes inside it hang off a season root. Doesn't touch existing episodes.",
+			text: "Adds a season-kind index at the chosen folder so existing episodes inside it hang off a season root. Doesn't touch existing episodes.",
 			cls: "firstdraft-modal-help",
 		});
 
@@ -94,10 +94,10 @@ class InitializeSeasonRootModal extends Modal {
 
 		new Setting(contentEl)
 			.setName("Title")
-			.setDesc('Display name. Defaults to "Season N".')
+			.setDesc("Display name. Defaults to `season N`.")
 			.addText((t) =>
 				t
-					.setPlaceholder('e.g. "Season 1" or "Book II"')
+					.setPlaceholder("Season name")
 					.setValue(this.title)
 					.onChange((v) => {
 						this.title = v.trim();

@@ -5,7 +5,6 @@ import { resolveActiveProject } from "../projects/resolver";
 import { resolveProjectSettings } from "../settings/resolve";
 import {
 	buildBeatSheet,
-	UNASSIGNED_BEAT,
 	type BeatSheetData,
 } from "./beat-sheet-data";
 import { VIEW_TYPE_BEAT_SHEET } from "./view-types";
@@ -94,7 +93,7 @@ export class BeatSheetView extends ItemView {
 		if (declaredCount === 0) {
 			const hint = header.createDiv({ cls: "firstdraft-beats-hint" });
 			hint.setText(
-				"No beats declared yet. Run the “Apply beat template” command to scaffold one.",
+				"No beats declared yet. Run the apply beat template command to scaffold one.",
 			);
 		}
 	}
@@ -127,7 +126,7 @@ export class BeatSheetView extends ItemView {
 			});
 			if (!group.isDeclared && !group.isUnassigned) {
 				nameCell.createEl("small", {
-					text: "ad-hoc",
+					text: "Ad-hoc",
 					cls: "firstdraft-beats-row-meta",
 				});
 			}

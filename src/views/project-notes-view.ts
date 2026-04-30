@@ -1,4 +1,4 @@
-import { ItemView, Notice, setIcon, TFile, WorkspaceLeaf } from "obsidian";
+import { ItemView, Notice, setIcon, WorkspaceLeaf } from "obsidian";
 import type FirstDraftPlugin from "../main";
 import type { ProjectMeta } from "../types";
 import { resolveActiveProject } from "../projects/resolver";
@@ -112,8 +112,8 @@ export class ProjectNotesView extends ItemView {
 		const actions = header.createDiv({ cls: "firstdraft-pnotes-actions" });
 		const addBtn = actions.createEl("button", {
 			cls: "mod-cta firstdraft-pnotes-add",
-			text: "+ Add note",
-			attr: { "aria-label": "Create a new note in the contextual Notes folder" },
+			text: "Add note",
+			attr: { "aria-label": "Create a new note in the contextual notes folder" },
 		});
 		// mousedown for the same focus-eating reason as other right-sidebar
 		// buttons; click stopPropagation guards against any parent handler.

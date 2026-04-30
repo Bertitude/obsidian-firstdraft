@@ -58,7 +58,7 @@ class CreateProjectModal extends Modal {
 		const cfg = this.plugin.settings.global;
 
 		contentEl.addClass("firstdraft-create-project");
-		contentEl.createEl("h2", { text: "Create FirstDraft project" });
+		contentEl.createEl("h2", { text: "Create project" });
 
 		// Initialise the parent folder from settings + default kind.
 		this.parentFolder = computeDefaultParent(cfg, this.kind);
@@ -68,7 +68,7 @@ class CreateProjectModal extends Modal {
 			.setDesc("Primary name for the project. Used as the folder name and in the index.")
 			.addText((t) =>
 				t
-					.setPlaceholder("e.g. Babylon")
+					.setPlaceholder("Project title")
 					.onChange((v) => {
 						this.title = v;
 					}),
@@ -76,7 +76,7 @@ class CreateProjectModal extends Modal {
 
 		new Setting(contentEl)
 			.setName("Subtitle")
-			.setDesc('Optional. Shown alongside the title as "Title: Subtitle" (e.g. Power: Book II).')
+			.setDesc("Optional. Shown alongside the title — e.g. `power: book II`.")
 			.addText((t) =>
 				t.setPlaceholder("(none)").onChange((v) => {
 					this.subtitle = v.trim();
@@ -86,7 +86,7 @@ class CreateProjectModal extends Modal {
 		new Setting(contentEl)
 			.setName("Project type")
 			.setDesc(
-				"Feature for a single screenplay; Series for a TV/episodic project. Series produces a show-level shell — add episodes via 'Create episode' once it's open.",
+				"Feature for a single screenplay; series for a TV/episodic project. the series option produces a show-level shell — add episodes via `create episode` once it's open.",
 			)
 			.addDropdown((d) => {
 				d.addOption("feature", "Feature");

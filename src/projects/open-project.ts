@@ -30,7 +30,7 @@ class ProjectPickerModal extends SuggestModal<ProjectMeta> {
 		private readonly projects: ProjectMeta[],
 	) {
 		super(plugin.app);
-		this.setPlaceholder("Pick a FirstDraft project to open…");
+		this.setPlaceholder("Pick a project to open…");
 	}
 
 	getSuggestions(query: string): ProjectMeta[] {

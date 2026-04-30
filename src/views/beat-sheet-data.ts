@@ -1,4 +1,4 @@
-import type { App, TFile } from "obsidian";
+import { type App, TFile } from "obsidian";
 import type { GlobalConfig, ProjectMeta } from "../types";
 import { buildOutlineData, type OutlineRow } from "./outline-data";
 
@@ -113,8 +113,8 @@ function toRef(row: OutlineRow): BeatSceneRef {
 function readDeclaredBeats(app: App, project: ProjectMeta): string[] {
 	const file = app.vault.getAbstractFileByPath(project.indexFilePath);
 	const cache =
-		file && (file as TFile).extension === "md"
-			? app.metadataCache.getFileCache(file as TFile)
+		file instanceof TFile && file.extension === "md"
+			? app.metadataCache.getFileCache(file)
 			: null;
 	const fm = cache?.frontmatter as Record<string, unknown> | undefined;
 	const raw = fm?.beats;

@@ -68,7 +68,7 @@ async function enterFirstDraftMode(plugin: FirstDraftPlugin): Promise<void> {
 	fireTypewriterToggle(plugin);
 
 	await plugin.saveSettings();
-	new Notice("First Draft Mode on");
+	new Notice("First draft mode on");
 }
 
 async function exitFirstDraftMode(plugin: FirstDraftPlugin): Promise<void> {
@@ -94,7 +94,7 @@ async function exitFirstDraftMode(plugin: FirstDraftPlugin): Promise<void> {
 	fireTypewriterToggle(plugin);
 
 	await plugin.saveSettings();
-	new Notice("First Draft Mode off");
+	new Notice("First draft mode off");
 }
 
 export function exitFirstDraftModeSync(plugin: FirstDraftPlugin): void {
@@ -106,12 +106,12 @@ export function exitFirstDraftModeSync(plugin: FirstDraftPlugin): void {
 
 function fireTypewriterToggle(plugin: FirstDraftPlugin): void {
 	if (!isPluginEnabled(plugin, TYPEWRITER_PLUGIN_ID)) {
-		new Notice("Typewriter Scroll plugin not installed — skipping", 3000);
+		new Notice("Typewriter scroll plugin not installed — skipping", 3000);
 		return;
 	}
 	const commands = (plugin.app as unknown as { commands?: CommandsApi }).commands;
 	const ok = commands?.executeCommandById?.(TYPEWRITER_TOGGLE_COMMAND) ?? false;
 	if (!ok) {
-		new Notice("Typewriter Scroll command not found — skipping", 3000);
+		new Notice("Typewriter scroll command not found — skipping", 3000);
 	}
 }
