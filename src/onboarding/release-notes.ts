@@ -20,7 +20,7 @@ export interface ReleaseEntry {
 
 export const RELEASE_NOTES: ReleaseEntry[] = [
 	{
-		version: "1.0.0",
+		version: "0.1.0",
 		date: "2026-04-30",
 		title: "Initial release",
 		highlights: [

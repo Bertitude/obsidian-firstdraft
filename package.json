@@ -1,6 +1,6 @@
 {
 	"name": "obsidian-firstdraft",
-	"version": "1.0.0",
+	"version": "0.1.0",
 	"description": "A screenwriting companion that connects scene files to development notes, autocompletes character cues, and provides a distraction-free first draft mode.",
 	"main": "main.js",
 	"type": "module",

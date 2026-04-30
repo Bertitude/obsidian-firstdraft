@@ -1,7 +1,7 @@
 {
 	"id": "obsidian-firstdraft",
 	"name": "FirstDraft",
-	"version": "1.0.0",
+	"version": "0.1.0",
 	"minAppVersion": "0.15.0",
 	"description": "A screenwriting companion that connects scene files to development notes, autocompletes character cues, and provides a distraction-free first draft mode.",
 	"author": "Kaiel Eytle",
