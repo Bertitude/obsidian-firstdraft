@@ -86,22 +86,23 @@ export class ProjectScanner {
 
 		// Project kind: explicit `firstdraft.kind` field wins. For backward
 		// compat, if kind isn't set: presence of `series:` => tv-episode,
-		// absence => feature. Series projects are NEW and only detected via
-		// the explicit `kind: series` marker.
+		// absence => feature. Series and season projects are NEW and only
+		// detected via the explicit `kind:` marker.
 		const kindRaw = typeof block.kind === "string" ? block.kind.trim().toLowerCase() : "";
 		const seriesField =
 			typeof fm.series === "string" && fm.series.trim() !== "" ? fm.series : undefined;
 
 		let projectType: ProjectType;
 		if (kindRaw === "series") projectType = "series";
+		else if (kindRaw === "season") projectType = "season";
 		else if (kindRaw === "episode" || seriesField) projectType = "tv-episode";
 		else projectType = "feature";
 
-		// Series projects don't require sequenceFolder — they have no
-		// sequences directly (those live in episodes). Feature/episode
+		// Series and season projects don't require sequenceFolder — they have
+		// no sequences directly (those live in episodes). Feature/episode
 		// projects still require it.
 		let sequenceFolderPath = "";
-		if (projectType !== "series") {
+		if (projectType !== "series" && projectType !== "season") {
 			const folderRaw = block.sequenceFolder ?? block.sceneFolder;
 			if (typeof folderRaw !== "string" || folderRaw.trim() === "") return null;
 			sequenceFolderPath = normalizePath(`${projectRootPath}/${folderRaw}`);

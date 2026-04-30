@@ -3,7 +3,7 @@ import type FirstDraftPlugin from "../main";
 import type { ProjectMeta } from "../types";
 import { resolveActiveProject } from "../projects/resolver";
 import { resolveProjectSettings } from "../settings/resolve";
-import { buildProjectHome, type ProjectHomeData } from "./project-home-data";
+import { buildProjectHome, type EpisodeEntry, type ProjectHomeData } from "./project-home-data";
 import { activateBeatSheetView } from "./beat-sheet-view";
 import { activateOutlineView } from "./outline-view";
 import { activateCharacterMatrixView } from "./character-matrix-view";
@@ -74,11 +74,21 @@ export class ProjectHomeView extends ItemView {
 		this.renderHeader(this.data);
 
 		if (this.data.isSeries) {
-			// Series view: episodes section instead of scenes; quick actions
-			// adapted (no scene-level commands). Characters/locations still
-			// surface for series-level recurring entities.
+			// Series view: seasons-grouped episodes (collapsible per season)
+			// + series-level recurring characters/locations.
 			this.renderSeriesQuickActions(this.data);
-			this.renderEpisodesSection(this.data);
+			this.renderSeasonsSection(this.data);
+			this.renderCharactersSection(this.data);
+			this.renderLocationsSection(this.data);
+			return;
+		}
+
+		if (this.data.isSeason) {
+			// Season view: episodes in this season + season-arc
+			// characters/locations + Outline access. Create Episode button
+			// inherits the season number automatically.
+			this.renderSeasonQuickActions(this.data);
+			this.renderSeasonEpisodesSection(this.data);
 			this.renderCharactersSection(this.data);
 			this.renderLocationsSection(this.data);
 			return;
@@ -95,27 +105,37 @@ export class ProjectHomeView extends ItemView {
 	private renderHeader(data: ProjectHomeData): void {
 		const header = this.contentEl.createDiv({ cls: "firstdraft-home-header" });
 
-		// "← Back to series" for tv-episode projects whose scanner knows
-		// about a parent series root. Lives above the title so it reads as
-		// breadcrumb navigation. Uses the primary title only so subtitled
-		// franchise series ("Power: Book II") read as "← Power" rather
-		// than crowding the breadcrumb with the full label.
-		if (data.parentSeries) {
-			const parent = data.parentSeries;
-			const back = header.createEl("a", {
-				cls: "firstdraft-home-breadcrumb",
-				text: `← ${displayProjectPrimaryTitle(parent)}`,
-				attr: { href: "#" },
-			});
-			back.addEventListener("click", (e) => {
-				e.preventDefault();
-				const indexFile = this.plugin.app.vault.getAbstractFileByPath(
-					parent.indexFilePath,
-				);
-				if (indexFile && (indexFile as TFile).extension === "md") {
-					void this.plugin.app.workspace
-						.getLeaf(false)
-						.openFile(indexFile as TFile);
+		// Breadcrumb chain. Episodes show: ← Series · Season. Seasons show:
+		// ← Series. Each segment is clickable, opening that ancestor's
+		// Index.md. Primary title only so subtitled franchise names
+		// ("Power: Book II") stay tight in the breadcrumb.
+		const breadcrumbAncestors: ProjectMeta[] = [];
+		if (data.parentSeries) breadcrumbAncestors.push(data.parentSeries);
+		if (data.parentSeason) breadcrumbAncestors.push(data.parentSeason);
+		if (breadcrumbAncestors.length > 0) {
+			const crumb = header.createDiv({ cls: "firstdraft-home-breadcrumb-row" });
+			breadcrumbAncestors.forEach((ancestor, i) => {
+				const link = crumb.createEl("a", {
+					cls: "firstdraft-home-breadcrumb",
+					text: i === 0 ? `← ${displayProjectPrimaryTitle(ancestor)}` : displayProjectPrimaryTitle(ancestor),
+					attr: { href: "#" },
+				});
+				link.addEventListener("click", (e) => {
+					e.preventDefault();
+					const indexFile = this.plugin.app.vault.getAbstractFileByPath(
+						ancestor.indexFilePath,
+					);
+					if (indexFile && (indexFile as TFile).extension === "md") {
+						void this.plugin.app.workspace
+							.getLeaf(false)
+							.openFile(indexFile as TFile);
+					}
+				});
+				if (i < breadcrumbAncestors.length - 1) {
+					crumb.createSpan({
+						text: " · ",
+						cls: "firstdraft-home-breadcrumb-sep",
+					});
 				}
 			});
 		}
@@ -162,9 +182,16 @@ export class ProjectHomeView extends ItemView {
 		cog.addEventListener("click", (e) => e.stopPropagation());
 		const meta: string[] = [];
 		if (data.isSeries) {
+			const seasonCount = data.seasons.length;
 			const epCount = data.seasons.reduce((n, s) => n + s.episodes.length, 0);
 			meta.push("Series");
+			meta.push(`${seasonCount} season${seasonCount === 1 ? "" : "s"}`);
 			meta.push(`${epCount} episode${epCount === 1 ? "" : "s"}`);
+		} else if (data.isSeason) {
+			meta.push("Season");
+			meta.push(
+				`${data.seasonEpisodes.length} episode${data.seasonEpisodes.length === 1 ? "" : "s"}`,
+			);
 		} else {
 			meta.push(data.isTv ? "TV episode" : "Feature");
 			meta.push(
@@ -188,46 +215,78 @@ export class ProjectHomeView extends ItemView {
 	private renderSeriesQuickActions(data: ProjectHomeData): void {
 		void data;
 		const wrap = this.contentEl.createDiv({ cls: "firstdraft-home-actions" });
-		this.actionButton(wrap, "plus-square", "Create episode", () => {
-			void this.runCommand("create-episode");
+		this.actionButton(wrap, "calendar-plus", "Create season", () => {
+			void this.runCommand("create-season");
 		});
 	}
 
-	private renderEpisodesSection(data: ProjectHomeData): void {
+	private renderSeasonQuickActions(data: ProjectHomeData): void {
+		const wrap = this.contentEl.createDiv({ cls: "firstdraft-home-actions" });
+		this.actionButton(wrap, "plus-square", "Create episode", () => {
+			void this.runCommand("create-episode");
+		});
+		if (data.seasonOutlineFile) {
+			this.actionButton(wrap, "scroll-text", "Season Outline", () => {
+				if (data.seasonOutlineFile)
+					void this.plugin.app.workspace
+						.getLeaf(false)
+						.openFile(data.seasonOutlineFile);
+			});
+			this.actionButton(wrap, "list-tree", "Make episodes from outline", () => {
+				void this.runCommand("make-episodes-from-season-outline");
+			});
+		}
+	}
+
+	// Series Project Home: collapsible Seasons sections, each containing
+	// the episodes nested inside that season. Season headings are clickable
+	// when an explicit Season project (kind: season) exists for that key —
+	// click opens the Season Index. Otherwise the heading is a simple label.
+	private renderSeasonsSection(data: ProjectHomeData): void {
 		const section = this.contentEl.createDiv({ cls: "firstdraft-home-section" });
 		section.createEl("h2", {
-			text: "Episodes",
+			text: "Seasons",
 			cls: "firstdraft-home-section-title",
 		});
 
 		if (data.seasons.length === 0) {
 			section.createEl("p", {
-				text: "No episodes yet. Run \"Create episode\" above to add the first one.",
+				text: 'No seasons yet. Run "Create season" above to add the first one.',
 				cls: "firstdraft-home-empty",
 			});
 			return;
 		}
 
 		for (const season of data.seasons) {
-			const seasonEl = section.createDiv({ cls: "firstdraft-home-season" });
-			seasonEl.createEl("h3", {
-				text: season.seasonKey,
-				cls: "firstdraft-home-season-title",
+			const details = section.createEl("details", {
+				cls: "firstdraft-home-season",
 			});
-			const list = seasonEl.createDiv({ cls: "firstdraft-home-list" });
-			for (const ep of season.episodes) {
-				const item = list.createDiv({ cls: "firstdraft-home-list-item is-clickable" });
-				const numCell = item.createDiv({ cls: "firstdraft-home-list-num" });
-				numCell.setText(ep.episodeCode || "—");
+			details.setAttr("open", "");
+			const summary = details.createEl("summary", {
+				cls: "firstdraft-home-season-summary",
+			});
+			const title = summary.createSpan({ cls: "firstdraft-home-season-title" });
+			title.setText(season.seasonKey);
+			summary.createSpan({
+				cls: "firstdraft-home-season-meta",
+				text: ` · ${season.episodes.length} episode${season.episodes.length === 1 ? "" : "s"}`,
+			});
 
-				const main = item.createDiv({ cls: "firstdraft-home-list-main" });
-				const title = main.createDiv({ cls: "firstdraft-home-list-title" });
-				title.setText(ep.title);
-
-				item.addEventListener("mousedown", (e) => {
+			// "Open season" link — only when an explicit Season project exists
+			// for this key. mousedown to bypass focus-eating on sidebar leaves.
+			if (season.seasonProject) {
+				const seasonProj = season.seasonProject;
+				const openLink = summary.createEl("a", {
+					cls: "firstdraft-home-season-open",
+					text: "Open",
+					attr: { href: "#" },
+				});
+				openLink.addEventListener("mousedown", (e) => {
 					if (e.button !== 0) return;
+					e.stopPropagation();
+					e.preventDefault();
 					const f = this.plugin.app.vault.getAbstractFileByPath(
-						ep.indexFilePath,
+						seasonProj.indexFilePath,
 					);
 					if (f && (f as TFile).extension === "md") {
 						void this.plugin.app.workspace
@@ -235,8 +294,58 @@ export class ProjectHomeView extends ItemView {
 							.openFile(f as TFile);
 					}
 				});
+				openLink.addEventListener("click", (e) => e.preventDefault());
+			}
+
+			const list = details.createDiv({ cls: "firstdraft-home-list" });
+			if (season.episodes.length === 0) {
+				list.createEl("p", {
+					text: "No episodes in this season yet.",
+					cls: "firstdraft-home-empty",
+				});
+				continue;
+			}
+			for (const ep of season.episodes) {
+				this.renderEpisodeItem(list, ep);
 			}
 		}
+	}
+
+	// Season Project Home: episodes inside this season as a flat list
+	// (already filtered to one season). Mirrors the per-season group used
+	// at the series level but without the surrounding details collapse.
+	private renderSeasonEpisodesSection(data: ProjectHomeData): void {
+		const section = this.contentEl.createDiv({ cls: "firstdraft-home-section" });
+		section.createEl("h2", {
+			text: "Episodes",
+			cls: "firstdraft-home-section-title",
+		});
+		if (data.seasonEpisodes.length === 0) {
+			section.createEl("p", {
+				text: 'No episodes yet. Use "Create episode" above to add the first one.',
+				cls: "firstdraft-home-empty",
+			});
+			return;
+		}
+		const list = section.createDiv({ cls: "firstdraft-home-list" });
+		for (const ep of data.seasonEpisodes) this.renderEpisodeItem(list, ep);
+	}
+
+	// Render a single episode as a clickable list item. Reused by both the
+	// series-level (per-season group) and season-level rendering.
+	private renderEpisodeItem(list: HTMLElement, ep: EpisodeEntry): void {
+		const item = list.createDiv({ cls: "firstdraft-home-list-item is-clickable" });
+		const numCell = item.createDiv({ cls: "firstdraft-home-list-num" });
+		numCell.setText(ep.episodeCode || "—");
+		const main = item.createDiv({ cls: "firstdraft-home-list-main" });
+		main.createDiv({ cls: "firstdraft-home-list-title", text: ep.title });
+		item.addEventListener("mousedown", (e) => {
+			if (e.button !== 0) return;
+			const f = this.plugin.app.vault.getAbstractFileByPath(ep.indexFilePath);
+			if (f && (f as TFile).extension === "md") {
+				void this.plugin.app.workspace.getLeaf(false).openFile(f as TFile);
+			}
+		});
 	}
 
 	private renderQuickActions(data: ProjectHomeData): void {
@@ -344,43 +453,73 @@ export class ProjectHomeView extends ItemView {
 
 		if (data.characters.length === 0) {
 			section.createEl("p", {
-				text: "No characters yet. Tag dialogue cues or use Create character from selection.",
+				text: "No characters yet. Use Create character or tag dialogue cues.",
 				cls: "firstdraft-home-empty",
 			});
 			return;
 		}
 
-		const list = section.createDiv({ cls: "firstdraft-home-list" });
-		for (const c of data.characters) {
-			const item = list.createDiv({ cls: "firstdraft-home-list-item" });
-			const main = item.createDiv({ cls: "firstdraft-home-list-main" });
-			const title = main.createDiv({ cls: "firstdraft-home-list-title" });
-			title.setText(c.folderName);
-			if (c.isGroup) title.addClass("is-group");
+		// Three-tier role grouping with an Unclassified bucket for legacy
+		// characters whose canonical file has no `roles` field. All groups
+		// are <details> with open by default; empty groups are skipped so
+		// the section stays compact when only one or two roles are in use.
+		const groups: { label: string; key: string; members: typeof data.characters }[] = [
+			{ label: "Main", key: "main", members: data.characters.filter((c) => c.role === "main") },
+			{ label: "Recurring", key: "recurring", members: data.characters.filter((c) => c.role === "recurring") },
+			{ label: "Guest", key: "guest", members: data.characters.filter((c) => c.role === "guest") },
+			{ label: "Unclassified", key: "unclassified", members: data.characters.filter((c) => c.role === null) },
+		];
 
-			const subParts: string[] = [];
-			if (c.isGroup) {
-				subParts.push(
-					c.groupMembers.length > 0
-						? `Members: ${c.groupMembers.join(", ")}`
-						: "group",
-				);
-			} else if (c.aliases.length > 0) {
-				subParts.push(`Also: ${c.aliases.join(", ")}`);
-			}
-			if (subParts.length > 0) {
-				main.createDiv({
-					text: subParts.join(" · "),
-					cls: "firstdraft-home-list-meta",
-				});
-			}
+		for (const group of groups) {
+			if (group.members.length === 0) continue;
+			const details = section.createEl("details", {
+				cls: `firstdraft-home-rolegroup is-${group.key}`,
+			});
+			details.setAttr("open", "");
+			const summary = details.createEl("summary", {
+				cls: "firstdraft-home-rolegroup-summary",
+			});
+			summary.createSpan({
+				cls: "firstdraft-home-rolegroup-label",
+				text: group.label,
+			});
+			summary.createSpan({
+				cls: "firstdraft-home-rolegroup-count",
+				text: ` · ${group.members.length}`,
+			});
 
-			if (c.canonicalFile) {
-				item.addClass("is-clickable");
-				item.addEventListener("mousedown", (e) => {
-					if (e.button !== 0) return;
-					void this.openFile(c.canonicalFile);
-				});
+			const list = details.createDiv({ cls: "firstdraft-home-list" });
+			for (const c of group.members) {
+				const item = list.createDiv({ cls: "firstdraft-home-list-item" });
+				const main = item.createDiv({ cls: "firstdraft-home-list-main" });
+				const title = main.createDiv({ cls: "firstdraft-home-list-title" });
+				title.setText(c.folderName);
+				if (c.isGroup) title.addClass("is-group");
+
+				const subParts: string[] = [];
+				if (c.isGroup) {
+					subParts.push(
+						c.groupMembers.length > 0
+							? `Members: ${c.groupMembers.join(", ")}`
+							: "group",
+					);
+				} else if (c.aliases.length > 0) {
+					subParts.push(`Also: ${c.aliases.join(", ")}`);
+				}
+				if (subParts.length > 0) {
+					main.createDiv({
+						text: subParts.join(" · "),
+						cls: "firstdraft-home-list-meta",
+					});
+				}
+
+				if (c.canonicalFile) {
+					item.addClass("is-clickable");
+					item.addEventListener("mousedown", (e) => {
+						if (e.button !== 0) return;
+						void this.openFile(c.canonicalFile);
+					});
+				}
 			}
 		}
 	}
@@ -397,20 +536,52 @@ export class ProjectHomeView extends ItemView {
 			return;
 		}
 
-		const list = section.createDiv({ cls: "firstdraft-home-list" });
-		for (const l of data.locations) {
-			const item = list.createDiv({ cls: "firstdraft-home-list-item" });
-			const main = item.createDiv({ cls: "firstdraft-home-list-main" });
-			main.createDiv({
-				text: l.folderName,
-				cls: "firstdraft-home-list-title",
+		// Three-tier production-correct labels: Primary (= standing set,
+		// in many episodes), Recurring (returns across episodes), One-off
+		// (single-episode scout). Unclassified for legacy entries.
+		const groups: { label: string; key: string; members: typeof data.locations }[] = [
+			{ label: "Primary", key: "primary", members: data.locations.filter((l) => l.role === "primary") },
+			{ label: "Recurring", key: "recurring", members: data.locations.filter((l) => l.role === "recurring") },
+			{ label: "One-Off", key: "one-off", members: data.locations.filter((l) => l.role === "one-off") },
+			{ label: "Unclassified", key: "unclassified", members: data.locations.filter((l) => l.role === null) },
+		];
+
+		for (const group of groups) {
+			if (group.members.length === 0) continue;
+			const details = section.createEl("details", {
+				cls: `firstdraft-home-rolegroup is-${group.key}`,
 			});
-			if (l.canonicalFile) {
-				item.addClass("is-clickable");
-				item.addEventListener("mousedown", (e) => {
-					if (e.button !== 0) return;
-					void this.openFile(l.canonicalFile);
-				});
+			details.setAttr("open", "");
+			const summary = details.createEl("summary", {
+				cls: "firstdraft-home-rolegroup-summary",
+			});
+			summary.createSpan({
+				cls: "firstdraft-home-rolegroup-label",
+				text: group.label,
+			});
+			summary.createSpan({
+				cls: "firstdraft-home-rolegroup-count",
+				text: ` · ${group.members.length}`,
+			});
+
+			const list = details.createDiv({ cls: "firstdraft-home-list" });
+			for (const l of group.members) {
+				const item = list.createDiv({ cls: "firstdraft-home-list-item" });
+				const main = item.createDiv({ cls: "firstdraft-home-list-main" });
+				main.createDiv({ text: l.folderName, cls: "firstdraft-home-list-title" });
+				if (l.parentLocation) {
+					main.createDiv({
+						text: `inside ${l.parentLocation}`,
+						cls: "firstdraft-home-list-meta",
+					});
+				}
+				if (l.canonicalFile) {
+					item.addClass("is-clickable");
+					item.addEventListener("mousedown", (e) => {
+						if (e.button !== 0) return;
+						void this.openFile(l.canonicalFile);
+					});
+				}
 			}
 		}
 	}

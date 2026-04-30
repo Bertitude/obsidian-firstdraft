@@ -31,21 +31,32 @@ import { activateProjectHomeView } from "../views/project-home-view";
 export function runCreateEpisodeCommand(plugin: FirstDraftPlugin): void {
 	const active = plugin.app.workspace.getActiveFile();
 	if (!active) {
-		new Notice("Open a series file first (the series Index, or any file inside the series).");
+		new Notice("Open a series or season file first.");
 		return;
 	}
 	const project = resolveActiveProject(active, plugin.scanner);
-	if (!project || project.projectType !== "series") {
-		// If the user is inside an episode, walk up to its series. Otherwise bail.
-		const series = findContainingSeries(plugin, active);
-		if (!series) {
-			new Notice("Active file isn't inside a series project. Run from a series Index or one of its episodes.");
-			return;
-		}
-		new CreateEpisodeModal(plugin, series).open();
+
+	// If we're inside a SEASON project (or one of its episodes), prefer the
+	// season as context — that lets us inherit the season number and prompt
+	// only for the episode number. Otherwise fall back to the series-level
+	// flow which prompts for the full S<NN>E<NN> code.
+	const season = findContainingSeason(plugin, active, project);
+	if (season) {
+		new CreateEpisodeModal(plugin, null, season).open();
 		return;
 	}
-	new CreateEpisodeModal(plugin, project).open();
+
+	if (project?.projectType === "series") {
+		new CreateEpisodeModal(plugin, project, null).open();
+		return;
+	}
+
+	const series = findContainingSeries(plugin, active);
+	if (!series) {
+		new Notice("Active file isn't inside a series or season. Run from a series Index, season Index, or any file inside one.");
+		return;
+	}
+	new CreateEpisodeModal(plugin, series, null).open();
 }
 
 // Walk every series project and check if the file path is contained under
@@ -71,32 +82,86 @@ function findContainingSeries(
 	return best;
 }
 
+// Walk every season project; pick the deepest one that contains the active
+// file. Returns null if no season project encloses the file.
+function findContainingSeason(
+	plugin: FirstDraftPlugin,
+	file: TFile,
+	active: ProjectMeta | null,
+): ProjectMeta | null {
+	if (active?.projectType === "season") return active;
+	let best: ProjectMeta | null = null;
+	for (const meta of plugin.scanner.projects.values()) {
+		if (meta.projectType !== "season") continue;
+		const prefix = meta.projectRootPath + "/";
+		if (file.path === meta.indexFilePath || file.path.startsWith(prefix)) {
+			if (!best || meta.projectRootPath.length > best.projectRootPath.length) {
+				best = meta;
+			}
+		}
+	}
+	return best;
+}
+
 class CreateEpisodeModal extends Modal {
 	private episode = "";
+	private episodeNumber = "";
 	private title = "";
 	private productionCode = "";
 
 	constructor(
 		private readonly plugin: FirstDraftPlugin,
-		private readonly series: ProjectMeta,
+		private readonly series: ProjectMeta | null,
+		private readonly season: ProjectMeta | null,
 	) {
 		super(plugin.app);
 	}
 
+	private get hasSeasonContext(): boolean {
+		return this.season !== null;
+	}
+
+	private get scopeProject(): ProjectMeta {
+		// Use season for settings/scaffolding when available; fall back to series.
+		return this.season ?? this.series!;
+	}
+
 	onOpen(): void {
 		const { contentEl } = this;
-		const cfg = resolveProjectSettings(this.series, this.plugin.settings);
+		const cfg = resolveProjectSettings(this.scopeProject, this.plugin.settings);
 
-		contentEl.createEl("h2", { text: `New episode in "${this.series.title ?? lastSegment(this.series.projectRootPath)}"` });
+		const scopeTitle = this.scopeProject.title ?? lastSegment(this.scopeProject.projectRootPath);
+		contentEl.createEl("h2", { text: `New episode in "${scopeTitle}"` });
 
-		new Setting(contentEl)
-			.setName("Episode code")
-			.setDesc("Used to derive the season folder. Format: S<season>E<episode>, e.g. S01E01.")
-			.addText((t) =>
-				t.setPlaceholder("S01E01").onChange((v) => {
-					this.episode = v.trim();
-				}),
-			);
+		if (this.hasSeasonContext) {
+			// Season-aware flow: season is inherited, only ask for episode number.
+			const seasonNum = this.seasonNumberFromContext();
+			const nextNum = String(this.suggestNextEpisodeNumber()).padStart(2, "0");
+			this.episodeNumber = nextNum;
+			new Setting(contentEl)
+				.setName("Episode number")
+				.setDesc(`Two-digit. Episode code will be S${seasonNum}E<number>.`)
+				.addText((t) => {
+					t.setPlaceholder("01")
+						.setValue(nextNum)
+						.onChange((v) => {
+							this.episodeNumber = v.trim();
+						});
+					setTimeout(() => {
+						t.inputEl.focus();
+						t.inputEl.select();
+					}, 0);
+				});
+		} else {
+			new Setting(contentEl)
+				.setName("Episode code")
+				.setDesc("Used to derive the season folder. Format: S<season>E<episode>, e.g. S01E01.")
+				.addText((t) =>
+					t.setPlaceholder("S01E01").onChange((v) => {
+						this.episode = v.trim();
+					}),
+				);
+		}
 
 		new Setting(contentEl)
 			.setName("Title")
@@ -137,24 +202,46 @@ class CreateEpisodeModal extends Modal {
 	}
 
 	private async create(): Promise<void> {
-		const cfg = resolveProjectSettings(this.series, this.plugin.settings);
-		const ep = this.episode.trim();
+		const cfg = resolveProjectSettings(this.scopeProject, this.plugin.settings);
 		const title = this.title.trim();
-		if (!ep) {
-			new Notice("Episode code is required.");
-			return;
-		}
 		if (!title) {
 			new Notice("Title is required.");
 			return;
 		}
 
-		const seasonNum = parseSeasonNumber(ep);
-		if (!seasonNum) {
-			new Notice(
-				"Episode code must be in S<season>E<episode> format, e.g. S01E01. Without a parseable season I can't pick a season folder.",
-			);
-			return;
+		// Resolve the season number + episode code in two ways depending on
+		// context. With season inherited, we built S<seasonNum>E<episodeNum>;
+		// without, we parse the user-supplied code.
+		let seasonNum: string;
+		let ep: string;
+		if (this.hasSeasonContext) {
+			const seasonFromCtx = this.seasonNumberFromContext();
+			if (!seasonFromCtx) {
+				new Notice("Couldn't infer season number from context. Try the series-level Create episode flow.");
+				return;
+			}
+			const epNum = normalizeNumeric(this.episodeNumber);
+			if (!epNum) {
+				new Notice("Episode number must be numeric (e.g. 1, 01, 02).");
+				return;
+			}
+			seasonNum = seasonFromCtx;
+			ep = `S${seasonNum}E${epNum}`;
+		} else {
+			const userCode = this.episode.trim();
+			if (!userCode) {
+				new Notice("Episode code is required.");
+				return;
+			}
+			const parsed = parseSeasonNumber(userCode);
+			if (!parsed) {
+				new Notice(
+					"Episode code must be in S<season>E<episode> format, e.g. S01E01. Without a parseable season I can't pick a season folder.",
+				);
+				return;
+			}
+			seasonNum = parsed;
+			ep = userCode;
 		}
 
 		const folderName = sanitizeFilename(
@@ -172,21 +259,30 @@ class CreateEpisodeModal extends Modal {
 			return;
 		}
 
-		const seasonFolderName = `S${seasonNum}`;
-		const episodePath = normalizePath(
-			`${this.series.projectRootPath}/${cfg.seasonsFolder}/${seasonFolderName}/${folderName}`,
-		);
+		// Episode path differs by context:
+		//   - season context: <seasonRoot>/<folderName>
+		//   - series context: <seriesRoot>/<seasonsFolder>/S<NN>/<folderName>
+		const episodePath = this.hasSeasonContext
+			? normalizePath(`${this.season!.projectRootPath}/${folderName}`)
+			: normalizePath(
+					`${this.series!.projectRootPath}/${cfg.seasonsFolder}/S${seasonNum}/${folderName}`,
+				);
 
 		if (this.plugin.app.vault.getAbstractFileByPath(episodePath)) {
-			new Notice(`A folder named "${episodePath}" already exists.`);
+			new Notice(
+				this.hasSeasonContext
+					? `Episode S${seasonNum}E${this.episodeNumber.padStart(2, "0")} already exists. Pick a different episode number.`
+					: `A folder named "${episodePath}" already exists.`,
+			);
 			return;
 		}
 
+		const seriesTitle = this.inferSeriesTitle();
 		try {
 			const treatmentFile = await scaffoldEpisode(
 				this.plugin.app,
 				episodePath,
-				this.series,
+				seriesTitle,
 				ep,
 				seasonNum,
 				title,
@@ -200,6 +296,68 @@ class CreateEpisodeModal extends Modal {
 			new Notice(`Create failed: ${(e as Error).message}`);
 		}
 	}
+
+	// ── season-context helpers ──────────────────────────────────────────
+
+	private seasonNumberFromContext(): string | null {
+		if (!this.season) return null;
+		if (this.season.season && this.season.season.trim() !== "") {
+			const n = parseInt(this.season.season, 10);
+			if (!Number.isNaN(n)) return String(n).padStart(2, "0");
+		}
+		// Fall back to parsing from the season folder name.
+		const seg = this.season.projectRootPath.split("/").pop() ?? "";
+		const m = /^S(\d+)$/i.exec(seg);
+		if (m) {
+			const n = parseInt(m[1] ?? "", 10);
+			if (!Number.isNaN(n)) return String(n).padStart(2, "0");
+		}
+		return null;
+	}
+
+	private suggestNextEpisodeNumber(): number {
+		if (!this.season) return 1;
+		const seasonNum = this.seasonNumberFromContext();
+		if (!seasonNum) return 1;
+		let max = 0;
+		for (const meta of this.plugin.scanner.projects.values()) {
+			if (meta.projectType !== "tv-episode") continue;
+			const prefix = this.season.projectRootPath + "/";
+			if (!meta.indexFilePath.startsWith(prefix)) continue;
+			if (!meta.episode) continue;
+			const m = /^s(\d+)e(\d+)/i.exec(meta.episode.trim());
+			if (!m) continue;
+			const eNum = parseInt(m[2] ?? "", 10);
+			if (!Number.isNaN(eNum) && eNum > max) max = eNum;
+		}
+		return max + 1;
+	}
+
+	private inferSeriesTitle(): string {
+		// Walk up to find the parent series, regardless of whether we're
+		// invoked from season or series context.
+		const root = this.scopeProject.projectRootPath;
+		for (const meta of this.plugin.scanner.projects.values()) {
+			if (meta.projectType !== "series") continue;
+			const prefix = meta.projectRootPath + "/";
+			if (root === meta.projectRootPath || root.startsWith(prefix)) {
+				return meta.title ?? lastSegment(meta.projectRootPath);
+			}
+		}
+		// Series project itself
+		if (this.scopeProject.projectType === "series") {
+			return this.scopeProject.title ?? lastSegment(this.scopeProject.projectRootPath);
+		}
+		return this.scopeProject.series ?? "";
+	}
+}
+
+function normalizeNumeric(input: string): string | null {
+	const trimmed = input.trim();
+	if (trimmed === "") return null;
+	const n = parseInt(trimmed, 10);
+	if (Number.isNaN(n) || n < 0) return null;
+	return String(n).padStart(2, "0");
 }
 
 // ── helpers ──────────────────────────────────────────────────────────────
@@ -251,7 +409,7 @@ function todayISO(): string {
 async function scaffoldEpisode(
 	app: App,
 	episodePath: string,
-	series: ProjectMeta,
+	seriesTitle: string,
 	episodeCode: string,
 	seasonNum: string,
 	title: string,
@@ -281,7 +439,6 @@ async function scaffoldEpisode(
 		`${episodePath}/${cfg.developmentFolder}/${cfg.notesSubfolder}`,
 	);
 
-	const seriesTitle = series.title ?? lastSegment(series.projectRootPath);
 	const indexPath = normalizePath(`${episodePath}/Index.md`);
 	await app.vault.create(
 		indexPath,

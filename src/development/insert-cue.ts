@@ -7,6 +7,7 @@ import { buildExpandedRoster, characterRoster, locationRoster, sequenceDevNotePa
 import { sanitizeFilename, toTitleCase } from "../utils/sanitize";
 import { linkifyEntity, type DevEntity } from "./linkify";
 import { openCreateCharacterModal } from "./create-character-modal";
+import { openCreateLocationModal } from "./create-location-modal";
 import { ensureEpisodeCharacterNote } from "./episode-character-notes";
 import { isFountainFile } from "../fountain/file-detection";
 
@@ -245,39 +246,31 @@ class InsertPickerModal extends SuggestModal<PickerEntry> {
 			return;
 		}
 
-		// Locations: keep the episode-scoped flow. Locations don't have a
-		// series-level promotion model yet (recurring locations could land
-		// there but the workflow isn't built out — defer).
-		const folderPath = normalizePath(
-			`${this.project.projectRootPath}/${cfg.developmentFolder}/${cfg.locationsSubfolder}/${folderCasing}`,
-		);
-		const docPath = normalizePath(`${folderPath}/${folderCasing}.md`);
-
-		try {
-			await ensureFolderExists(this.plugin.app, folderPath);
-			const isNewFile = !this.plugin.app.vault.getAbstractFileByPath(docPath);
-			if (isNewFile) {
-				await this.plugin.app.vault.create(docPath, cfg.locationNoteTemplate);
-			}
+		// Locations: route through the unified Create Location modal (parity
+		// with characters). Series-aware placement, role + optional parent
+		// in frontmatter.
+		const result = await openCreateLocationModal(this.plugin, folderCasing);
+		if (!result) {
 			this.insertAtCursor(name);
-			await this.syncToDevNote(folderCasing);
-			new Notice(`Created location: ${folderCasing}`);
+			return;
+		}
+		this.insertAtCursor(name);
+		await this.syncToDevNote(result.displayName);
+		new Notice(`Created location: ${result.displayName}`);
 
-			if (isNewFile) {
-				const entity: DevEntity = { name: folderCasing, canonicalFilePath: docPath };
-				if (cfg.autoLinkifyOnCreate) {
-					const result = await linkifyEntity(this.plugin, this.project, entity);
-					if (result.totalReplacements > 0) {
-						new Notice(
-							`Linkified ${result.totalReplacements} mention(s) across ${result.filesModified} file(s).`,
-						);
-					} else {
-						new Notice("No mentions to linkify.");
-					}
-				}
+		const entity: DevEntity = {
+			name: result.displayName,
+			canonicalFilePath: result.file.path,
+		};
+		if (cfg.autoLinkifyOnCreate) {
+			const linkifyResult = await linkifyEntity(this.plugin, this.project, entity);
+			if (linkifyResult.totalReplacements > 0) {
+				new Notice(
+					`Linkified ${linkifyResult.totalReplacements} mention(s) across ${linkifyResult.filesModified} file(s).`,
+				);
+			} else {
+				new Notice("No mentions to linkify.");
 			}
-		} catch (e) {
-			new Notice(`Could not create location: ${(e as Error).message}`);
 		}
 	}
 
@@ -329,13 +322,6 @@ class InsertPickerModal extends SuggestModal<PickerEntry> {
 			},
 		);
 	}
-}
-
-async function ensureFolderExists(app: App, path: string): Promise<void> {
-	const existing = app.vault.getAbstractFileByPath(path);
-	if (existing instanceof TFolder) return;
-	if (existing) throw new Error(`Path exists but is not a folder: ${path}`);
-	await app.vault.createFolder(path);
 }
 
 // Suppress unused warning for characterRoster — exposed via lookups but not

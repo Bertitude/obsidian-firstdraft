@@ -45,6 +45,7 @@ import { CharacterCueSuggest } from "./autocomplete/character-suggest";
 import {
 	runCreateCharacterCommand,
 	runCreateCharacterFromSelection,
+	runCreateLocationCommand,
 	runCreateLocationFromSelection,
 	runLinkifyAllCommand,
 } from "./development/create-entity";
@@ -73,7 +74,10 @@ import { toggleProjectLock, clearProjectLockOnUnload } from "./project-lock/lock
 import { runOpenFirstDraftProjectCommand } from "./projects/open-project";
 import { runCreateProjectCommand } from "./projects/create-project";
 import { runCreateEpisodeCommand } from "./projects/create-episode";
+import { runCreateSeasonCommand } from "./projects/create-season";
 import { runInitializeSeriesRootCommand } from "./projects/init-series";
+import { runInitializeSeasonRootCommand } from "./projects/init-season";
+import { runMakeEpisodesFromSeasonOutlineCommand } from "./projects/promote-season-outline";
 import { runSetProjectTitleCommand } from "./projects/set-title";
 import { resolveActiveProject } from "./projects/resolver";
 import { openProjectSettingsModal } from "./settings/project-settings-modal";
@@ -232,6 +236,14 @@ export default class FirstDraftPlugin extends Plugin {
 		});
 
 		this.addCommand({
+			id: "create-season",
+			name: "Create season",
+			callback: () => {
+				runCreateSeasonCommand(this);
+			},
+		});
+
+		this.addCommand({
 			id: "create-episode",
 			name: "Create episode",
 			callback: () => {
@@ -240,10 +252,26 @@ export default class FirstDraftPlugin extends Plugin {
 		});
 
 		this.addCommand({
+			id: "make-episodes-from-season-outline",
+			name: "Make episodes from season outline",
+			callback: () => {
+				void runMakeEpisodesFromSeasonOutlineCommand(this);
+			},
+		});
+
+		this.addCommand({
 			id: "initialize-series-root",
 			name: "Initialize series root",
 			callback: () => {
 				runInitializeSeriesRootCommand(this);
+			},
+		});
+
+		this.addCommand({
+			id: "initialize-season-root",
+			name: "Initialize season root",
+			callback: () => {
+				runInitializeSeasonRootCommand(this);
 			},
 		});
 
@@ -420,6 +448,14 @@ export default class FirstDraftPlugin extends Plugin {
 			name: "Create character",
 			callback: () => {
 				void runCreateCharacterCommand(this);
+			},
+		});
+
+		this.addCommand({
+			id: "create-location",
+			name: "Create location",
+			callback: () => {
+				void runCreateLocationCommand(this);
 			},
 		});
 

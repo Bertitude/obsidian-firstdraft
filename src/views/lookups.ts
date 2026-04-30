@@ -34,6 +34,11 @@ export interface CharacterEntry {
 	aliases: string[]; // alias names as authored (preserves casing)
 	isGroup: boolean; // true if frontmatter `type: group`
 	groupMembers: string[]; // names of member characters (group's `members:` array)
+	// Resolved role for the current project scope (main / recurring / guest).
+	// Read from frontmatter `roles` map: prefer `roles.S<NN>` for the project's
+	// season (when in season/episode scope), fall back to `roles.default`.
+	// null when the file has no roles field at all (legacy / unclassified).
+	role: string | null;
 }
 
 export interface LocationEntry {
@@ -41,6 +46,13 @@ export interface LocationEntry {
 	folderName: string;
 	folder: TFolder;
 	canonicalFile: TFile | null;
+	// Resolved role: primary / recurring / one-off (or null = unclassified).
+	// Same per-season fallback rule as character roles.
+	role: string | null;
+	// Optional parent-location reference for nested sluglines (e.g. BEDROOM
+	// inside SMITH HOUSE). Stored as the parent's display name in
+	// frontmatter `parent_location`. null when the location stands alone.
+	parentLocation: string | null;
 }
 
 // Scene dev note path = <project>/<dev>/<sequencesSubfolder>/<sequenceName>.md
@@ -148,6 +160,8 @@ export function characterRoster(
 	const seen = new Set<string>();
 	const out: CharacterEntry[] = [];
 
+	const seasonKey = seasonKeyForProject(project);
+
 	const collectFromFolder = (root: TFolder | null) => {
 		if (!root) return;
 		for (const folder of root.children) {
@@ -168,6 +182,7 @@ export function characterRoster(
 					aliases: collectStringArray(fm?.aliases),
 					isGroup: typeof fm?.type === "string" && fm.type.toLowerCase() === "group",
 					groupMembers: collectStringArray(fm?.members),
+					role: resolveRole(fm?.roles, seasonKey),
 				});
 			}
 		}
@@ -187,32 +202,55 @@ export function characterRoster(
 // becomes a roster entry. The file matching the folder name is the "primary"
 // location; other .md files are sub-areas combined as
 // "<PARENT> - <SUB>" (matching Fountain slugline format).
+//
+// For TV projects, also pulls from the series-level Locations/ tree (parity
+// with character roster) so recurring locations created at the series root
+// surface in episode/season views.
 export function locationRoster(
 	app: App,
 	project: ProjectMeta,
 	cfg: GlobalConfig,
 ): LocationEntry[] {
 	const out: LocationEntry[] = [];
-	const folder = devSubfolder(app, project.projectRootPath, cfg.developmentFolder, cfg.locationsSubfolder);
-	if (!folder) return out;
+	const seen = new Set<string>();
+	const seasonKey = seasonKeyForProject(project);
 
-	for (const child of folder.children) {
-		if (!(child instanceof TFolder)) continue;
-		const expectedPrimary = `${child.name}.md`;
-		for (const file of child.children) {
-			if (!(file instanceof TFile) || file.extension !== "md") continue;
-			const isPrimary = file.name === expectedPrimary;
-			const name = isPrimary
-				? child.name.toUpperCase()
-				: `${child.name.toUpperCase()} - ${file.basename.toUpperCase()}`;
-			out.push({
-				name,
-				folderName: child.name,
-				folder: child,
-				canonicalFile: file,
-			});
+	const collectFromFolder = (folder: TFolder | null) => {
+		if (!folder) return;
+		for (const child of folder.children) {
+			if (!(child instanceof TFolder)) continue;
+			const expectedPrimary = `${child.name}.md`;
+			for (const file of child.children) {
+				if (!(file instanceof TFile) || file.extension !== "md") continue;
+				const isPrimary = file.name === expectedPrimary;
+				const name = isPrimary
+					? child.name.toUpperCase()
+					: `${child.name.toUpperCase()} - ${file.basename.toUpperCase()}`;
+				if (seen.has(name)) continue;
+				seen.add(name);
+				const fm = app.metadataCache.getFileCache(file)?.frontmatter as
+					| Record<string, unknown>
+					| undefined;
+				const parentRaw = fm?.parent_location;
+				out.push({
+					name,
+					folderName: child.name,
+					folder: child,
+					canonicalFile: file,
+					role: resolveRole(fm?.roles, seasonKey),
+					parentLocation: typeof parentRaw === "string" && parentRaw.trim() !== ""
+						? parentRaw.trim()
+						: null,
+				});
+			}
 		}
+	};
+
+	collectFromFolder(devSubfolder(app, project.projectRootPath, cfg.developmentFolder, cfg.locationsSubfolder));
+	if (project.seriesDevelopmentPath) {
+		collectFromFolder(devSubfolder(app, project.seriesDevelopmentPath, "", cfg.locationsSubfolder));
 	}
+
 	out.sort((a, b) => a.name.localeCompare(b.name));
 	return out;
 }
@@ -263,6 +301,42 @@ export function resolveCharacterByNameOrAlias(
 		for (const alias of entry.aliases) {
 			if (alias.trim().toUpperCase() === target) return entry;
 		}
+	}
+	return null;
+}
+
+// ── role resolution ──────────────────────────────────────────────────────
+
+// Returns the season key (e.g. "S01") relevant for a project's role-resolution
+// scope. Episode and season projects both yield their own season; series and
+// feature scopes yield null (use `roles.default` only).
+function seasonKeyForProject(project: ProjectMeta): string | null {
+	if (project.season && project.season.trim() !== "") {
+		const n = parseInt(project.season, 10);
+		if (!Number.isNaN(n)) return `S${String(n).padStart(2, "0")}`;
+	}
+	if (project.episode) {
+		const m = /^s(\d+)e/i.exec(project.episode.trim());
+		if (m) {
+			const n = parseInt(m[1] ?? "", 10);
+			if (!Number.isNaN(n)) return `S${String(n).padStart(2, "0")}`;
+		}
+	}
+	return null;
+}
+
+// Resolve a role from a frontmatter `roles` field given the active season
+// key. Order: explicit per-season override (`roles.S01`), then `roles.default`,
+// then null (= unclassified). Tolerates both well-formed maps and missing/
+// malformed inputs.
+function resolveRole(roles: unknown, seasonKey: string | null): string | null {
+	if (!roles || typeof roles !== "object" || Array.isArray(roles)) return null;
+	const map = roles as Record<string, unknown>;
+	if (seasonKey && typeof map[seasonKey] === "string" && map[seasonKey].toString().trim() !== "") {
+		return map[seasonKey].toString().trim().toLowerCase();
+	}
+	if (typeof map.default === "string" && map.default.trim() !== "") {
+		return map.default.trim().toLowerCase();
 	}
 	return null;
 }

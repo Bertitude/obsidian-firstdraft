@@ -64,15 +64,21 @@ export interface FirstDraftModeConfig {
 
 // ─── Runtime project metadata ──────────────────────────────────────────────
 
-// Three project kinds:
+// Four project kinds:
 //   - "feature":    standalone screenplay; has its own Sequences/ folder.
 //   - "tv-episode": single episode; has its own Sequences/ folder; nests
-//                   under a series project.
-//   - "series":     show-level container; has no Sequences/ folder of its
+//                   under a season project (and transitively a series).
+//   - "season":     a single season of a series; has no Sequences/ of its
 //                   own; episodes are auto-discovered as sub-projects under
+//                   the season root. Identified by `firstdraft.kind: season`.
+//                   Carries its own Development/ tree for season-arc
+//                   characters, locations, references, and a Season
+//                   Outline (the "season treatment" — H2 per episode).
+//   - "series":     show-level container; has no Sequences/ folder of its
+//                   own; seasons are auto-discovered as sub-projects under
 //                   the series root. Identified by `firstdraft.kind: series`
 //                   in frontmatter.
-export type ProjectType = "feature" | "tv-episode" | "series";
+export type ProjectType = "feature" | "tv-episode" | "series" | "season";
 
 export interface ProjectMeta {
 	projectType: ProjectType;

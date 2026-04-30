@@ -892,16 +892,72 @@ body.firstdraft-active .workspace-split.mod-left-split .workspace-tab-header-con
 	text-decoration: underline;
 }
 
-/* Season group inside the Episodes section on a series Project Home. */
+/* Breadcrumb chain for nested projects (episode shows ← Series · Season).
+   Wraps the inline links + separator dots in a single row. */
+.firstdraft-home-breadcrumb-row {
+	margin-bottom: var(--size-2-2);
+}
+.firstdraft-home-breadcrumb-sep {
+	color: var(--text-faint);
+	font-size: var(--font-ui-smaller);
+	margin: 0 var(--size-2-1);
+}
+
+/* Season collapsible inside the Seasons section on a series Project Home,
+   plus the section title used both at series scope (per-season group) and
+   season scope. <details> default-open; the summary contains the season
+   key, episode count, and an optional Open link. */
 .firstdraft-home-season {
 	margin-top: var(--size-4-2);
+}
+.firstdraft-home-season-summary {
+	cursor: pointer;
+	display: flex;
+	align-items: center;
+	gap: var(--size-2-2);
+	padding: var(--size-2-1) 0;
 }
 .firstdraft-home-season-title {
 	font-size: var(--font-ui-small);
 	text-transform: uppercase;
 	letter-spacing: 0.04em;
 	color: var(--text-muted);
-	margin: 0 0 var(--size-2-2) 0;
+	margin: 0;
+	font-weight: 600;
+}
+.firstdraft-home-season-meta {
+	font-size: var(--font-ui-smaller);
+	color: var(--text-faint);
+}
+.firstdraft-home-season-open {
+	margin-left: auto;
+	font-size: var(--font-ui-smaller);
+	color: var(--text-muted);
+	text-decoration: none;
+}
+.firstdraft-home-season-open:hover {
+	color: var(--text-accent);
+	text-decoration: underline;
+}
+
+/* Role-grouped collapsible inside Characters / Locations sections.
+   Each <details> wraps a group (Main / Recurring / Guest /
+   Primary / Recurring / One-Off / Unclassified). Default-open. */
+.firstdraft-home-rolegroup {
+	margin-top: var(--size-2-2);
+}
+.firstdraft-home-rolegroup-summary {
+	cursor: pointer;
+	padding: var(--size-2-1) 0;
+	font-size: var(--font-ui-smaller);
+	text-transform: uppercase;
+	letter-spacing: 0.04em;
+	color: var(--text-muted);
+	font-weight: 600;
+}
+.firstdraft-home-rolegroup-count {
+	font-weight: 400;
+	color: var(--text-faint);
 }
 
 .firstdraft-home-actions {
