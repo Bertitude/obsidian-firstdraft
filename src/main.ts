@@ -81,6 +81,7 @@ import { runCreateSeasonCommand } from "./projects/create-season";
 import { runInitializeSeriesRootCommand } from "./projects/init-series";
 import { runInitializeSeasonRootCommand } from "./projects/init-season";
 import { runMakeEpisodesFromSeasonOutlineCommand } from "./projects/promote-season-outline";
+import { runMakeSeasonsFromSeriesOutlineCommand } from "./projects/promote-series-outline";
 import { runSetProjectTitleCommand } from "./projects/set-title";
 import { resolveActiveProject } from "./projects/resolver";
 import { openProjectSettingsModal } from "./settings/project-settings-modal";
@@ -262,6 +263,14 @@ export default class FirstDraftPlugin extends Plugin {
 			name: "Make episodes from season outline",
 			callback: () => {
 				void runMakeEpisodesFromSeasonOutlineCommand(this);
+			},
+		});
+
+		this.addCommand({
+			id: "make-seasons-from-series-outline",
+			name: "Make seasons from series outline",
+			callback: () => {
+				void runMakeSeasonsFromSeriesOutlineCommand(this);
 			},
 		});
 

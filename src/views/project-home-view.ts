@@ -218,11 +218,28 @@ export class ProjectHomeView extends ItemView {
 	// ── quick actions ───────────────────────────────────────────────────────
 
 	private renderSeriesQuickActions(data: ProjectHomeData): void {
-		void data;
 		const wrap = this.contentEl.createDiv({ cls: "firstdraft-home-actions" });
 		this.actionButton(wrap, "calendar-plus", "Create season", () => {
 			void this.runCommand("create-season");
 		});
+		if (data.seriesOutlineFile) {
+			this.actionButton(wrap, "scroll-text", "Series Outline", () => {
+				if (data.seriesOutlineFile)
+					void this.plugin.app.workspace
+						.getLeaf(false)
+						.openFile(data.seriesOutlineFile);
+			});
+			this.actionButton(wrap, "list-tree", "Make seasons from outline", () => {
+				void this.runCommand("make-seasons-from-series-outline");
+			});
+		} else {
+			// Series predates this feature (or the outline was deleted). Offer
+			// a one-click scaffold so the user can adopt the new flow without
+			// touching the existing Index.
+			this.actionButton(wrap, "scroll-text", "Create Series Outline", () => {
+				void this.scaffoldSeriesOutline(data);
+			});
+		}
 	}
 
 	private renderSeasonQuickActions(data: ProjectHomeData): void {
@@ -420,6 +437,40 @@ export class ProjectHomeView extends ItemView {
 			commands?: { executeCommandById?: (id: string) => boolean };
 		}).commands;
 		commands?.executeCommandById?.(fullId);
+	}
+
+	// One-click scaffold for the series-level outline doc when the series
+	// predates the feature. Writes <series>/Development/Series Outline.md
+	// with the default template (matching what scaffoldSeriesProject and
+	// Initialize Series Root produce for fresh series), then opens it and
+	// re-renders the home so the regular Series Outline / Make seasons
+	// buttons replace the create-affordance.
+	private async scaffoldSeriesOutline(data: ProjectHomeData): Promise<void> {
+		const cfg = resolveProjectSettings(data.project, this.plugin.settings);
+		const devFolder = `${data.project.projectRootPath}/${cfg.developmentFolder}`;
+		const outlinePath = `${devFolder}/Series Outline.md`;
+		try {
+			const existing = this.plugin.app.vault.getAbstractFileByPath(outlinePath);
+			if (existing instanceof TFile) {
+				await this.plugin.app.workspace.getLeaf(false).openFile(existing);
+				return;
+			}
+			const dev = this.plugin.app.vault.getAbstractFileByPath(devFolder);
+			if (!dev) {
+				await this.plugin.app.vault.createFolder(devFolder);
+			}
+			const title =
+				data.project.title ?? data.project.projectRootPath.split("/").pop() ?? "Series";
+			const created = await this.plugin.app.vault.create(
+				outlinePath,
+				seriesOutlineTemplate(title),
+			);
+			new Notice("Series Outline created. Edit the H2s, then run Make seasons from outline.");
+			await this.plugin.app.workspace.getLeaf(false).openFile(created);
+			await this.refresh();
+		} catch (e) {
+			new Notice(`Couldn't create Series Outline: ${(e as Error).message}`);
+		}
 	}
 
 	// Backfill a Season project for an orphan season folder shown on the
@@ -744,4 +795,29 @@ export function getProjectHomeView(
 	const leaves = plugin.app.workspace.getLeavesOfType(VIEW_TYPE_PROJECT_HOME);
 	const view = leaves[0]?.view;
 	return view instanceof ProjectHomeView ? view : null;
+}
+
+// Mirrors the Series Outline body produced by scaffoldSeriesProject /
+// Initialize Series Root. Kept inline here so the inline scaffolder on the
+// Series Home doesn't depend on either of those modules.
+function seriesOutlineTemplate(title: string): string {
+	return `---
+type: series-outline
+status: draft
+promoted_at:
+---
+
+# ${title} — Series Outline
+
+> **Welcome to your series outline.** Each H2 below becomes a season
+> when you run **Make seasons from series outline**. Capture each
+> season's premise here. The H2 title becomes the season's display
+> title; season numbers are auto-assigned.
+
+## Season 1
+The arc that opens the show. Major beats. Where it ends.
+
+## Season 2
+What changes after season 1's finale. Where the next arc takes us.
+`;
 }

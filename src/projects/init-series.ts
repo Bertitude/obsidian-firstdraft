@@ -142,6 +142,15 @@ class InitializeSeriesRootModal extends Modal {
 				indexPath,
 				seriesIndexBody(title, this.subtitle, cfg),
 			);
+			// Also scaffold the Series Outline if it doesn't already exist —
+			// matches what Create Series produces for fresh series, so
+			// migrated series end up in the same shape.
+			await ensureSeriesOutline(
+				this.plugin.app,
+				this.folderPath,
+				title,
+				cfg,
+			);
 			this.close();
 			await this.plugin.app.workspace.getLeaf(false).openFile(created);
 			void activateProjectHomeView(this.plugin);
@@ -151,6 +160,43 @@ class InitializeSeriesRootModal extends Modal {
 			new Notice(`Initialize failed: ${(e as Error).message}`);
 		}
 	}
+}
+
+async function ensureSeriesOutline(
+	app: App,
+	seriesRootPath: string,
+	title: string,
+	cfg: GlobalConfig,
+): Promise<void> {
+	const devFolder = normalizePath(`${seriesRootPath}/${cfg.developmentFolder}`);
+	if (!(app.vault.getAbstractFileByPath(devFolder) instanceof TFolder)) {
+		await app.vault.createFolder(devFolder);
+	}
+	const outlinePath = normalizePath(`${devFolder}/Series Outline.md`);
+	if (app.vault.getAbstractFileByPath(outlinePath)) return;
+	await app.vault.create(outlinePath, seriesOutlineBody(title));
+}
+
+function seriesOutlineBody(title: string): string {
+	return `---
+type: series-outline
+status: draft
+promoted_at:
+---
+
+# ${title} — Series Outline
+
+> **Welcome to your series outline.** Each H2 below becomes a season
+> when you run **Make seasons from series outline**. Capture each
+> season's premise here. The H2 title becomes the season's display
+> title; season numbers are auto-assigned.
+
+## Season 1
+The arc that opens the show. Major beats. Where it ends.
+
+## Season 2
+What changes after season 1's finale. Where the next arc takes us.
+`;
 }
 
 function seriesIndexBody(title: string, subtitle: string, cfg: GlobalConfig): string {

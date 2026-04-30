@@ -211,10 +211,10 @@ function computeDefaultParent(cfg: GlobalConfig, kind: ProjectKind): string {
 }
 
 // Scaffolds a series-level project. Lighter than a feature/episode scaffold:
-// no Sequences/ folder (sequences live in episodes), no Treatment.md (the
-// series-level "show bible" treatment is a separate future feature). Just
-// the Index.md with `kind: series` + a series-level Development tree for
-// recurring characters/locations/references and a Notes folder.
+// no Sequences/ folder (sequences live in episodes). Includes the
+// series-level Development tree + a Series Outline.md (the "show bible"
+// outline — H2 per season; feeds the Make seasons from series outline
+// command).
 async function scaffoldSeriesProject(
 	app: App,
 	projectPath: string,
@@ -246,7 +246,40 @@ async function scaffoldSeriesProject(
 
 	const indexPath = normalizePath(`${projectPath}/Index.md`);
 	const index = await app.vault.create(indexPath, seriesIndexBody(title, subtitle, cfg));
+
+	// Series Outline (the show-bible outline — H2 per season).
+	const outlinePath = normalizePath(
+		`${projectPath}/${cfg.developmentFolder}/Series Outline.md`,
+	);
+	if (!app.vault.getAbstractFileByPath(outlinePath)) {
+		await app.vault.create(outlinePath, seriesOutlineBody(title));
+	}
 	return index;
+}
+
+function seriesOutlineBody(title: string): string {
+	return `---
+type: series-outline
+status: draft
+promoted_at:
+---
+
+# ${title} — Series Outline
+
+> **Welcome to your series outline.** This is the show-level planning
+> document — the equivalent of a treatment, but at the series scope.
+> Each H2 below becomes a season when you run **Make seasons from
+> series outline**. Capture each season's premise here. The H2 title
+> becomes the season's display title; season numbers are auto-assigned.
+>
+> Delete this welcome when you're ready.
+
+## Season 1
+The arc that opens the show. Major beats. Where it ends.
+
+## Season 2
+What changes after season 1's finale. Where the next arc takes us.
+`;
 }
 
 async function scaffoldProject(

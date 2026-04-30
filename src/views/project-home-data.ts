@@ -50,6 +50,10 @@ export interface ProjectHomeData {
 	// Season-outline file for season projects (the "season treatment"). Null
 	// for non-season projects.
 	seasonOutlineFile: TFile | null;
+	// Series-outline file for series projects (the "show bible" outline —
+	// H2 per season; feeds Make seasons from series outline). Null for
+	// non-series projects.
+	seriesOutlineFile: TFile | null;
 	// Series-only: seasons (each containing episodes). Empty for non-series.
 	seasons: SeasonGroup[];
 	// Season-only: episodes inside this season. Empty for non-season.
@@ -101,6 +105,7 @@ export function buildProjectHome(
 		declaredBeats: readDeclaredBeats(app, project),
 		treatmentFile: findTreatment(app, project, cfg),
 		seasonOutlineFile: isSeason ? findSeasonOutline(app, project, cfg) : null,
+		seriesOutlineFile: isSeries ? findSeriesOutline(app, project, cfg) : null,
 		seasons,
 		seasonEpisodes,
 		parentSeries,
@@ -205,6 +210,19 @@ function findSeasonOutline(
 ): TFile | null {
 	const path = normalizePath(
 		`${project.projectRootPath}/${cfg.developmentFolder}/Season Outline.md`,
+	);
+	const f = app.vault.getAbstractFileByPath(path);
+	return f && (f as TFile).extension === "md" ? (f as TFile) : null;
+}
+
+// Look up the series's outline doc — `<series>/<dev>/Series Outline.md`.
+function findSeriesOutline(
+	app: App,
+	project: ProjectMeta,
+	cfg: GlobalConfig,
+): TFile | null {
+	const path = normalizePath(
+		`${project.projectRootPath}/${cfg.developmentFolder}/Series Outline.md`,
 	);
 	const f = app.vault.getAbstractFileByPath(path);
 	return f && (f as TFile).extension === "md" ? (f as TFile) : null;
