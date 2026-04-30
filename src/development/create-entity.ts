@@ -16,6 +16,7 @@ import { sanitizeFilename, toTitleCase } from "../utils/sanitize";
 import { linkifyEntity, type DevEntity, type LinkifyResult } from "./linkify";
 import { openCreateCharacterModal } from "./create-character-modal";
 import { openCreateLocationModal } from "./create-location-modal";
+import { isFountainFile } from "../fountain/file-detection";
 
 // Selection-to-entity creation. Highlight a name in any markdown editor, run
 // the command (or pick from the right-click menu), and FirstDraft scaffolds a
@@ -108,7 +109,12 @@ async function createLocationFromSelection(
 	const result = await openCreateLocationModal(plugin, defaultName);
 	if (!result) return;
 
-	if (cfg.replaceSelectionWithLink && file) {
+	// Replace selection with a link only when we're in a markdown context.
+	// Fountain files (`.fountain` and `.fountain.md`) keep the selection as
+	// plain text — slug lines / action prose that contain markdown link or
+	// wikilink syntax break Fountain parsing and render funny in script
+	// preview ("INT. [Location](path) - DAY" no longer reads as a slug).
+	if (cfg.replaceSelectionWithLink && file && !isFountainFile(file)) {
 		const linkTarget = relativePathFromEditor(file.path, result.file.path);
 		editor.replaceRange(`[${result.displayName}](${linkTarget})`, selFrom, selTo);
 	}
@@ -162,8 +168,11 @@ async function createCharacterFromSelection(
 	const result = await openCreateCharacterModal(plugin, defaultName);
 	if (!result) return;
 
-	// Replace the captured selection with a link to the canonical file.
-	if (cfg.replaceSelectionWithLink && file) {
+	// Replace the captured selection with a link to the canonical file —
+	// but only in markdown context. In a fountain, the selection probably
+	// IS a cue or part of action prose, and inserting markdown-link syntax
+	// breaks Fountain parsing.
+	if (cfg.replaceSelectionWithLink && file && !isFountainFile(file)) {
 		const linkTarget = relativePathFromEditor(file.path, result.file.path);
 		editor.replaceRange(`[${result.displayName}](${linkTarget})`, selFrom, selTo);
 	}
@@ -395,7 +404,9 @@ async function createNewTopLevelEntity(args: CreateTopLevelArgs): Promise<void> 
 			kind === "character" ? cfg.characterNoteTemplate : cfg.locationNoteTemplate;
 		const created = await plugin.app.vault.create(docPath, template);
 
-		if (cfg.replaceSelectionWithLink && file) {
+		// Skip link replacement in fountain context — see note in
+		// createCharacterFromSelection / createLocationFromSelection.
+		if (cfg.replaceSelectionWithLink && file && !isFountainFile(file)) {
 			const linkTarget = relativePathFromEditor(file.path, docPath);
 			editor.replaceRange(`[${finalName}](${linkTarget})`, selFrom, selTo);
 		}
@@ -468,7 +479,9 @@ async function createAsVersion(args: CreateVersionArgs): Promise<void> {
 			kind === "character" ? cfg.characterNoteTemplate : cfg.locationNoteTemplate;
 		const created = await plugin.app.vault.create(docPath, template);
 
-		if (cfg.replaceSelectionWithLink && file) {
+		// Skip link replacement in fountain context — see note in
+		// createCharacterFromSelection / createLocationFromSelection.
+		if (cfg.replaceSelectionWithLink && file && !isFountainFile(file)) {
 			const linkTarget = relativePathFromEditor(file.path, docPath);
 			editor.replaceRange(`[${selectionName}](${linkTarget})`, selFrom, selTo);
 		}
@@ -497,6 +510,11 @@ async function replaceSelectionWithMultipleLinks(
 		new Notice("Open a file inside a project first.");
 		return 0;
 	}
+	// Don't insert markdown-link syntax in fountain context — would break
+	// Fountain parsing. Caller still gets a count of zero so the notice
+	// reports "Linked 0 existing locations" rather than misleading the
+	// user about modifications that didn't happen.
+	if (isFountainFile(file)) return 0;
 
 	// Sort by length desc so longer parent names match first (prevents "Marcus"
 	// from being matched inside "Young Marcus" before "Young Marcus" itself
