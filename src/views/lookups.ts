@@ -34,10 +34,13 @@ export interface CharacterEntry {
 	aliases: string[]; // alias names as authored (preserves casing)
 	isGroup: boolean; // true if frontmatter `type: group`
 	groupMembers: string[]; // names of member characters (group's `members:` array)
-	// Resolved role for the current project scope (main / recurring / guest).
-	// Read from frontmatter `roles` map: prefer `roles.S<NN>` for the project's
-	// season (when in season/episode scope), fall back to `roles.default`.
-	// null when the file has no roles field at all (legacy / unclassified).
+	// Resolved role for the current project scope. Possible values for
+	// characters: main / recurring / guest / featured-extra. Read from the
+	// frontmatter `roles` map (prefer per-season `roles.S<NN>`, fall back to
+	// `roles.default`). Legacy entries with no `roles` field at all fold into
+	// "main" so they remain visible. null = the entry has roles defined but
+	// none for the current scope (e.g. a guest from S01 viewed at S02 or at
+	// the series root) — view layer hides these.
 	role: string | null;
 }
 
@@ -46,8 +49,9 @@ export interface LocationEntry {
 	folderName: string;
 	folder: TFolder;
 	canonicalFile: TFile | null;
-	// Resolved role: primary / recurring / one-off (or null = unclassified).
-	// Same per-season fallback rule as character roles.
+	// Resolved role: primary / recurring / one-off. Same per-season fallback
+	// rule as character roles; legacy roleless entries fold into "primary".
+	// null = the entry has roles defined but none match the current scope.
 	role: string | null;
 	// Optional parent-location reference for nested sluglines (e.g. BEDROOM
 	// inside SMITH HOUSE). Stored as the parent's display name in
@@ -147,6 +151,14 @@ export function sequencePairFromActive(
 	};
 }
 
+// Folders inside a Characters/ or Locations/ tree that hold archived
+// snapshots / drafts rather than entity definitions. These get walked by
+// FirstDraft's own snapshot system so we must skip them at roster-build
+// time — otherwise `_versions/Chloe — pre-linkify 2026-04-30.md` ends up
+// surfacing as a character named "_versions". Mirrors SKIP_FOLDER_NAMES
+// in scanner.ts / linkify.ts / migrate.ts.
+const SKIP_ROSTER_FOLDERS = new Set(["_versions", "Drafts"]);
+
 // Roster of characters for a project. Each .md file inside a character folder
 // becomes its own roster entry — the file matching the folder name is the
 // "primary" character; other .md files are versions (e.g. YOUNG MARCUS,
@@ -166,6 +178,7 @@ export function characterRoster(
 		if (!root) return;
 		for (const folder of root.children) {
 			if (!(folder instanceof TFolder)) continue;
+			if (SKIP_ROSTER_FOLDERS.has(folder.name)) continue;
 			for (const file of folder.children) {
 				if (!(file instanceof TFile) || file.extension !== "md") continue;
 				const name = file.basename.toUpperCase();
@@ -182,7 +195,7 @@ export function characterRoster(
 					aliases: collectStringArray(fm?.aliases),
 					isGroup: typeof fm?.type === "string" && fm.type.toLowerCase() === "group",
 					groupMembers: collectStringArray(fm?.members),
-					role: resolveRole(fm?.roles, seasonKey),
+					role: resolveRole(fm?.roles, seasonKey, "main"),
 				});
 			}
 		}
@@ -219,6 +232,7 @@ export function locationRoster(
 		if (!folder) return;
 		for (const child of folder.children) {
 			if (!(child instanceof TFolder)) continue;
+			if (SKIP_ROSTER_FOLDERS.has(child.name)) continue;
 			const expectedPrimary = `${child.name}.md`;
 			for (const file of child.children) {
 				if (!(file instanceof TFile) || file.extension !== "md") continue;
@@ -237,7 +251,7 @@ export function locationRoster(
 					folderName: child.name,
 					folder: child,
 					canonicalFile: file,
-					role: resolveRole(fm?.roles, seasonKey),
+					role: resolveRole(fm?.roles, seasonKey, "primary"),
 					parentLocation: typeof parentRaw === "string" && parentRaw.trim() !== ""
 						? parentRaw.trim()
 						: null,
@@ -326,13 +340,32 @@ function seasonKeyForProject(project: ProjectMeta): string | null {
 }
 
 // Resolve a role from a frontmatter `roles` field given the active season
-// key. Order: explicit per-season override (`roles.S01`), then `roles.default`,
-// then null (= unclassified). Tolerates both well-formed maps and missing/
-// malformed inputs.
-function resolveRole(roles: unknown, seasonKey: string | null): string | null {
-	if (!roles || typeof roles !== "object" || Array.isArray(roles)) return null;
+// key. Order:
+//   1. Per-season override (`roles.<seasonKey>`)
+//   2. `roles.default`
+//   3. If the file has no `roles` field at all → `legacyDefault`
+//   4. Otherwise null
+//
+// The legacy fallback covers entries created before role classification
+// existed; without it they'd vanish from every group. The "has roles but
+// nothing for this scope" path returns null so out-of-scope entries (a
+// guest tagged for S01 viewed at S02 or at the series root) are filtered
+// out instead of folded into the legacy bucket.
+function resolveRole(
+	roles: unknown,
+	seasonKey: string | null,
+	legacyDefault: string,
+): string | null {
+	if (!roles || typeof roles !== "object" || Array.isArray(roles)) {
+		return legacyDefault;
+	}
 	const map = roles as Record<string, unknown>;
-	if (seasonKey && typeof map[seasonKey] === "string" && map[seasonKey].toString().trim() !== "") {
+	if (Object.keys(map).length === 0) return legacyDefault;
+	if (
+		seasonKey &&
+		typeof map[seasonKey] === "string" &&
+		map[seasonKey].toString().trim() !== ""
+	) {
 		return map[seasonKey].toString().trim().toLowerCase();
 	}
 	if (typeof map.default === "string" && map.default.trim() !== "") {

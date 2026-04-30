@@ -30,8 +30,9 @@ export class ProjectScanner {
 		const start = performance.now();
 		this.projects.clear();
 		for (const file of this.app.vault.getMarkdownFiles()) {
-			this.evaluate(file);
+			this.evaluate(file, /* skipFinalize */ true);
 		}
+		this.finalizeAll();
 		this.isReady = true;
 		if (this.debug()) {
 			const ms = (performance.now() - start).toFixed(1);
@@ -47,6 +48,7 @@ export class ProjectScanner {
 		if (this.projects.delete(path) && this.debug()) {
 			console.debug(`[FirstDraft] Project removed: ${path}`);
 		}
+		this.finalizeAll();
 	}
 
 	handleRename(file: TFile, oldPath: string): void {
@@ -56,7 +58,7 @@ export class ProjectScanner {
 		this.evaluate(file);
 	}
 
-	private evaluate(file: TFile): void {
+	private evaluate(file: TFile, skipFinalize = false): void {
 		if (file.extension !== "md") return;
 		// Skip files inside snapshot/draft folders — they're copies of project
 		// indexes and shouldn't be detected as separate projects.
@@ -72,6 +74,7 @@ export class ProjectScanner {
 		} else {
 			this.projects.delete(file.path);
 		}
+		if (!skipFinalize) this.finalizeAll();
 	}
 
 	private deriveMeta(file: TFile, fm: Record<string, unknown> | undefined): ProjectMeta | null {
@@ -124,7 +127,42 @@ export class ProjectScanner {
 			projectRootPath,
 			sequenceFolderPath,
 			seriesDevelopmentPath,
+			// Filled in by finalizeAll() after every project is in the map —
+			// resolution needs the series projects to already be known.
+			seriesIndexPath: null,
 		};
+	}
+
+	// Refresh `seriesIndexPath` for every tv-episode / season entry by looking
+	// up its closest ancestor series in the projects map. Called after every
+	// individual evaluate() so order-of-discovery during initial scan or
+	// later renames doesn't leave entries with a stale parent pointer.
+	private finalizeAll(): void {
+		for (const [key, meta] of this.projects.entries()) {
+			if (meta.projectType !== "tv-episode" && meta.projectType !== "season") {
+				if (meta.seriesIndexPath !== null) {
+					this.projects.set(key, { ...meta, seriesIndexPath: null });
+				}
+				continue;
+			}
+			const newPath = this.findParentSeriesIndex(meta);
+			if (newPath !== meta.seriesIndexPath) {
+				this.projects.set(key, { ...meta, seriesIndexPath: newPath });
+			}
+		}
+	}
+
+	private findParentSeriesIndex(child: ProjectMeta): string | null {
+		let best: ProjectMeta | null = null;
+		for (const m of this.projects.values()) {
+			if (m.projectType !== "series") continue;
+			const prefix = m.projectRootPath + "/";
+			if (!child.indexFilePath.startsWith(prefix)) continue;
+			if (!best || m.projectRootPath.length > best.projectRootPath.length) {
+				best = m;
+			}
+		}
+		return best?.indexFilePath ?? null;
 	}
 
 	// Walk upward from the project root, looking for an ancestor whose children include

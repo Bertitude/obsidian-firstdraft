@@ -34,7 +34,12 @@ import { ensureEpisodeCharacterNote } from "./episode-character-notes";
 //   Quick Switcher can disambiguate. Defer until we ship the episode-notes
 //   feature and confirm the friction is real.
 
-export type CharacterLevel = "main" | "recurring" | "guest";
+export type CharacterLevel =
+	| "main"
+	| "recurring"
+	| "supporting"
+	| "guest"
+	| "featured-extra";
 
 export interface CreateCharacterResult {
 	file: TFile;
@@ -73,11 +78,13 @@ class CreateCharacterModal extends Modal {
 	) {
 		super(plugin.app);
 		this.nameValue = defaultName;
-		// Default level: characters created at series/feature level are typically
-		// "main" or "recurring"; from an episode we default to "guest" because
-		// that's the most-likely intent (one-offs are common; series regulars
-		// are usually established via the show bible upfront).
-		this.level = project.projectType === "tv-episode" ? "guest" : "main";
+		// Default level varies by where the user is creating from. Episode/season
+		// scope defaults to Guest (one-offs are the common case during scripting);
+		// series and feature scopes default to Main.
+		this.level =
+			project.projectType === "tv-episode" || project.projectType === "season"
+				? "guest"
+				: "main";
 	}
 
 	onOpen(): void {
@@ -104,10 +111,8 @@ class CreateCharacterModal extends Modal {
 			.setName("Level")
 			.setDesc(this.levelDescription())
 			.addDropdown((d) => {
-				d.addOption("main", "Main");
-				d.addOption("recurring", "Recurring");
-				if (this.project.projectType === "tv-episode") {
-					d.addOption("guest", "Guest");
+				for (const opt of this.levelOptions()) {
+					d.addOption(opt.value, opt.label);
 				}
 				d.setValue(this.level).onChange((value) => {
 					this.level = value as CharacterLevel;
@@ -132,10 +137,45 @@ class CreateCharacterModal extends Modal {
 	}
 
 	private levelDescription(): string {
-		if (this.project.projectType === "tv-episode") {
-			return "Main: series regular across the show. Recurring: notable repeat appearances. Guest: one-time or single-arc, scoped to this season.";
+		switch (this.project.projectType) {
+			case "tv-episode":
+			case "season":
+				return "Main: series regular. Recurring: notable repeat appearances. Guest: one-time or single-arc, scoped to this season. Featured Extra: non-speaking but scripted, scoped to this season.";
+			case "series":
+				return "Main: series regular. Recurring: notable repeat appearances.";
+			case "feature":
+			default:
+				return "Main: central character. Supporting: significant role, not a lead. Featured Extra: non-speaking but scripted.";
 		}
-		return "Main: central character. Recurring: notable supporting role.";
+	}
+
+	// Dropdown options vary by project context. Series-wide tiers (main /
+	// recurring) live in `roles.default`; episode-scoped tiers (guest /
+	// featured-extra) live under `roles.<seasonKey>` for TV. Features get
+	// only the tiers that map cleanly to a single-project work.
+	private levelOptions(): { value: CharacterLevel; label: string }[] {
+		switch (this.project.projectType) {
+			case "tv-episode":
+			case "season":
+				return [
+					{ value: "main", label: "Main" },
+					{ value: "recurring", label: "Recurring" },
+					{ value: "guest", label: "Guest" },
+					{ value: "featured-extra", label: "Featured Extra" },
+				];
+			case "series":
+				return [
+					{ value: "main", label: "Main" },
+					{ value: "recurring", label: "Recurring" },
+				];
+			case "feature":
+			default:
+				return [
+					{ value: "main", label: "Main" },
+					{ value: "supporting", label: "Supporting" },
+					{ value: "featured-extra", label: "Featured Extra" },
+				];
+		}
 	}
 
 	private cancel(): void {
@@ -214,15 +254,18 @@ class CreateCharacterModal extends Modal {
 }
 
 // Compose the `roles:` frontmatter value based on the picked level + project
-// context. Series-wide levels (main / recurring) use `default:`; episode-
-// scoped levels (guest) use a season key derived from the episode's metadata.
+// context. Series-wide levels (main / recurring) always live under `default:`.
+// Episode-scoped levels (guest / featured-extra) live under the project's
+// season key when one is available; for features (no seasons), they fall back
+// to `default:`.
 function composeRoles(
 	level: CharacterLevel,
 	project: ProjectMeta,
 	seasonKey: string | null,
 ): Record<string, string> {
-	if (level === "guest" && seasonKey) {
-		// Guest is season-scoped — track it under the season they appear in.
+	void project;
+	const isEpisodeScoped = level === "guest" || level === "featured-extra";
+	if (isEpisodeScoped && seasonKey) {
 		return { [seasonKey]: level };
 	}
 	return { default: level };

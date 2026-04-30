@@ -459,16 +459,34 @@ export class ProjectHomeView extends ItemView {
 			return;
 		}
 
-		// Three-tier role grouping with an Unclassified bucket for legacy
-		// characters whose canonical file has no `roles` field. All groups
-		// are <details> with open by default; empty groups are skipped so
-		// the section stays compact when only one or two roles are in use.
-		const groups: { label: string; key: string; members: typeof data.characters }[] = [
-			{ label: "Main", key: "main", members: data.characters.filter((c) => c.role === "main") },
-			{ label: "Recurring", key: "recurring", members: data.characters.filter((c) => c.role === "recurring") },
-			{ label: "Guest", key: "guest", members: data.characters.filter((c) => c.role === "guest") },
-			{ label: "Unclassified", key: "unclassified", members: data.characters.filter((c) => c.role === null) },
+		// Role grouping. resolveRole has already folded legacy roleless entries
+		// into "main"; entries whose roles don't match the current view scope
+		// (e.g. a guest from S01 viewed at S02 or at the series root) come back
+		// as null and are filtered out here.
+		//   - Series view: only series-wide tiers (Main / Recurring).
+		//   - Feature view: project-scoped tiers (Main / Supporting / Featured Extra).
+		//   - Season / episode view: full TV ladder.
+		// Empty groups are skipped so the section stays compact.
+		const allGroups: { label: string; key: string; role: string }[] = [
+			{ label: "Main", key: "main", role: "main" },
+			{ label: "Recurring", key: "recurring", role: "recurring" },
+			{ label: "Supporting", key: "supporting", role: "supporting" },
+			{ label: "Guest", key: "guest", role: "guest" },
+			{ label: "Featured Extra", key: "featured-extra", role: "featured-extra" },
 		];
+		const visibleKeys = (() => {
+			if (data.isSeries) return new Set(["main", "recurring"]);
+			if (data.project.projectType === "feature")
+				return new Set(["main", "supporting", "featured-extra"]);
+			return new Set(["main", "recurring", "guest", "featured-extra"]);
+		})();
+		const groups = allGroups
+			.filter((g) => visibleKeys.has(g.key))
+			.map((g) => ({
+				label: g.label,
+				key: g.key,
+				members: data.characters.filter((c) => c.role === g.role),
+			}));
 
 		for (const group of groups) {
 			if (group.members.length === 0) continue;
@@ -536,15 +554,25 @@ export class ProjectHomeView extends ItemView {
 			return;
 		}
 
-		// Three-tier production-correct labels: Primary (= standing set,
-		// in many episodes), Recurring (returns across episodes), One-off
-		// (single-episode scout). Unclassified for legacy entries.
-		const groups: { label: string; key: string; members: typeof data.locations }[] = [
-			{ label: "Primary", key: "primary", members: data.locations.filter((l) => l.role === "primary") },
-			{ label: "Recurring", key: "recurring", members: data.locations.filter((l) => l.role === "recurring") },
-			{ label: "One-Off", key: "one-off", members: data.locations.filter((l) => l.role === "one-off") },
-			{ label: "Unclassified", key: "unclassified", members: data.locations.filter((l) => l.role === null) },
+		// Production-correct labels: Primary (= standing set, in many episodes),
+		// Recurring (returns across episodes), One-off (single-episode scout).
+		// resolveRole folds legacy roleless entries into Primary. Series-level
+		// views suppress One-Off — single-episode locations are episode-scope.
+		const allGroups: { label: string; key: string; role: string }[] = [
+			{ label: "Primary", key: "primary", role: "primary" },
+			{ label: "Recurring", key: "recurring", role: "recurring" },
+			{ label: "One-Off", key: "one-off", role: "one-off" },
 		];
+		const visibleKeys = data.isSeries
+			? new Set(["primary", "recurring"])
+			: new Set(["primary", "recurring", "one-off"]);
+		const groups = allGroups
+			.filter((g) => visibleKeys.has(g.key))
+			.map((g) => ({
+				label: g.label,
+				key: g.key,
+				members: data.locations.filter((l) => l.role === g.role),
+			}));
 
 		for (const group of groups) {
 			if (group.members.length === 0) continue;

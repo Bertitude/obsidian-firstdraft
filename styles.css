@@ -958,8 +958,9 @@ body.firstdraft-active .workspace-split.mod-left-split .workspace-tab-header-con
 }
 
 /* Role-grouped collapsible inside Characters / Locations sections.
-   Each <details> wraps a group (Main / Recurring / Guest /
-   Primary / Recurring / One-Off / Unclassified). Default-open. */
+   Each <details> wraps a group (Main / Recurring / Guest / Featured Extra
+   for characters; Primary / Recurring / One-Off for locations).
+   Default-open. */
 .firstdraft-home-rolegroup {
 	margin-top: var(--size-2-2);
 }

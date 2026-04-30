@@ -2,6 +2,7 @@ import { Plugin } from "obsidian";
 import type { FirstDraftSettings } from "./types";
 import { DEFAULT_SETTINGS } from "./settings/defaults";
 import { mergeSettings } from "./settings/merge";
+import { normaliseDelimiterValue } from "./settings/slugline-delimiter";
 import { FirstDraftSettingTab } from "./settings/settings-tab";
 import { ProjectScanner } from "./projects/scanner";
 import { registerEventHandlers } from "./events/register";
@@ -89,6 +90,7 @@ import { isPluginEnabled, KNOWN_PLUGIN_IDS, resolveFountainMode } from "./founta
 import { runMigrateProjectCommand } from "./fountain/migrate";
 import { runSyncSluglinesCommand } from "./fountain/sync-sluglines";
 import { runSyncSluglinesToDevNoteCommand } from "./fountain/sync-sluglines-to-devnote";
+import { runCleanupSluglinesCommand } from "./fountain/cleanup-sluglines";
 import { runSyncCharactersCommand } from "./fountain/sync-characters";
 import { runSyncCharactersFromProseCommand } from "./fountain/sync-characters-prose";
 import { installRenameSync } from "./rename-sync/handler";
@@ -583,6 +585,14 @@ export default class FirstDraftPlugin extends Plugin {
 		});
 
 		this.addCommand({
+			id: "cleanup-sluglines",
+			name: "Clean up sluglines",
+			callback: () => {
+				void runCleanupSluglinesCommand(this);
+			},
+		});
+
+		this.addCommand({
 			id: "sync-characters-from-fountain",
 			name: "Sync characters from sequence to dev note",
 			callback: () => {
@@ -630,8 +640,34 @@ export default class FirstDraftPlugin extends Plugin {
 
 		this.app.workspace.onLayoutReady(() => {
 			this.scanner.scanAll();
+			void this.dropOrphanedTvOverrides();
 			this.applyFountainPluginMode();
 		});
+	}
+
+	// One-time cleanup: project-settings used to be stored per tv-episode and
+	// per-season, which never aligned with how a series actually works (every
+	// episode inherits the show's structure). The new model keys settings by
+	// the series Index for any TV project. Existing per-episode/season
+	// overrides become inert orphans — we delete them on load so data.json
+	// doesn't accumulate cruft. Settings on actual series, features, and
+	// standalone projects are untouched.
+	private async dropOrphanedTvOverrides(): Promise<void> {
+		let removed = 0;
+		for (const key of Object.keys(this.settings.projects)) {
+			const project = this.scanner.projects.get(key);
+			if (!project) continue;
+			if (project.projectType === "tv-episode" || project.projectType === "season") {
+				delete this.settings.projects[key];
+				removed++;
+			}
+		}
+		if (removed > 0) {
+			await this.saveSettings();
+			if (this.settings.global.debugLogging) {
+				console.debug(`[FirstDraft] Dropped ${removed} orphan TV episode/season override(s).`);
+			}
+		}
 	}
 
 	onunload(): void {
@@ -648,6 +684,19 @@ export default class FirstDraftPlugin extends Plugin {
 		// First Draft Mode is session-only — reset transient fields on load.
 		this.settings.global.firstDraftMode.active = false;
 		this.settings.global.firstDraftMode.savedLayout = null;
+		// Legacy installs may have stored delimiter values that don't match
+		// any of the current presets (e.g. the bare "-" produced by the
+		// pre-fix trim bug). Coerce on load so the dropdown's setValue
+		// always finds a matching option.
+		this.settings.global.sluglineSubLocationDelimiter =
+			normaliseDelimiterValue(this.settings.global.sluglineSubLocationDelimiter);
+		for (const override of Object.values(this.settings.projects)) {
+			if (override.sluglineSubLocationDelimiter !== undefined) {
+				override.sluglineSubLocationDelimiter = normaliseDelimiterValue(
+					override.sluglineSubLocationDelimiter,
+				);
+			}
+		}
 	}
 
 	async saveSettings(): Promise<void> {

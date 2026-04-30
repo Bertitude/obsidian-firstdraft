@@ -396,7 +396,7 @@ function renderCharacterCard(
 
 	const fm = plugin.app.metadataCache.getFileCache(entry.canonicalFile)?.frontmatter ?? {};
 	renderFieldList(body, fm as Record<string, unknown>, fields);
-	renderOpenLink(body, plugin, entry.canonicalFile);
+	renderOpenLink(body, plugin, entry.canonicalFile, "Open Character Profile →");
 }
 
 // ── location section ─────────────────────────────────────────────────────
@@ -448,7 +448,7 @@ function renderLocationCard(
 	// minus internal keys. (Phase 5 could add a `locationCardFields` setting.)
 	const fields = Object.keys(fm).filter((k) => k !== "position");
 	renderFieldList(body, fm as Record<string, unknown>, fields);
-	renderOpenLink(body, plugin, entry.canonicalFile);
+	renderOpenLink(body, plugin, entry.canonicalFile, "Open Location Profile →");
 }
 
 // Suppress unused warning for findCharacter — exposed via lookups but used by Phase 3.
@@ -495,9 +495,14 @@ function stringifyField(v: unknown): string {
 	return String(v as string | number | boolean);
 }
 
-function renderOpenLink(parent: HTMLElement, plugin: FirstDraftPlugin, file: TFile): void {
+function renderOpenLink(
+	parent: HTMLElement,
+	plugin: FirstDraftPlugin,
+	file: TFile,
+	label: string,
+): void {
 	const link = parent.createEl("a", {
-		text: "Open full note →",
+		text: label,
 		cls: "firstdraft-card-open",
 		attr: { href: "#" },
 	});

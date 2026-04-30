@@ -1,4 +1,5 @@
 import type { ProjectMeta, FirstDraftSettings } from "../types";
+import { projectSettingsKey } from "../settings/resolve";
 
 // Derives a project's "note tag" — the tag users add to notes anywhere in
 // the vault to surface them in the project notes panel. Default form is a
@@ -23,7 +24,7 @@ export function resolveNoteTag(
 	project: ProjectMeta,
 	settings: FirstDraftSettings,
 ): string {
-	const override = settings.projects[project.indexFilePath]?.noteTag;
+	const override = settings.projects[projectSettingsKey(project)]?.noteTag;
 	if (override && override.trim() !== "") return override.trim().replace(/^#/, "");
 	return deriveNoteTag(project);
 }

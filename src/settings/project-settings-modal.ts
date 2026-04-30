@@ -1,19 +1,39 @@
 import { App, Modal, Setting } from "obsidian";
 import type FirstDraftPlugin from "../main";
 import type { ProjectConfig, ProjectMeta } from "../types";
-import { pruneEmptyOverride } from "./resolve";
+import { projectSettingsKey, pruneEmptyOverride } from "./resolve";
 import { deriveNoteTag } from "../projects/note-tag";
+import { SLUGLINE_DELIMITER_PRESETS } from "./slugline-delimiter";
 
 // Per-project settings overlay. Mirrors the overridable subset of the global
 // settings tab (folder names, templates, character card fields). Each field
-// can be cleared back to global via a "Reset to global" button. Storage key:
-// `settings.projects[project.indexFilePath]`.
+// can be cleared back to global via a "Reset to global" button.
+//
+// For TV: episodes and seasons don't carry their own settings — every cog
+// click from any level inside a series resolves up to the series and writes
+// to `settings.projects[<series Index>]`. Features and standalone projects
+// store at their own `indexFilePath`.
 
 export function openProjectSettingsModal(
 	plugin: FirstDraftPlugin,
 	project: ProjectMeta,
 ): void {
-	new ProjectSettingsModal(plugin.app, plugin, project).open();
+	const target = resolveSettingsProject(plugin, project);
+	new ProjectSettingsModal(plugin.app, plugin, target).open();
+}
+
+// If `project` is a TV episode or season nested under a series, return the
+// series's ProjectMeta so settings render against (and write to) that scope.
+// Falls back to the input project when no series ancestor exists in the
+// scanner — keeps standalone episodes / orphans editable rather than
+// silently rejecting the cog click.
+function resolveSettingsProject(
+	plugin: FirstDraftPlugin,
+	project: ProjectMeta,
+): ProjectMeta {
+	if (!project.seriesIndexPath) return project;
+	const series = plugin.scanner.projects.get(project.seriesIndexPath);
+	return series ?? project;
 }
 
 class ProjectSettingsModal extends Modal {
@@ -25,7 +45,7 @@ class ProjectSettingsModal extends Modal {
 		private readonly project: ProjectMeta,
 	) {
 		super(app);
-		this.key = project.indexFilePath;
+		this.key = projectSettingsKey(project);
 	}
 
 	onOpen(): void {
@@ -33,9 +53,17 @@ class ProjectSettingsModal extends Modal {
 		contentEl.addClass("firstdraft-project-settings");
 
 		const title = this.project.title ?? this.project.projectRootPath;
-		contentEl.createEl("h2", { text: `Project settings — ${title}` });
+		const heading =
+			this.project.projectType === "series"
+				? `Series settings — ${title}`
+				: `Project settings — ${title}`;
+		contentEl.createEl("h2", { text: heading });
+		const help =
+			this.project.projectType === "series"
+				? "These settings apply across the entire series — every season and episode inherits them. Empty fields fall back to global."
+				: "Override global settings for this project. Empty fields fall back to global.";
 		contentEl.createEl("p", {
-			text: "Override global settings for this project. Empty fields fall back to global.",
+			text: help,
 			cls: "firstdraft-project-settings-help",
 		});
 
@@ -79,7 +107,7 @@ class ProjectSettingsModal extends Modal {
 		this.folderRow("Notes subfolder", "notesSubfolder", g.notesSubfolder);
 		this.folderRow("Seasons folder (series projects)", "seasonsFolder", g.seasonsFolder);
 		this.folderRow("Episode naming template", "episodeNameTemplate", g.episodeNameTemplate);
-		this.folderRow(
+		this.delimiterRow(
 			"Slug-line sub-location delimiter",
 			"sluglineSubLocationDelimiter",
 			g.sluglineSubLocationDelimiter,
@@ -96,8 +124,7 @@ class ProjectSettingsModal extends Modal {
 			| "referencesSubfolder"
 			| "notesSubfolder"
 			| "seasonsFolder"
-			| "episodeNameTemplate"
-			| "sluglineSubLocationDelimiter",
+			| "episodeNameTemplate",
 		globalValue: string,
 	): void {
 		const setting = new Setting(this.contentEl).setName(label);
@@ -117,6 +144,51 @@ class ProjectSettingsModal extends Modal {
 					}
 					await this.save();
 				});
+		});
+
+		setting.addExtraButton((btn) =>
+			btn
+				.setIcon("rotate-ccw")
+				.setTooltip("Reset to global")
+				.onClick(async () => {
+					const cur = this.getOverride();
+					delete cur[field];
+					await this.save();
+					this.refresh();
+				}),
+		);
+	}
+
+	// Dropdown of preset delimiters — same shape as the global setting. The
+	// per-project (= per-series for TV) override stores the literal preset
+	// value so the global / override merge in resolveProjectSettings works
+	// without any extra mapping. "Reset to global" clears the override.
+	private delimiterRow(
+		label: string,
+		field: "sluglineSubLocationDelimiter",
+		globalValue: string,
+	): void {
+		const labelForValue = (v: string): string => {
+			const match = SLUGLINE_DELIMITER_PRESETS.find((p) => p.value === v);
+			return match?.label ?? v;
+		};
+		const setting = new Setting(this.contentEl).setName(label);
+		setting.setDesc(`Global: ${labelForValue(globalValue)}`);
+
+		setting.addDropdown((d) => {
+			for (const preset of SLUGLINE_DELIMITER_PRESETS) {
+				d.addOption(preset.value, preset.label);
+			}
+			const override = this.getOverride();
+			d.setValue(override[field] ?? globalValue).onChange(async (v) => {
+				const cur = this.getOverride();
+				if (v === globalValue) {
+					delete cur[field];
+				} else {
+					cur[field] = v;
+				}
+				await this.save();
+			});
 		});
 
 		setting.addExtraButton((btn) =>

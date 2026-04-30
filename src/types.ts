@@ -102,4 +102,10 @@ export interface ProjectMeta {
 	// sequences live in episodes).
 	sequenceFolderPath: string;
 	seriesDevelopmentPath: string | null;
+	// For tv-episode and season projects, the indexFilePath of the parent
+	// series. Null for series, features, or orphan episodes/seasons whose
+	// series Index hasn't been initialised. Used as the settings storage
+	// key for TV — episode/season-level overrides don't exist; settings
+	// live at the series level and are shared across all episodes.
+	seriesIndexPath: string | null;
 }

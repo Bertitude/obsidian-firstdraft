@@ -1,13 +1,25 @@
 import type { FirstDraftSettings, GlobalConfig, ProjectConfig, ProjectMeta } from "../types";
 
 // Returns the effective config for a project: project overrides layered on top
-// of global. Only the 9 ProjectConfig fields are overridable; non-overridable
+// of global. Only the ProjectConfig subset is overridable; non-overridable
 // fields (firstDraftMode, debugLogging, fountainPlugin, etc.) always come from
 // global. Returns a NEW object — callers can pass it down without worrying about
 // mutating settings.
 //
-// Project key is `indexFilePath` (matches ProjectScanner). When the index file
-// is renamed, scanner.handleRename also migrates this key (see scanner.ts).
+// Settings key resolution:
+//   - tv-episode and season projects key by their parent series's
+//     `indexFilePath` (`project.seriesIndexPath`). For TV, settings live at
+//     the series level and are shared across every episode and season.
+//   - feature, series, and orphan tv-episode (no parent series) projects
+//     key by their own `indexFilePath`.
+//
+// When an Index file is renamed, scanner.handleRename migrates the entry's
+// position in `scanner.projects`, but external rename-sync logic mirrors
+// the change into `settings.projects` keys so overrides keep applying.
+
+export function projectSettingsKey(project: ProjectMeta): string {
+	return project.seriesIndexPath ?? project.indexFilePath;
+}
 
 export function resolveProjectSettings(
 	project: ProjectMeta | null,
@@ -15,7 +27,7 @@ export function resolveProjectSettings(
 ): GlobalConfig {
 	if (!project) return settings.global;
 
-	const override = settings.projects[project.indexFilePath];
+	const override = settings.projects[projectSettingsKey(project)];
 	if (!override || isEmpty(override)) return settings.global;
 
 	return {
@@ -30,7 +42,7 @@ export function getProjectOverride(
 	project: ProjectMeta,
 	settings: FirstDraftSettings,
 ): ProjectConfig {
-	return settings.projects[project.indexFilePath] ?? {};
+	return settings.projects[projectSettingsKey(project)] ?? {};
 }
 
 // Drops the project's override entry entirely if it has no defined fields left.
@@ -39,9 +51,10 @@ export function pruneEmptyOverride(
 	project: ProjectMeta,
 	settings: FirstDraftSettings,
 ): void {
-	const entry = settings.projects[project.indexFilePath];
+	const key = projectSettingsKey(project);
+	const entry = settings.projects[key];
 	if (entry && isEmpty(entry)) {
-		delete settings.projects[project.indexFilePath];
+		delete settings.projects[key];
 	}
 }
 
