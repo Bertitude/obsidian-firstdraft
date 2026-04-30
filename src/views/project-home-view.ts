@@ -1,4 +1,4 @@
-import { ItemView, setIcon, TFile, WorkspaceLeaf } from "obsidian";
+import { ItemView, Notice, setIcon, TFile, WorkspaceLeaf } from "obsidian";
 import type FirstDraftPlugin from "../main";
 import type { ProjectMeta } from "../types";
 import { resolveActiveProject } from "../projects/resolver";
@@ -9,6 +9,7 @@ import { activateOutlineView } from "./outline-view";
 import { activateCharacterMatrixView } from "./character-matrix-view";
 import { stripId } from "../utils/stable-id";
 import { openProjectSettingsModal } from "../settings/project-settings-modal";
+import { ensureSeasonProject } from "../projects/create-season";
 import {
 	displayProjectFullTitle,
 	displayProjectPrimaryTitle,
@@ -274,6 +275,11 @@ export class ProjectHomeView extends ItemView {
 
 			// "Open season" link — only when an explicit Season project exists
 			// for this key. mousedown to bypass focus-eating on sidebar leaves.
+			//
+			// When the season folder DOESN'T have an Index yet (orphan from
+			// before auto-create or a manually-created folder), surface a
+			// "Create season" affordance instead so the user can backfill in
+			// place rather than digging into the command palette.
 			if (season.seasonProject) {
 				const seasonProj = season.seasonProject;
 				const openLink = summary.createEl("a", {
@@ -295,6 +301,20 @@ export class ProjectHomeView extends ItemView {
 					}
 				});
 				openLink.addEventListener("click", (e) => e.preventDefault());
+			} else {
+				const createLink = summary.createEl("a", {
+					cls: "firstdraft-home-season-create",
+					text: "Create season",
+					attr: { href: "#" },
+				});
+				const seasonKey = season.seasonKey;
+				createLink.addEventListener("mousedown", (e) => {
+					if (e.button !== 0) return;
+					e.stopPropagation();
+					e.preventDefault();
+					void this.backfillSeasonProject(data, seasonKey);
+				});
+				createLink.addEventListener("click", (e) => e.preventDefault());
 			}
 
 			const list = details.createDiv({ cls: "firstdraft-home-list" });
@@ -396,6 +416,38 @@ export class ProjectHomeView extends ItemView {
 			commands?: { executeCommandById?: (id: string) => boolean };
 		}).commands;
 		commands?.executeCommandById?.(fullId);
+	}
+
+	// Backfill a Season project for an orphan season folder shown on the
+	// Series Home (folder containing episodes, no Index.md). Re-renders the
+	// home so the new "Open" link shows immediately. Series project is
+	// always available here because backfill is only offered on the series
+	// view's seasons section.
+	private async backfillSeasonProject(
+		data: ProjectHomeData,
+		seasonKey: string,
+	): Promise<void> {
+		const seasonNum = /^S(\d+)$/i.exec(seasonKey)?.[1];
+		if (!seasonNum) {
+			new Notice(`Couldn't parse a season number from "${seasonKey}".`);
+			return;
+		}
+		const padded = seasonNum.padStart(2, "0");
+		try {
+			const result = await ensureSeasonProject(
+				this.plugin,
+				data.project,
+				padded,
+			);
+			if (result.created) {
+				new Notice(`Created S${padded} as a season project.`);
+			} else {
+				new Notice(`S${padded} already has a season project.`);
+			}
+			await this.refresh();
+		} catch (e) {
+			new Notice(`Couldn't create season: ${(e as Error).message}`);
+		}
 	}
 
 	// ── sections ────────────────────────────────────────────────────────────

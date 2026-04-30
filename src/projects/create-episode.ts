@@ -6,6 +6,7 @@ import { resolveProjectSettings } from "../settings/resolve";
 import { sanitizeFilename } from "../utils/sanitize";
 import { yamlString } from "../utils/yaml";
 import { activateProjectHomeView } from "../views/project-home-view";
+import { ensureSeasonProject } from "./create-season";
 
 // "Create episode" — adds a new episode to the active series project.
 // Prompts for episode code (e.g. S01E01), title, and any other tokens
@@ -277,6 +278,22 @@ class CreateEpisodeModal extends Modal {
 			return;
 		}
 
+		// Series-context flow: if the season folder doesn't have an Index
+		// (orphan or first-time), scaffold the Season project so the new
+		// episode lives inside a proper season — breadcrumbs, "Open" links,
+		// and Make episodes from season outline all light up automatically.
+		// No-op if the season already exists; never fires in season context
+		// since the season is, by definition, already a project.
+		let seasonAutoCreated = false;
+		if (!this.hasSeasonContext && this.series) {
+			const result = await ensureSeasonProject(
+				this.plugin,
+				this.series,
+				seasonNum,
+			);
+			seasonAutoCreated = result.created;
+		}
+
 		const seriesTitle = this.inferSeriesTitle();
 		try {
 			const treatmentFile = await scaffoldEpisode(
@@ -291,7 +308,11 @@ class CreateEpisodeModal extends Modal {
 			this.close();
 			await this.plugin.app.workspace.getLeaf(false).openFile(treatmentFile);
 			void activateProjectHomeView(this.plugin);
-			new Notice(`Created episode "${ep} — ${title}".`);
+			new Notice(
+				seasonAutoCreated
+					? `Created episode "${ep} — ${title}". Also scaffolded S${seasonNum} as a season project.`
+					: `Created episode "${ep} — ${title}".`,
+			);
 		} catch (e) {
 			new Notice(`Create failed: ${(e as Error).message}`);
 		}

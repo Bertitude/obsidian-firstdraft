@@ -182,7 +182,57 @@ function normalizeSeasonNumber(input: string): string | null {
 	return String(n).padStart(2, "0");
 }
 
-async function scaffoldSeason(
+// Idempotent helper: scaffold a Season project under the series for the
+// given season number if one doesn't already exist. Used by Create season
+// (interactive), Create episode (auto-fill on first episode in a new
+// season folder), and the Series Home inline "Create" affordance.
+//
+// Returns the existing OR newly-created Season Outline TFile so callers
+// can decide whether to open it. Title defaults to "Season N" when not
+// supplied. Safe to call when the season folder already has an Index.md
+// — it'll detect that and short-circuit.
+export async function ensureSeasonProject(
+	plugin: FirstDraftPlugin,
+	series: ProjectMeta,
+	seasonNum: string,
+	title?: string,
+): Promise<{ created: boolean; outlineFile: TFile | null; indexPath: string }> {
+	const cfg = resolveProjectSettings(series, plugin.settings);
+	const folderName = `S${seasonNum}`;
+	const seasonPath = normalizePath(
+		`${series.projectRootPath}/${cfg.seasonsFolder}/${folderName}`,
+	);
+	const indexPath = normalizePath(`${seasonPath}/Index.md`);
+	const existingIndex = plugin.app.vault.getAbstractFileByPath(indexPath);
+	if (existingIndex instanceof TFile) {
+		const outlinePath = normalizePath(
+			`${seasonPath}/${cfg.developmentFolder}/Season Outline.md`,
+		);
+		const outline = plugin.app.vault.getAbstractFileByPath(outlinePath);
+		return {
+			created: false,
+			outlineFile: outline instanceof TFile ? outline : null,
+			indexPath,
+		};
+	}
+	const finalTitle = title?.trim() || `Season ${parseInt(seasonNum, 10)}`;
+	const outlineFile = await scaffoldSeason(
+		plugin.app,
+		seasonPath,
+		seasonNum,
+		finalTitle,
+		series,
+		cfg,
+	);
+	// Nudge the scanner so the new project appears in scanner.projects right
+	// away — the metadata-cache event would catch it eventually, but callers
+	// often want to operate on the season meta in the same tick.
+	const indexFile = plugin.app.vault.getAbstractFileByPath(indexPath);
+	if (indexFile instanceof TFile) plugin.scanner.updateFile(indexFile);
+	return { created: true, outlineFile, indexPath };
+}
+
+export async function scaffoldSeason(
 	app: App,
 	seasonPath: string,
 	seasonNum: string,

@@ -946,15 +946,20 @@ body.firstdraft-active .workspace-split.mod-left-split .workspace-tab-header-con
 	font-size: var(--font-ui-smaller);
 	color: var(--text-faint);
 }
-.firstdraft-home-season-open {
+.firstdraft-home-season-open,
+.firstdraft-home-season-create {
 	margin-left: auto;
 	font-size: var(--font-ui-smaller);
 	color: var(--text-muted);
 	text-decoration: none;
 }
-.firstdraft-home-season-open:hover {
+.firstdraft-home-season-open:hover,
+.firstdraft-home-season-create:hover {
 	color: var(--text-accent);
 	text-decoration: underline;
+}
+.firstdraft-home-season-create {
+	color: var(--text-accent);
 }
 
 /* Role-grouped collapsible inside Characters / Locations sections.
