@@ -128,5 +128,6 @@ export const DEFAULT_SETTINGS: FirstDraftSettings = {
 		filenameReplacementChar: "_",
 		fountainPlugin: "auto",
 		fountainFileFormat: "fountain",
+		lastSeenVersion: null,
 	},
 };

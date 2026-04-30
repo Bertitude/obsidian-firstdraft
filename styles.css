@@ -1263,3 +1263,67 @@ body.firstdraft-active .workspace-split.mod-left-split .workspace-tab-header-con
 .firstdraft-alias-audit-link:hover {
 	text-decoration: underline;
 }
+
+/* Welcome / what's-new onboarding modals. Compact bullet layout, no
+   custom typography — let the theme drive everything except the per-
+   release version tag (which gets a small chip-like accent). */
+.firstdraft-welcome-tagline,
+.firstdraft-whatsnew-empty {
+	color: var(--text-muted);
+	font-size: var(--font-ui-small);
+}
+.firstdraft-welcome-section {
+	margin-top: var(--size-4-3);
+	margin-bottom: var(--size-2-2);
+}
+.firstdraft-welcome-list,
+.firstdraft-whatsnew-list {
+	margin: 0 0 var(--size-2-3) 0;
+	padding-left: var(--size-4-4);
+}
+.firstdraft-welcome-list li,
+.firstdraft-whatsnew-list li {
+	margin-bottom: var(--size-2-1);
+}
+.firstdraft-welcome-help,
+.firstdraft-welcome-more {
+	color: var(--text-muted);
+	font-size: var(--font-ui-smaller);
+	margin-top: var(--size-2-2);
+}
+.firstdraft-welcome-link {
+	color: var(--text-accent);
+}
+.firstdraft-welcome-version,
+.firstdraft-whatsnew-version {
+	color: var(--text-faint);
+	font-size: var(--font-ui-smaller);
+	text-align: right;
+	margin-top: var(--size-2-2);
+}
+.firstdraft-whatsnew-release {
+	margin-bottom: var(--size-4-2);
+}
+.firstdraft-whatsnew-release-head {
+	margin-top: var(--size-2-2);
+	margin-bottom: var(--size-2-1);
+	font-size: var(--font-ui-medium);
+}
+.firstdraft-whatsnew-version-tag {
+	display: inline-block;
+	padding: 1px var(--size-2-2);
+	border-radius: var(--radius-s);
+	background: var(--background-modifier-hover);
+	color: var(--text-normal);
+	font-family: var(--font-monospace);
+	font-size: var(--font-ui-smaller);
+	margin-right: var(--size-2-2);
+}
+.firstdraft-whatsnew-release-title {
+	color: var(--text-normal);
+}
+.firstdraft-whatsnew-release-date {
+	color: var(--text-faint);
+	font-size: var(--font-ui-smaller);
+	font-weight: normal;
+}

@@ -3,6 +3,11 @@ import type { FirstDraftSettings } from "./types";
 import { DEFAULT_SETTINGS } from "./settings/defaults";
 import { mergeSettings } from "./settings/merge";
 import { normaliseDelimiterValue } from "./settings/slugline-delimiter";
+import {
+	maybeShowOnboardingModal,
+	showWelcomeManually,
+	showWhatsNewManually,
+} from "./onboarding/show-on-startup";
 import { FirstDraftSettingTab } from "./settings/settings-tab";
 import { ProjectScanner } from "./projects/scanner";
 import { registerEventHandlers } from "./events/register";
@@ -547,6 +552,18 @@ export default class FirstDraftPlugin extends Plugin {
 		});
 
 		this.addCommand({
+			id: "show-welcome",
+			name: "Show welcome",
+			callback: () => showWelcomeManually(this),
+		});
+
+		this.addCommand({
+			id: "show-whats-new",
+			name: "Show what's new",
+			callback: () => showWhatsNewManually(this),
+		});
+
+		this.addCommand({
 			id: "tag-selection-as-group",
 			name: "Tag selection as group…",
 			editorCallback: (editor) => {
@@ -660,6 +677,7 @@ export default class FirstDraftPlugin extends Plugin {
 			this.scanner.scanAll();
 			void this.dropOrphanedTvOverrides();
 			this.applyFountainPluginMode();
+			void maybeShowOnboardingModal(this);
 		});
 	}
 

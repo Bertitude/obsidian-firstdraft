@@ -33,6 +33,10 @@ export interface GlobalConfig {
 	filenameReplacementChar: string;
 	fountainPlugin: FountainPluginMode;
 	fountainFileFormat: FountainFileFormat;
+	// Last manifest version the user saw the welcome / what's-new modal for.
+	// null = never seen (fresh install → show welcome). Bumped to the
+	// current manifest version after the modal is dismissed.
+	lastSeenVersion: string | null;
 }
 
 export type FountainPluginMode = "auto" | "bgrundmann" | "chuangcaleb" | "other";
