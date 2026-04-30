@@ -7,6 +7,38 @@ A screenwriting companion for Obsidian. Pairs each fountain script file with a d
 <!-- credits / "what this is for" framing.                              -->
 <!-- ================================================================== -->
 
+Hi Everyone, Kaiel aka Bertitude here. 
+
+I started using Obsidian about 5 or so years ago because I found myself jumping from notes app to notes app and really was struggling to find one place where I could jot down the craziness that pops into my brain at 1am. I just wanted a clean place without too much fluff and most importantly I wanted something that could work offline and without some kind of subscription. Obsidian proved to be that for me. 
+
+The next struggle I had was really gathering those notes and making them useful while I was engaged in the writing process. Being... well me. I would write a note and entirely forget about it for years at a time in some cases. I would be trying to roundtrip between my notes, Word and FadeIn (my script writing software of choice) and would end up somewhere between confused and annoyed. Imagine this was just in development and writing. What would happen if I went to production on a large project and needed to gather all this.
+
+I decided to start trying to narrow that gap last year. My goal was to see how I could cobble together plugins to emulate what was missing from FadeIn and my workflow. To make my notes more useful and structure them in a way that suited both how I like to work and keep everything together enough to share with the rest of my creative and production teams when the time came.
+
+I came close-ish. However the gap remained. The notes remained locked in Obsidian and I would be bounding between two windows trying to keep track of where I was in the script and what notes are relevant. It still SUCKED.
+
+**Enter "The Robot"**
+
+Now people keep asking me. "How is AI going to change <insert whatever topic is related to Film/TV>?". It's a grating question but one I try to answer honestly. "It's not going to do whatever magic they are promising but it does have uses." This is one of those uses. As a lapsed computer science major I try to keep up and when smarter skeptics than me were confirming that the systems could produce solid code I got curious. I don't really want to write code but there are a lot of little gaps where a quick script or app could just solve my problem.
+
+My first test was a little plugin to allow me to post to my Github hosted blog directly from Obsidian... Success. A couple hours and braps. I can write to my heart's content. So the next logical thing was to solve this problem. I already had my projects scaffolded to some extent in my vault so it was a ripe test bed for this. I opened the robot's app and here we are. A whole plugin and I didn't need to lose sleep hunting through StackOverflow. 
+
+The goal of FirstDraft isn't really to replace other screenwriting software. You technically can so maybe one day. The goal is really just to help scatterbrained writers like me wrangle their ideas into something usable. To get us unstuck and to that "First Draft"(get it? That's why I earn the big bucks). Every idea, note reference at your finger tips without having to have 3 monitors and 7 notepads sprawled across your desk. 
+
+**What's Next?**
+
+Testing. Refining. Collaboration. 
+
+What better way is there for something to get better than putting it in front of an audience? I'm hoping more people use it and tell me how it can get better. Every writer has a different flow and we want this plugin to be as adaptable as obsidian itself.
+
+I'm also contemplating doing an inhouse fountain editor (did I mention I wanted this to be open standards) for the screenplay part of it. Once I put it through it's paces on my next 2 projects I'll make that call.
+
+The big target though is collaboration. I have planned out a collaboration feature that will meet writing teams where they are rather than forcing yet another subscription upon people. On Google Drive/OneDrive/Dropbox? It will just work. If you have any suggestions about this just let me know. 
+
+Before I wrap up I want you to know that I won't ever charge for this. It's a tool for me first and foremost but I don't think stuff like this needs some whole business model behind it. Maybe I'll put a donation link so you can contribute to my caffeine habit that lets me scheme up this stuff. 
+
+Much Love.
+Kaiel
 
 
 <!-- ================================================================== -->
