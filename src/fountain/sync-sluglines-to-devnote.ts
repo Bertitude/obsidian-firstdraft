@@ -6,20 +6,21 @@ import { sequencePairFromActive } from "../views/lookups";
 import { normalizeSlugline } from "../cursor-scroll/slugline";
 
 // Sync sluglines from fountain to dev note — the reverse of
-// sync-sluglines.ts. Reads sluglines from the active sequence's fountain
-// file (in document order), compares against `## SLUGLINE` H2 headings
-// already present in the paired dev note (normalized), and appends any
-// missing ones as H2 sections at the end of the dev note.
+// sync-sluglines.ts. Reads sluglines from the active sequence's fountain in
+// document order and slots any missing ones into the dev note's slugline
+// region so the dev-note ordering tracks the fountain.
 //
-// Symmetric in spirit with the dev-note → fountain command:
 //   - Manual / on-demand (not auto on save).
-//   - Strictly additive: never reorders, never removes, never modifies an
-//     existing slugline H2's prose.
-//   - Normalizes for comparison so case differences (`int. car - day` vs
-//     `INT. CAR - DAY`) don't produce duplicates.
-//
-// Each appended slugline gets an empty paragraph below the H2 so the user
-// can immediately start writing per-slugline notes.
+//   - Strictly additive: never reorders existing slug H2s, never modifies
+//     their prose, never touches structural H2s (Sequence Overview / Notes
+//     / Continuity / etc.).
+//   - Each missing slug is inserted at a clean H2 boundary — immediately
+//     BEFORE the H2 line of its fountain successor (the next slug in
+//     fountain order that already exists in the dev note). Trailing missing
+//     slugs (that come after every existing one) land at the end of the
+//     slug region — i.e. before the first structural H2, or EOF if there
+//     is none. This guarantees we never land between an existing slug and
+//     the prose written under it.
 
 const H2_RE = /^##\s+(.+?)\s*$/;
 const SLUGLINE_RE = /^(INT|EXT|INT\.\/EXT|I\/E)[.\s]/i;
@@ -66,28 +67,23 @@ export async function runSyncSluglinesToDevNoteCommand(
 	}
 
 	const devNoteText = await plugin.app.vault.read(pair.devNoteFile);
-	const existingKeys = collectDevNoteSluglineKeys(devNoteText);
+	const result = mergeSluglines(devNoteText, fountainSluglines);
 
-	const missing = fountainSluglines.filter(
-		(s) => !existingKeys.has(normalizeSlugline(s)),
-	);
-	if (missing.length === 0) {
+	if (result.added === 0) {
 		new Notice("Dev note already has all sluglines from the fountain.");
 		return;
 	}
 
-	const appended = appendH2Sluglines(devNoteText, missing);
-	await plugin.app.vault.modify(pair.devNoteFile, appended);
+	await plugin.app.vault.modify(pair.devNoteFile, result.text);
 	new Notice(
-		`Added ${missing.length} slugline${missing.length === 1 ? "" : "s"} to dev note.`,
+		`Added ${result.added} slugline${result.added === 1 ? "" : "s"} to dev note.`,
 	);
 }
 
 function extractFountainSluglines(fountainText: string): string[] {
-	// Mirrors the slugline detection used elsewhere — accepts the four
-	// standard prefixes and forced sluglines (".LIMBO" → "LIMBO"). Returned
-	// strings are the verbatim slugline (forced ones with the leading dot
-	// stripped, since that's the H2 form they should land as).
+	// Mirrors slugline detection elsewhere — accepts the four standard
+	// prefixes and forced sluglines (".LIMBO" → "LIMBO"). Forced sluglines
+	// shed the leading dot so they round-trip as plain H2s in the dev note.
 	const out: string[] = [];
 	for (const raw of fountainText.split(/\r?\n/)) {
 		const line = raw.trim();
@@ -101,26 +97,113 @@ function extractFountainSluglines(fountainText: string): string[] {
 	return out;
 }
 
-function collectDevNoteSluglineKeys(noteText: string): Set<string> {
-	const keys = new Set<string>();
-	for (const raw of noteText.split(/\r?\n/)) {
-		const m = H2_RE.exec(raw);
-		if (!m || !m[1]) continue;
-		const heading = m[1].trim();
-		if (!SLUGLINE_RE.test(heading) && !heading.startsWith(".")) continue;
-		const normalised = heading.startsWith(".") ? heading.slice(1).trim() : heading;
-		keys.add(normalizeSlugline(normalised));
-	}
-	return keys;
+function isSluglineHeading(heading: string): boolean {
+	const h = heading.startsWith(".") ? heading.slice(1).trim() : heading;
+	return SLUGLINE_RE.test(h);
 }
 
-function appendH2Sluglines(noteText: string, sluglines: string[]): string {
-	// Each new slugline gets its own H2 with a trailing blank line so the
-	// user can immediately write under it. Inserted at the END of the dev
-	// note — preserves any existing structure (Sequence Overview, Notes,
-	// Continuity sections) above.
-	const trimmed = noteText.replace(/\s+$/, "");
-	const block = sluglines.map((s) => `## ${s}\n\n`).join("");
-	const separator = trimmed === "" ? "" : "\n\n";
-	return `${trimmed}${separator}${block}`;
+interface MergeResult {
+	text: string;
+	added: number;
+}
+
+export function mergeSluglines(
+	devNoteText: string,
+	fountainSluglines: string[],
+): MergeResult {
+	// Trim trailing whitespace so a sole-EOF append doesn't produce a
+	// double blank line. We re-add a single trailing newline at the end.
+	const trimmed = devNoteText.replace(/\s+$/, "");
+	const lines = trimmed === "" ? [] : trimmed.split(/\r?\n/);
+
+	// Map every H2 line to its kind. We consider an H2 "structural" when
+	// it doesn't look like a slug — i.e. headings like "Sequence Overview",
+	// "Notes", "Continuity". Existing slug H2s are anchors that fountain-
+	// missing slugs may cluster against.
+	const slugIndexByKey = new Map<string, number>(); // normalized → line index of H2
+	const structuralH2Lines: number[] = [];
+	const slugH2Lines: number[] = [];
+	for (let i = 0; i < lines.length; i++) {
+		const m = H2_RE.exec(lines[i] ?? "");
+		if (!m || !m[1]) continue;
+		const heading = m[1].trim();
+		if (isSluglineHeading(heading)) {
+			const key = normalizeSlugline(heading);
+			if (!slugIndexByKey.has(key)) slugIndexByKey.set(key, i);
+			slugH2Lines.push(i);
+		} else {
+			structuralH2Lines.push(i);
+		}
+	}
+
+	// Where do trailing missing slugs go? Right before the first structural
+	// H2 that comes AFTER the last existing slug, OR before the first
+	// structural H2 if there are no existing slugs, OR EOF.
+	const lastSlugLine = slugH2Lines.length > 0
+		? slugH2Lines[slugH2Lines.length - 1]!
+		: -1;
+	const trailingAnchor = (() => {
+		const after = structuralH2Lines.find((i) => i > lastSlugLine);
+		if (after !== undefined) return after;
+		return lines.length; // EOF
+	})();
+
+	// Walk fountain order. For each missing slug, find its successor that
+	// exists in the dev note. The insertion line for that slug is the
+	// successor's H2 line (insert BEFORE), or the trailing anchor if no
+	// existing successor. Missing slugs grouped by insertion line keep
+	// fountain order within the group.
+	const insertionsByLine = new Map<number, string[]>();
+	let added = 0;
+
+	for (let i = 0; i < fountainSluglines.length; i++) {
+		const slug = fountainSluglines[i]!;
+		if (slugIndexByKey.has(normalizeSlugline(slug))) continue;
+
+		let successorLine: number | null = null;
+		for (let j = i + 1; j < fountainSluglines.length; j++) {
+			const candidate = slugIndexByKey.get(
+				normalizeSlugline(fountainSluglines[j]!),
+			);
+			if (candidate !== undefined) {
+				successorLine = candidate;
+				break;
+			}
+		}
+
+		const insertAt = successorLine ?? trailingAnchor;
+		const bucket = insertionsByLine.get(insertAt) ?? [];
+		bucket.push(slug);
+		insertionsByLine.set(insertAt, bucket);
+		added++;
+	}
+
+	if (added === 0) return { text: devNoteText, added: 0 };
+
+	// Materialise. Walk the original lines, emitting any insertion block
+	// before the matching line index. A block is `## SLUG` followed by a
+	// blank line; multiple blocks at the same anchor stack in fountain order.
+	// At EOF we emit any remaining block. We also ensure there's a clean
+	// blank-line separator between the trailing block and whatever preceded
+	// it, since the original document might end without one.
+	const out: string[] = [];
+	for (let i = 0; i <= lines.length; i++) {
+		const block = insertionsByLine.get(i);
+		if (block) {
+			if (i === lines.length) {
+				// Trailing append at EOF — make sure we don't glue onto
+				// content. The original document ends with `lines[length-1]`;
+				// if that line is non-empty, separate with a blank line.
+				const last = out[out.length - 1] ?? "";
+				if (out.length > 0 && last !== "") out.push("");
+			}
+			for (const slug of block) {
+				out.push(`## ${slug}`);
+				out.push("");
+			}
+		}
+		if (i < lines.length) out.push(lines[i]!);
+	}
+
+	return { text: out.join("\n"), added };
 }

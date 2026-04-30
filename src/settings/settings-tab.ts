@@ -9,6 +9,7 @@ import {
 import { describeMode, resolveFountainMode } from "../fountain/plugin-mode";
 import { applyBodyClasses } from "../firstdraft-mode/toggle";
 import { FolderSuggest } from "../utils/folder-suggest";
+import { SLUGLINE_DELIMITER_PRESETS } from "./slugline-delimiter";
 
 export class FirstDraftSettingTab extends PluginSettingTab {
 	plugin: FirstDraftPlugin;
@@ -298,22 +299,17 @@ export class FirstDraftSettingTab extends PluginSettingTab {
 		new Setting(containerEl)
 			.setName("Slug-line sub-location delimiter")
 			.setDesc(
-				'Inserted between PRIMARY and SUB-LOCATION in slug-line autocomplete (e.g. "SMITH HOUSE, BEDROOM"). Default ", " — change to " - ", " — ", or whatever your script convention uses. Whitespace is preserved as-is.',
+				'Inserted between PRIMARY and SUB-LOCATION in slug-line autocomplete (e.g. "SMITH HOUSE, BEDROOM"). Spacing is included automatically — pick the punctuation that matches your script convention.',
 			)
-			.addText((t) =>
-				t
-					.setPlaceholder(DEFAULT_SETTINGS.global.sluglineSubLocationDelimiter)
-					.setValue(g.sluglineSubLocationDelimiter)
-					.onChange(async (v) => {
-						// Empty string falls back to the default. Don't trim
-						// since the delimiter is meaningful whitespace.
-						g.sluglineSubLocationDelimiter =
-							v.length > 0
-								? v
-								: DEFAULT_SETTINGS.global.sluglineSubLocationDelimiter;
-						await this.save();
-					}),
-			);
+			.addDropdown((d) => {
+				for (const preset of SLUGLINE_DELIMITER_PRESETS) {
+					d.addOption(preset.value, preset.label);
+				}
+				d.setValue(g.sluglineSubLocationDelimiter).onChange(async (v) => {
+					g.sluglineSubLocationDelimiter = v;
+					await this.save();
+				});
+			});
 	}
 
 	private renderTemplates(): void {
