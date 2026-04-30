@@ -42,6 +42,7 @@ import {
 	runRestoreFromSnapshotCommand,
 } from "./versioning/snapshot-commands";
 import { CharacterCueSuggest } from "./autocomplete/character-suggest";
+import { SluglineSuggest } from "./autocomplete/slugline-suggest";
 import {
 	runCreateCharacterCommand,
 	runCreateCharacterFromSelection,
@@ -127,6 +128,7 @@ export default class FirstDraftPlugin extends Plugin {
 			(leaf) => new ProjectNotesView(leaf, this),
 		);
 		this.registerEditorSuggest(new CharacterCueSuggest(this));
+		this.registerEditorSuggest(new SluglineSuggest(this));
 		this.addSettingTab(new FirstDraftSettingTab(this.app, this));
 		registerEventHandlers(this);
 		installCursorScrollHandler(this);

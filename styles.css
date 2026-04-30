@@ -490,6 +490,23 @@
 	color: var(--text-faint);
 }
 
+/* ── slugline autocomplete (location + time-of-day stages) ─────────── */
+.firstdraft-slugline-suggestion {
+	font-family: var(--font-monospace);
+}
+
+.firstdraft-slugline-suggestion-create {
+	font-family: inherit;
+	color: var(--text-muted);
+	font-style: italic;
+}
+
+.firstdraft-slugline-suggestion-meta {
+	font-size: var(--font-ui-smaller);
+	color: var(--text-faint);
+	font-family: inherit;
+}
+
 /* ── conflict suffix modal ─────────────────────────────────────────── */
 
 .firstdraft-conflict-buttons {
