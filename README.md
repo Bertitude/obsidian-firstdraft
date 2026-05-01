@@ -74,7 +74,7 @@ FirstDraft works best alongside two community plugins. Both are optional but mos
 | Plugin | What it does | Why it matters |
 | --- | --- | --- |
 | [**Fountain Editor**](https://github.com/chuangcaleb/obsidian-fountain-editor) (chuangcaleb) | Renders `.fountain.md` files with a proper screenplay editor. | FirstDraft's autocomplete (character cues, slug-lines) fires inside this editor. The default file format expects `.fountain.md`. |
-| [**Longform**](https://github.com/kevboh/longform) | Compiles a project's scene files into a single manuscript. | FirstDraft writes its sequence list into the Longform-compatible `firstdraft:` / `longform:` frontmatter block, so Longform's compile picks up everything automatically. |
+
 
 > **Note on file format.** FirstDraft uses `.fountain.md` (the chuangcaleb convention) by default. Plain `.fountain` works too but Longform's compile only sees `.md` files, so you lose compile if you go that route. If you have an existing project on `.fountain`, run **"Migrate project to .fountain.md"** from the command palette to convert in place.
 
