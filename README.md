@@ -47,6 +47,8 @@ Kaiel
 
 ## Installation
 
+INSTALL [OBSIDIAN!](https://obsidian.md/download)
+
 FirstDraft isn't on the Obsidian Community Plugins list yet. Two ways to install:
 
 ### Option A — BRAT (recommended)
